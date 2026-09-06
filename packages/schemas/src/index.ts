@@ -1,14 +1,15 @@
-import { z } from 'zod';
-
 /**
  * Schemas shared by the API and the web app. This package is the single definition of a
  * request or response shape, so a contract change breaks the typecheck on both sides at once.
  * It depends on Zod and nothing else, see .dependency-cruiser.cjs.
  *
- * The entity schemas arrive with the domain model story. Only the id primitive lives here now.
+ *   primitives.ts  ids, dates, timestamps and the closed unions
+ *   entities.ts    the persisted shape of each entity
+ *   api.ts         what crosses the wire, and the grams to kilograms conversion
+ *
+ * Shape and context free validation only. Invariants that need to look at anything beyond the
+ * object in front of them live in api/src/domain/, which is server side and can load history.
  */
-
-/** Every user owned row is keyed by a UUIDv7, so ids sort by creation time. */
-export const idSchema = z.uuidv7();
-
-export type Id = z.infer<typeof idSchema>;
+export * from './primitives.js';
+export * from './entities.js';
+export * from './api.js';
