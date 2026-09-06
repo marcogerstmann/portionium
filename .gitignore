@@ -1,0 +1,43 @@
+# Secrets and local config
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Dependencies and build output
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+coverage/
+
+# SQLite and runtime data
+# The -wal and -shm sidecars change on every write, ignoring only *.db is not enough.
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite-journal
+data/
+backups/
+
+# Generated artefacts
+# The committed OpenAPI snapshot is deliberately not ignored, keep the spec, drop the codegen.
+api/src/generated/
+android/app/build/generated/
+
+# Editor and OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.DS_Store
+Thumbs.db
+*.swp
+
+# Logs and temp
+*.log
+logs/
+tmp/
+.cache/

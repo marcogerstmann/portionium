@@ -1,0 +1,10 @@
+* text=auto eol=lf
+
+pnpm-lock.yaml linguist-generated -diff
+api/drizzle/** linguist-generated
+
+*.png binary
+*.jpg binary
+*.webp binary
+*.jar binary
+*.keystore binary

@@ -1,0 +1,12 @@
+# Listed explicitly, not as a glob, so android/ and any future non-JS folder
+# are never picked up by accident.
+packages:
+  - api
+
+# Exact versions in every package.json, the lockfile is committed.
+# pnpm 11 and newer read this here rather than from .npmrc.
+savePrefix: ''
+
+# Postinstall scripts are blocked by default, each one is an opt in decision.
+allowBuilds:
+  esbuild: true
