@@ -34,7 +34,8 @@ jobs:
       # A green depcruise that cruised nothing enforces nothing. Fail loudly instead.
       - name: Assert dependency-cruiser actually saw the sources
         run: |
-          modules=$(pnpm exec depcruise api/src --config .dependency-cruiser.cjs \
+          modules=$(pnpm exec depcruise api/src packages/schemas/src web/src \
+            --config .dependency-cruiser.cjs \
             --output-type json | node -e \
             'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).summary.totalCruised))')
           echo "modules cruised: $modules"

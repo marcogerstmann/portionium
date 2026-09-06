@@ -10,9 +10,10 @@ Node comes from `.nvmrc`, pnpm from the `packageManager` field via Corepack (`co
 pnpm install
 cp .env.example .env
 pnpm dev                    # api in watch mode
-pnpm build                  # tsc to api/dist
-pnpm test                   # vitest
-pnpm typecheck              # tsc --noEmit
+pnpm dev:web                # web on the Vite dev server, http://localhost:5173
+pnpm build                  # every workspace, tsc for api and schemas, Vite for web
+pnpm test                   # vitest, every workspace
+pnpm typecheck              # tsc --noEmit, every workspace
 pnpm lint                   # eslint + prettier --check
 pnpm depcruise              # layering rules
 pnpm format                 # prettier --write
@@ -20,22 +21,34 @@ pnpm format                 # prettier --write
 
 ## Layout
 
+Three pnpm workspaces, `api`, `web` and `packages/*`.
+
 ```
-api/            @portionium/api, the only pnpm workspace package
-  src/domain/   entities, services, pure logic, no framework imports
-  src/db/       Drizzle schema, migrations, repositories
-  src/http/     Fastify app, plugins, routes
-  src/mcp/      MCP adapter over the domain services
-  test/         integration tests that need a database
-  drizzle/      generated migration files, committed
-android/        Gradle project, not a pnpm workspace
-docs/adr/       architecture decision records
-docs/evals/     prompt golden sets and eval results, committed
+api/                @portionium/api, Fastify server and MCP adapter
+  src/domain/       entities, services, pure logic, no framework imports
+  src/db/           Drizzle schema, migrations, repositories
+  src/http/         Fastify app, plugins, routes
+  src/mcp/          MCP adapter over the domain services
+  test/             integration tests that need a database
+  drizzle/          generated migration files, committed
+web/                @portionium/web, the PWA, Vite and React
+  src/              app code
+packages/schemas/   @portionium/schemas, Zod schemas shared by both apps
+docs/adr/           architecture decision records
+docs/evals/         prompt golden sets and eval results, committed
 ```
 
-Layering: `domain` imports nothing from `db`, `http`, `mcp` and no framework or database
-library. `db` may import `domain` and is the only place Drizzle appears. `http` and `mcp` may
-import `domain` and `db`, hold no business logic, and never import each other.
+`@portionium/schemas` is consumed over the `workspace:` protocol and its `exports` point at
+TypeScript source, not at build output. Vite compiles it for the browser, Node strips the types
+for the API, so there is no build step between editing a schema and both sides seeing it.
+
+Layering inside `api`: `domain` imports nothing from `db`, `http`, `mcp` and no framework or
+database library. `db` may import `domain` and is the only place Drizzle appears. `http` and
+`mcp` may import `domain` and `db`, hold no business logic, and never import each other.
+
+Layering between workspaces: `packages/schemas` imports Zod and nothing else, never anything
+from `api` or `web`. `web` may import `@portionium/schemas` and never anything from `api`, the
+two talk over HTTP. `api/src/domain` may import `@portionium/schemas`.
 [`.dependency-cruiser.cjs`](./.dependency-cruiser.cjs) is the source of truth and CI fails on
 violations.
 
@@ -44,8 +57,10 @@ violations.
 - Every user owned table carries `user_id`. Every repository read takes a `userId`. No exceptions.
 - IDs are UUIDv7. Timestamps are UTC. Local dates go through the one domain function for it.
 - Domain errors are typed. HTTP mapping happens in exactly one place.
-- ESM throughout. Relative imports carry explicit `.js` extensions, as NodeNext requires.
-  No path aliases, a relative path makes a layering violation visible in the import itself.
+- ESM throughout. In `api` and `packages/schemas`, relative imports carry explicit `.js`
+  extensions, as NodeNext requires. `web` resolves the way its bundler does
+  (`moduleResolution: Bundler`) and omits them. No path aliases in either, a relative path makes
+  a layering violation visible in the import itself.
 - Unit tests are `*.test.ts` next to the code. Tests that need a database live in `api/test/`.
 - Exact dependency versions, the lockfile is committed.
 

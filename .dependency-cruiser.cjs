@@ -1,13 +1,15 @@
 /**
- * Source of truth for the layering rules inside api/src.
+ * Source of truth for the layering rules across the three workspaces.
  * Run with `pnpm depcruise`. CI fails the build on any violation.
  *
- *   domain/  pure logic, imports nothing from db, http, mcp, and no framework
- *            or database library
- *   db/      may import domain, the only place Drizzle appears
- *   http/    may import domain and db, no business logic
- *   mcp/     may import domain and db, no business logic
+ *   packages/schemas  Zod schemas shared by both apps. Imports Zod and nothing else
+ *   api/src/domain/   pure logic, may import @portionium/schemas, nothing from db,
+ *                     http, mcp, and no framework or database library
+ *   api/src/db/       may import domain, the only place Drizzle appears
+ *   api/src/http/     may import domain and db, no business logic
+ *   api/src/mcp/      may import domain and db, no business logic
  *   http/ and mcp/ never import each other
+ *   web/              may import @portionium/schemas, never anything from api/
  */
 
 /**
@@ -31,6 +33,13 @@ const INFRASTRUCTURE = PKG(
 
 /** Never allowed outside db/. */
 const PERSISTENCE = PKG('drizzle-orm', 'drizzle-kit', 'better-sqlite3', 'libsql', '@libsql');
+
+/**
+ * pnpm links workspace packages into node_modules as symlinks. dependency-cruiser resolves
+ * through them, so an import of @portionium/schemas is reported as packages/schemas/src/...
+ * and the rules below match on that path rather than on the package name.
+ */
+const SCHEMAS = '^packages/schemas/';
 
 module.exports = {
   forbidden: [
@@ -78,6 +87,41 @@ module.exports = {
       to: { path: PERSISTENCE },
     },
     {
+      name: 'schemas-import-only-zod',
+      comment:
+        'packages/schemas is shared by the API and the web app, so it must stay loadable in both. ' +
+        'Anything beyond Zod drags a runtime into one of them. If a schema needs a helper, inline it. ' +
+        'Tests are exempt, they never ship.',
+      severity: 'error',
+      from: { path: SCHEMAS, pathNot: '\\.test\\.tsx?$' },
+      to: { path: 'node_modules/', pathNot: PKG('zod') },
+    },
+    {
+      name: 'schemas-import-nothing-from-the-apps',
+      comment:
+        'The shared package sits below both apps. An import pointing back up is a cycle waiting ' +
+        'to happen, and it would break whichever app does not have that file.',
+      severity: 'error',
+      from: { path: SCHEMAS },
+      to: { path: '^(api|web)/' },
+    },
+    {
+      name: 'web-does-not-import-api',
+      comment:
+        'The web app talks to the API over HTTP, never by importing its source. Everything the ' +
+        'two share is a schema, and a schema belongs in @portionium/schemas.',
+      severity: 'error',
+      from: { path: '^web/' },
+      to: { path: '^api/' },
+    },
+    {
+      name: 'api-does-not-import-web',
+      comment: 'The API knows nothing about the client. The dependency only ever points one way.',
+      severity: 'error',
+      from: { path: '^api/' },
+      to: { path: '^web/' },
+    },
+    {
       name: 'no-circular',
       comment: 'A cycle means the module boundary is in the wrong place.',
       severity: 'error',
@@ -97,8 +141,8 @@ module.exports = {
       name: 'src-does-not-import-tests',
       comment: 'Production code must not depend on test helpers.',
       severity: 'error',
-      from: { path: '^api/src/', pathNot: '\\.test\\.ts$' },
-      to: { path: '(\\.test\\.ts$|^api/test/)' },
+      from: { path: '^(api/src|packages/schemas/src|web/src)/', pathNot: '\\.test\\.tsx?$' },
+      to: { path: '(\\.test\\.tsx?$|^api/test/)' },
     },
   ],
   options: {
@@ -107,7 +151,7 @@ module.exports = {
     enhancedResolveOptions: {
       exportsFields: ['exports'],
       conditionNames: ['import', 'node', 'default', 'types'],
-      extensions: ['.ts', '.js', '.json'],
+      extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
     },
     reporterOptions: {
       text: { highlightFocused: true },

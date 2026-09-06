@@ -25,7 +25,12 @@ backups/
 # Generated artefacts
 # The committed OpenAPI snapshot is deliberately not ignored, keep the spec, drop the codegen.
 api/src/generated/
-android/app/build/generated/
+
+# Web build and test output. Vite writes the dev service worker to dev-dist/,
+# Playwright writes the other two.
+web/dev-dist/
+web/test-results/
+web/playwright-report/
 
 # Editor and OS
 .idea/

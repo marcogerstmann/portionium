@@ -1,7 +1,9 @@
-# Listed explicitly, not as a glob, so android/ and any future non-JS folder
-# are never picked up by accident.
+# Listed explicitly for the two apps, plus a glob for shared libraries, so a stray
+# folder is never picked up as a workspace by accident.
 packages:
   - api
+  - web
+  - packages/*
 
 # Exact versions in every package.json, the lockfile is committed.
 # pnpm 11 and newer read this here rather than from .npmrc.

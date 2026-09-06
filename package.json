@@ -10,12 +10,13 @@
   "scripts": {
     "build": "pnpm -r build",
     "dev": "pnpm --filter @portionium/api dev",
+    "dev:web": "pnpm --filter @portionium/web dev",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
-    "depcruise": "depcruise api/src --config .dependency-cruiser.cjs",
-    "depcruise:graph": "depcruise api/src --config .dependency-cruiser.cjs --output-type dot"
+    "depcruise": "depcruise api/src packages/schemas/src web/src --config .dependency-cruiser.cjs",
+    "depcruise:graph": "depcruise api/src packages/schemas/src web/src --config .dependency-cruiser.cjs --output-type dot"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

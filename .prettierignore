@@ -3,4 +3,6 @@ dist/
 coverage/
 pnpm-lock.yaml
 api/drizzle/
-android/
+web/dev-dist/
+web/test-results/
+web/playwright-report/

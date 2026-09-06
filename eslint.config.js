@@ -5,7 +5,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['**/dist/', '**/coverage/', 'android/', 'api/drizzle/', 'api/src/generated/'],
+    ignores: ['**/dist/', '**/coverage/', 'web/dev-dist/', 'api/drizzle/', 'api/src/generated/'],
   },
 
   js.configs.recommended,
@@ -13,7 +13,7 @@ export default tseslint.config(
   // Type aware linting, TypeScript sources only. The project service is deliberately
   // scoped here so the config files at the repository root are never fed to it.
   {
-    files: ['**/*.ts'],
+    files: ['**/*.ts', '**/*.tsx'],
     extends: [tseslint.configs.recommendedTypeChecked],
     languageOptions: {
       globals: globals.node,
