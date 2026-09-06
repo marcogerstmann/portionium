@@ -64,6 +64,52 @@ violations.
 - Unit tests are `*.test.ts` next to the code. Tests that need a database live in `api/test/`.
 - Exact dependency versions, the lockfile is committed.
 
+## Database
+
+One SQLite file is the whole persistence layer, opened in exactly one place,
+[`api/src/db/client.ts`](./api/src/db/client.ts). Why SQLite and not PostgreSQL, and what would
+make us change our minds, is [ADR 001](./docs/adr/001-sqlite-over-postgresql.md).
+
+Every table spreads `baseColumns` from [`api/src/db/schema/base.ts`](./api/src/db/schema/base.ts),
+which supplies `id` (UUIDv7), `created_at`, `updated_at` and `deleted_at`. Schema files live in
+`api/src/db/schema/`, one per table.
+
+### Changing the schema
+
+```sh
+pnpm --filter @portionium/api db:generate add_meal_table
+```
+
+Edit the schema file, then generate. The name is not optional and it is not decoration: the
+script ends in `--name`, so the argument is appended to it and drizzle-kit exits with an error if
+you leave it out. Without it you get `0007_flowery_micromacro.sql` and nobody reviewing the diff
+in a year can tell what it did. Use `snake_case`, describe the change, not the ticket.
+
+Generated SQL goes to `api/drizzle/`, is committed, and is applied by `openDatabase()` at startup
+rather than by a separate deploy step. Drizzle records what it has applied, so booting twice
+applies nothing twice.
+
+A migration that has been applied anywhere is frozen. Never edit it, never renumber it, never
+delete it. Fix it forward with a new migration.
+
+### Rolling back
+
+There are no down migrations. Drizzle does not generate them and hand written ones rot, because
+the reverse of a destructive change is not derivable from the change itself. The recovery path is
+to **restore the database file from backup and redeploy the previous release**. SQLite makes that
+cheap: stop the process, copy `portionium.db` back into place along with its `-wal` and `-shm`
+sidecars, start the old version.
+
+This is why a migration that drops or rewrites data is worth a second pair of eyes, and why
+`strict` is on in `drizzle.config.ts`, so drizzle-kit asks before generating one.
+
+### Tests
+
+`createTestDatabase()` in [`api/test/helpers/database.ts`](./api/test/helpers/database.ts) gives a
+fresh migrated database in its own temp directory. `close()` drops the connection and the
+directory. It uses a file rather than `:memory:`, because WAL and the busy timeout only mean
+anything for a real file.
+
 ## Writing changes
 
 - One pull request per story, conventional commit messages, tests accompany every behaviour change.

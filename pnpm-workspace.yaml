@@ -12,3 +12,5 @@ savePrefix: ''
 # Postinstall scripts are blocked by default, each one is an opt in decision.
 allowBuilds:
   esbuild: true
+  # Native module. Downloads a prebuilt binary for the platform, falls back to compiling.
+  better-sqlite3: true

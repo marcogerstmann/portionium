@@ -8,6 +8,7 @@ describe('parseConfig', () => {
       NODE_ENV: 'development',
       PORT: 3000,
       LOG_LEVEL: 'info',
+      DATABASE_PATH: './data/portionium.db',
     });
   });
 
