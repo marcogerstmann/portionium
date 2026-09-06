@@ -6,6 +6,14 @@
     "tsBuildInfoFile": "dist/.tsbuildinfo",
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "test/**/*.ts", "drizzle.config.ts"],
-  "references": [{ "path": "../packages/schemas/tsconfig.build.json" }]
+  // Deliberately no project reference to packages/schemas. A reference makes TypeScript
+  // resolve @portionium/schemas to its declaration output instead of its source, so a clean
+  // checkout fails with TS6305 until that package has been built, which is the one thing the
+  // schemas package is set up to avoid: its exports point at src/index.ts precisely so there
+  // is no build step between editing a schema and both sides seeing it.
+  //
+  // tsconfig.build.json does carry the reference, because emitting is the case where the
+  // distinction matters: without it, tsc pulls the schemas sources into this program as
+  // inputs and they land outside rootDir. `pnpm -r build` builds the dependency first.
+  "include": ["src/**/*.ts", "test/**/*.ts", "drizzle.config.ts"]
 }
