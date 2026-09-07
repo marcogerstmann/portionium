@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   categorySchema,
   classificationSourceSchema,
+  dayBoundaryHourSchema,
   foodKindSchema,
   idSchema,
   localDateSchema,
@@ -29,6 +30,8 @@ export const userSchema = z.object({
   role: userRoleSchema,
   /** Drives every local date this user's rows are stamped with. */
   timezone: timezoneSchema,
+  /** The local hour this user's day rolls over at. Applied with `timezone`, never alone. */
+  dayBoundaryHour: dayBoundaryHourSchema,
   createdAt: timestampSchema,
 });
 

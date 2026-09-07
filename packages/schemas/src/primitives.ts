@@ -43,6 +43,19 @@ export const timezoneSchema = z.string().refine(
 export type Timezone = z.infer<typeof timezoneSchema>;
 
 /**
+ * The local hour a user's day starts at, 0 to 23. Four means a meal logged at 01:00 counts
+ * towards the day before, which is how people describe a late evening and not how a clock
+ * describes it.
+ *
+ * Four rather than three or five because it clears the small hours without reaching breakfast,
+ * see docs/adr/002-local-day-boundaries.md. It is a column with a default and not a constant,
+ * because shift workers exist.
+ */
+export const dayBoundaryHourSchema = z.int().min(0).max(23);
+
+export const DEFAULT_DAY_BOUNDARY_HOUR = 4;
+
+/**
  * An instant. Accepts a Date, or the UTC ISO string a Date turns into once it has been through
  * JSON, and yields a Date either way. That is what lets one entity schema serve the server,
  * which holds Dates, and the browser, which receives strings.

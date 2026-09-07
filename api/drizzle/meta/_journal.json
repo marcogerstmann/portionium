@@ -8,6 +8,13 @@
       "when": 1788723575382,
       "tag": "0000_add_domain_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1788756483730,
+      "tag": "0001_add_day_boundary_hour",
+      "breakpoints": true
     }
   ]
 }

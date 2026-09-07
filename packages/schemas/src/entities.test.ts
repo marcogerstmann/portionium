@@ -18,6 +18,7 @@ const user = {
   displayName: 'Someone',
   role: 'user',
   timezone: 'Europe/Berlin',
+  dayBoundaryHour: 4,
   createdAt: new Date('2026-09-06T08:00:00.000Z'),
 };
 
@@ -54,6 +55,14 @@ describe('userSchema', () => {
 
   it('rejects a role outside the union', () => {
     expect(userSchema.safeParse({ ...user, role: 'superuser' }).success).toBe(false);
+  });
+
+  it('accepts any hour of the clock as a day boundary, and nothing else', () => {
+    expect(userSchema.safeParse({ ...user, dayBoundaryHour: 0 }).success).toBe(true);
+    expect(userSchema.safeParse({ ...user, dayBoundaryHour: 23 }).success).toBe(true);
+    expect(userSchema.safeParse({ ...user, dayBoundaryHour: 24 }).success).toBe(false);
+    expect(userSchema.safeParse({ ...user, dayBoundaryHour: -1 }).success).toBe(false);
+    expect(userSchema.safeParse({ ...user, dayBoundaryHour: 4.5 }).success).toBe(false);
   });
 });
 
