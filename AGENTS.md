@@ -112,7 +112,10 @@ anything for a real file.
 
 ## Writing changes
 
-- One pull request per story, conventional commit messages, tests accompany every behaviour change.
+- Work lands directly on `main`. There is one developer, so a pull request would be a review with
+  nobody to review it, and CI runs on every push to `main` regardless. Conventional commit
+  messages, tests accompany every behaviour change. Revisit when a second person joins, which is
+  the point at which a branch and a review stop being ceremony and start catching something.
 - Do not reference Jira keys in code comments or identifiers. Keys change, code should read on its
   own. Commit messages may name the story in words.
 - ADRs live in [`docs/adr/`](./docs/adr/). A story with an ADR criterion is not done until the ADR
