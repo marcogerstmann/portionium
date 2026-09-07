@@ -33,7 +33,16 @@ One function, `resolveLocalDate(instant, timezone, boundaryHour)` in
 a `YYYY-MM-DD` local date. It is the only place in the codebase where that conversion happens.
 
 Its result is written to a `local_date` column next to the instant at insert time. Aggregates
-group by that stored column and never convert at read time.
+group by that stored column and never convert at read time. `createMeal` in
+[`api/src/domain/meal.ts`](../../api/src/domain/meal.ts) derives it rather than accepting it, so
+`NewMeal` has no `localDate` field for an adapter to fill in and no meal can be stored carrying
+a day that contradicts its own instant.
+
+The conversion is done with the Temporal API, through `@js-temporal/polyfill` for now. Temporal
+is unflagged from Node 26, which reaches Active LTS on 2026-10-28, so the polyfill is a bridge
+of roughly seven weeks and not a lasting dependency. Removing it is deleting one import and
+adding `ESNext.Temporal` to `lib` in `tsconfig.base.json`. The code that uses it does not
+change, because it is the same API either way.
 
 The boundary hour is a per-user column, `user.day_boundary_hour`, defaulting to 4. An instant
 whose local wall clock hour is below the boundary belongs to the previous calendar day.
@@ -49,7 +58,12 @@ Easier:
   into the process and group them there.
 - One function to test, and DST is testable without a server, a clock or a fake timer. The test
   cases in [`local-date.test.ts`](../../api/src/domain/local-date.test.ts) are the real
-  deliverable of this decision.
+  deliverable of this decision. They are written as pairs of UTC instants straddling a
+  boundary, so they assert behaviour rather than implementation: the whole conversion was moved
+  from `Intl` to Temporal without a single one of them changing.
+- Temporal has no ambiguous cases in the direction this code goes. An instant maps to exactly
+  one wall clock, and calendar arithmetic happens on a zoneless date, so neither the 23 hour
+  day nor the 25 hour day needs handling.
 - The stored day is stable. A chart rendered today and the same chart rendered next year show
   the same bars, whatever has happened to the user's account in between.
 
@@ -57,7 +71,11 @@ Harder:
 
 - `local_date` is denormalised, so it can disagree with `logged_at` if anything ever writes it
   without going through `resolveLocalDate`. The mitigation is that there is exactly one place to
-  look, not a constraint the database can enforce.
+  look, not a constraint the database can enforce, and that the domain factory derives the value
+  rather than accepting one.
+- A dependency, until the Node 26 bump. It is pinned at `0.5.1`, which reads as young, but the
+  API it implements is a frozen standard rather than a vendor's design, so the version number is
+  about the packaging and not about churn.
 - A user who moves has a seam in their history, see below.
 - Correcting a genuinely wrong `local_date`, from a bug rather than from a move, needs a
   deliberate backfill migration. That is the intended cost. It makes rewriting history a thing
@@ -91,16 +109,29 @@ workers exist, and for them it is not close to right. The column costs one integ
 default and no signup question, so the default carries the common case and the column carries
 the rest.
 
-**A date library, luxon or date-fns-tz.** Rejected in favour of `Intl.DateTimeFormat` with a
-`timeZone`, which is ICU's IANA database and is the same mechanism `timezoneSchema` in
-`@portionium/schemas` already uses to validate zone names. The rule this is honouring is that
-timezone maths must not be done with `Date` offset arithmetic, which is what
-`getTimezoneOffset()` invites and what breaks across a transition. `Intl` resolves the offset
-for the instant before any arithmetic happens, so the rule is satisfied without a dependency
-that would wrap the same ICU calls. The one use of `Date` in the file is stepping a zoneless
-`YYYY-MM-DD` back by a day, which consults no offset at all.
+**`Intl.DateTimeFormat` with a `timeZone`, and no dependency at all.** Rejected, though it very
+nearly won. It is ICU's IANA database and it is the same mechanism `timezoneSchema` in
+`@portionium/schemas` already uses to validate zone names, so it honours the rule that matters,
+which is that timezone maths must never be done with `Date` offset arithmetic. What it cannot
+do is express the second half of the problem. Reading a wall clock out of a formatter means
+picking fields out of `formatToParts` by name and caching a formatter per zone, and stepping
+back a day then falls to `Date` arithmetic on a date string. Both work, both are code that
+exists only because the API is a formatter being used as a calendar.
+
+**Luxon, or date-fns-tz.** Rejected. Both are correct and either would have done. They lose to
+Temporal on one point: they are permanent dependencies, where Temporal is a temporary one.
+
+**A fixed offset stored per user, or `getTimezoneOffset()`.** Rejected, and recorded only so
+the reason is written down. An offset is a property of an instant, not of a zone. Berlin is
+`+01:00` in January and `+02:00` in July, so any offset read once and reused is wrong for part
+of the year, and wrong by exactly one day at the boundary rather than loudly.
 
 ## What would make us revisit this
+
+Node 26 reaching Active LTS on 2026-10-28, which is when the polyfill comes out. Check
+`typeof Temporal` on the actual deploy target before deleting it and not only on a laptop, there
+are Node 26 builds in the wild that still want `--harmony-temporal` despite being compiled with
+Temporal support.
 
 A feature that has to show history in the user's current zone rather than the zone they logged
 it in. Travel across zones within a single day, where per-trip zones rather than a per-account

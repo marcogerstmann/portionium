@@ -17,6 +17,7 @@
     "db:generate": "drizzle-kit generate --name"
   },
   "dependencies": {
+    "@js-temporal/polyfill": "0.5.1",
     "@portionium/schemas": "workspace:*",
     "better-sqlite3": "13.0.3",
     "drizzle-orm": "0.45.2",

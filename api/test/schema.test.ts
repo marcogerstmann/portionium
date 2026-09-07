@@ -66,6 +66,29 @@ describe('the entity tables', () => {
     expect((await seedUser()).role).toBe('user');
   });
 
+  it('defaults a new user to a 04:00 day boundary', async () => {
+    expect((await seedUser()).dayBoundaryHour).toBe(4);
+  });
+
+  it('derives a late night meal onto the previous day, through the stored default', async () => {
+    const user = await seedUser();
+    const food = await seedFood(user.id);
+
+    const { meal } = createMeal(
+      {
+        userId: user.id,
+        type: 'snack',
+        loggedAt: new Date('2026-09-06T23:00:00.000Z'), // 01:00 on the 7th in Berlin.
+        items: [{ foodId: food.id }],
+      },
+      user,
+    );
+
+    const [stored] = await database.db.insert(mealTable).values(meal).returning();
+
+    expect(stored!.localDate).toBe('2026-09-06');
+  });
+
   it('refuses a second account on one email address', async () => {
     await seedUser();
 
@@ -91,13 +114,17 @@ describe('the entity tables', () => {
       .values({ name: 'Blueberries', kind: 'ingredient', createdBy: user.id })
       .returning();
 
-    const { meal, items } = createMeal({
-      userId: user.id,
-      type: 'breakfast',
-      loggedAt: new Date('2026-09-06T06:30:00.000Z'),
-      localDate: '2026-09-06',
-      items: [{ foodId: porridge.id }, { foodId: berries[0]!.id }],
-    });
+    // The user row is the day context, so this also proves the column default reaches the
+    // derivation: nothing set day_boundary_hour, and 23:00 UTC still lands on the 6th.
+    const { meal, items } = createMeal(
+      {
+        userId: user.id,
+        type: 'breakfast',
+        loggedAt: new Date('2026-09-06T06:30:00.000Z'),
+        items: [{ foodId: porridge.id }, { foodId: berries[0]!.id }],
+      },
+      user,
+    );
 
     const [stored] = await database.db.insert(mealTable).values(meal).returning();
     await database.db
