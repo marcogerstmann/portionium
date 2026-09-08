@@ -67,6 +67,58 @@ violations.
 - Unit tests are `*.test.ts` next to the code. Tests that need a database live in `api/test/`.
 - Exact dependency versions, the lockfile is committed.
 
+## HTTP
+
+[`api/src/http/app.ts`](./api/src/http/app.ts) builds the Fastify instance. `buildApp()` returns
+a server that has not listened yet, so tests get the real application over `app.inject()` rather
+than a stub of it. [`api/src/index.ts`](./api/src/index.ts) is the only place that listens, and
+the only place that owns a lifecycle.
+
+### Writing a route
+
+A route declares Zod schemas and nothing else. `fastify-type-provider-zod` infers the handler's
+argument and return types from them, so the request and response shapes are written down once.
+[`api/src/http/routes/helloworld.ts`](./api/src/http/routes/helloworld.ts) is the worked example
+to copy from. It is a placeholder with no product meaning and it is meant to be deleted, along
+with this paragraph, once a real v1 endpoint has taken over its job.
+
+Declare a schema for whichever of `params`, `querystring` and `body` the route takes, and for
+every status it answers with. A response is serialized through its schema, so a handler that
+returns a field the contract does not have fails in the test suite rather than in a client.
+
+Request schemas are strict, both bodies and query strings. A property nobody declared is a
+renamed field or a client built against a different version, and answering 200 to it is how that
+mistake reaches production dressed as working code. In `@portionium/schemas` that means
+`z.strictObject` rather than `z.object`, and a test there holds every `*RequestSchema` to it.
+
+### Versioning
+
+`API_PREFIX` in `app.ts` is where `/api/v1` is written down. A future v2 is a second `register`
+call there, not an edit in every route file.
+
+Operational endpoints sit outside it. `GET /health` is unversioned because a version is a promise
+about a contract that can change, and there is no v2 of "is this process alive". Its caller is an
+orchestrator or an uptime monitor, configured once by someone who is not tracking API versions,
+so versioning it means either breaking their probe the day v2 ships or keeping `/api/v1/health`
+alive forever as a fossil. Anything a client negotiates over goes under the prefix.
+
+### OpenAPI
+
+The document is generated from the same schemas the routes are validated with and served at
+`GET /api/v1/openapi.json`. Swagger UI is at `/api/v1/docs`, behind `API_DOCS_ENABLED`.
+
+There is no hand written spec in this repository, and there will not be one. If the spec and the
+code can disagree, the spec is wrong by construction. `api/test/http/app.test.ts` validates the
+generated document against the OpenAPI 3.1 specification, so a schema that cannot be expressed as
+one fails CI on the commit that introduces it.
+
+### Shutdown
+
+`app.close()` is the whole of it: it stops the listener, drains the requests in flight and then
+runs the `onClose` hook that releases the database file. `index.ts` calls it on SIGTERM and
+SIGINT, once, so a second signal during a slow drain kills the process rather than starting a
+second shutdown.
+
 ## Database
 
 One SQLite file is the whole persistence layer, opened in exactly one place,

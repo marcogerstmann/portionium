@@ -16,17 +16,25 @@ import { mealTypeSchema, timestampSchema } from './primitives.js';
  *
  * Requests carry only what the caller supplies. Ids, timestamps and the owning user are the
  * server's to assign, so they are absent here by construction rather than by convention.
+ *
+ * Every request schema is strict. A property nobody declared is a mistake, a renamed field or
+ * a client built against a different version, and answering 200 to it is how that mistake
+ * reaches production dressed as working code. The test beside this file checks that every
+ * schema named `*RequestSchema` is strict, and api/test/http/app.test.ts checks that the
+ * HTTP layer turns the resulting issue into a 400 rather than a quiet 200.
  */
 
-export const createFoodRequestSchema = foodSchema.pick({
-  name: true,
-  kind: true,
-  energyDensity: true,
-});
+export const createFoodRequestSchema = foodSchema
+  .pick({
+    name: true,
+    kind: true,
+    energyDensity: true,
+  })
+  .strict();
 
 export type CreateFoodRequest = z.infer<typeof createFoodRequestSchema>;
 
-export const createMealRequestSchema = z.object({
+export const createMealRequestSchema = z.strictObject({
   type: mealTypeSchema,
   /** Absent means now. The server stamps it and derives the local date from it. */
   loggedAt: timestampSchema.optional(),
@@ -61,7 +69,7 @@ export type FoodResponse = z.infer<typeof foodResponseSchema>;
  * api/src/domain/weight.ts.
  */
 export const createWeightEntryRequestSchema = z
-  .object({
+  .strictObject({
     weightKg: z.number().positive().max(1000),
     /** Absent means now. */
     recordedAt: timestampSchema.optional(),

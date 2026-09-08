@@ -9,6 +9,13 @@ const configSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   DATABASE_PATH: z.string().min(1).default('./data/portionium.db'),
+  /**
+   * Serves the Swagger UI at /api/v1/docs. The generated spec at /api/v1/openapi.json is
+   * always served, it is the contract clients are built from. Only the browsable UI, which
+   * ships a few hundred kilobytes of assets and invites poking at a production API, is
+   * behind a switch.
+   */
+  API_DOCS_ENABLED: z.stringbool().default(true),
 });
 
 export type Config = z.infer<typeof configSchema>;

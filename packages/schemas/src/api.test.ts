@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import type { z } from 'zod';
 
+import * as schemas from './api.js';
 import {
   createMealRequestSchema,
   createWeightEntryRequestSchema,
@@ -30,14 +32,14 @@ describe('createMealRequestSchema', () => {
     expect(createMealRequestSchema.safeParse(request).success).toBe(false);
   });
 
-  it('does not accept a caller supplied user id, the session decides who is writing', () => {
-    const parsed = createMealRequestSchema.parse({
+  it('rejects a caller supplied user id rather than ignoring it, the session decides who is writing', () => {
+    const result = createMealRequestSchema.safeParse({
       type: 'lunch',
       items: [],
       userId: ID,
     });
 
-    expect(parsed).not.toHaveProperty('userId');
+    expect(result.success).toBe(false);
   });
 });
 
@@ -91,5 +93,28 @@ describe('the weight boundary', () => {
     const stored = createWeightEntryRequestSchema.parse({ weightKg: 82.4 }).weightGrams;
 
     expect(toWeightEntryResponse({ ...entry, weightGrams: stored }).weightKg).toBe(82.4);
+  });
+});
+
+describe('request schemas', () => {
+  /**
+   * Enumerated rather than listed, so the rule holds for schemas that do not exist yet. A new
+   * `*RequestSchema` built with `z.object` instead of `z.strictObject` fails here on the
+   * commit that adds it, which is cheaper than finding out from a client that a field it has
+   * been sending for a month was never read.
+   */
+  const requestSchemas = Object.entries<unknown>(schemas)
+    .filter(([name]) => name.endsWith('RequestSchema'))
+    .map(([name, schema]): [string, z.ZodType] => [name, schema as z.ZodType]);
+
+  it('finds the request schemas it is meant to be checking', () => {
+    expect(requestSchemas.length).toBeGreaterThan(0);
+  });
+
+  it.each(requestSchemas)('%s rejects a property it does not declare', (_name, schema) => {
+    const result = schema.safeParse({ notAProperty: 'x' });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.map((issue) => issue.code)).toContain('unrecognized_keys');
   });
 });

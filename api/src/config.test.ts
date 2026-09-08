@@ -9,6 +9,7 @@ describe('parseConfig', () => {
       PORT: 3000,
       LOG_LEVEL: 'info',
       DATABASE_PATH: './data/portionium.db',
+      API_DOCS_ENABLED: true,
     });
   });
 
