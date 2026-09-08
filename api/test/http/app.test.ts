@@ -125,7 +125,8 @@ describe('request validation', () => {
     });
 
     expect(response.statusCode).toBe(400);
-    expect(response.json<{ message: string }>().message).toContain('energyDensity');
+    // The shape of that 400 is RFC 9457 Problem Details, see test/http/problem.test.ts.
+    expect(response.json<{ type: string }>().type).toContain('validation-failed');
   });
 });
 

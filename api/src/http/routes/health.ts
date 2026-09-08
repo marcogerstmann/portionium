@@ -1,6 +1,8 @@
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
+import { problemResponses } from '../problem.js';
+
 /**
  * Liveness only. It answers "is this process serving HTTP", which is what a container
  * orchestrator restarts on. It deliberately does not touch the database: a readiness check
@@ -34,7 +36,7 @@ export const healthRoutes: FastifyPluginCallbackZod = (app, _options, done) => {
       schema: {
         summary: 'Liveness probe',
         querystring: healthQuerySchema,
-        response: { 200: healthResponseSchema },
+        response: { 200: healthResponseSchema, ...problemResponses },
       },
     },
     () => ({ status: 'ok' }) as const,

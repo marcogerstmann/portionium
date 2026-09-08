@@ -91,6 +91,37 @@ renamed field or a client built against a different version, and answering 200 t
 mistake reaches production dressed as working code. In `@portionium/schemas` that means
 `z.strictObject` rather than `z.object`, and a test there holds every `*RequestSchema` to it.
 
+### Errors
+
+Every non 2xx response is RFC 9457 Problem Details, served as `application/problem+json`. One
+shape, whoever raised the failure, so a client has one parser and one field to branch on.
+
+The wire shape and the list of problem types live in
+[`packages/schemas/src/problem.ts`](./packages/schemas/src/problem.ts), because `type` is what a
+client branches on and the two sides must narrow the same union. What each failure means over
+HTTP lives in [`api/src/http/problem.ts`](./api/src/http/problem.ts), and nowhere else.
+
+Types are minted under `https://portionium.dev/problems/`. They do not resolve to a page yet and
+they do not have to, the RFC asks for a stable identifier rather than a live document. A failure
+that carries nothing a client would branch on beyond its status code, a 415 from the framework,
+gets `about:blank`, which is what the RFC defines it for.
+
+Adding a domain failure is two edits: the code in
+[`api/src/domain/errors.ts`](./api/src/domain/errors.ts) and its entry in the `DOMAIN_PROBLEMS`
+map. The map is a `Record` over the code union, so doing the first without the second does not
+compile. The domain never names a status code.
+
+Routes spread `problemResponses` into their `response` map. That puts the errors into the
+generated document next to the happy path, and it serializes the error body through its schema,
+so a problem that does not match the contract fails in the test suite.
+
+Two things are deliberate. An unexpected exception answers 500 with a fixed sentence and nothing
+else, while the stack goes to the log, because a message that helps a developer is a message that
+describes internals to whoever asked for it. And every problem carries `requestId`, the id the
+failure was logged under, which is what turns "it broke yesterday" into one log lookup. Fastify
+generates that id and does not read it from a request header, so a client cannot choose what it
+is called in the logs.
+
 ### Versioning
 
 `API_PREFIX` in `app.ts` is where `/api/v1` is written down. A future v2 is a second `register`

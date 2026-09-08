@@ -3,8 +3,8 @@
  * switch on, so an adapter never has to match on a message, and a reworded message is never a
  * behaviour change.
  *
- * Mapping these onto HTTP statuses happens in exactly one place, in http/. Adding a code here
- * and not there is a compile error at that switch, which is the point.
+ * Mapping these onto HTTP statuses happens in exactly one place, in http/problem.ts. Adding a
+ * code here and not there is a compile error at that map, which is the point.
  */
 export type DomainErrorCode = 'meal_has_no_items' | 'implausible_weight';
 

@@ -1,6 +1,8 @@
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
+import { problemResponses } from '../problem.js';
+
 /**
  * DELETE THIS FILE once at least one real v1 endpoint exists.
  *
@@ -16,6 +18,8 @@ import { z } from 'zod';
  *   - it declares a Zod schema for every part of the request it reads, and for every status
  *     it answers with
  *   - request schemas are strict, so a parameter nobody declared is a 400 and not a shrug
+ *   - it spreads `problemResponses` into its response map, so the errors it can answer with
+ *     are in the generated document alongside the body it returns when nothing goes wrong
  *   - the handler declares no types of its own. Its argument and its return type are inferred
  *     from the schemas above it, which is also what the OpenAPI document is generated from
  */
@@ -40,7 +44,7 @@ export const helloWorldRoutes: FastifyPluginCallbackZod = (app, _options, done) 
       schema: {
         summary: 'Placeholder, delete with the first real v1 endpoint',
         querystring: helloWorldQuerySchema,
-        response: { 200: helloWorldResponseSchema },
+        response: { 200: helloWorldResponseSchema, ...problemResponses },
       },
     },
     // `request.query.name` is a string here, never undefined, because the schema said so.

@@ -11,6 +11,7 @@ import { z } from 'zod';
 
 import type { Config } from '../config.js';
 import type { DatabaseHandle } from '../db/client.js';
+import { registerProblemHandlers } from './problem.js';
 import { healthRoutes } from './routes/health.js';
 import { helloWorldRoutes } from './routes/helloworld.js';
 
@@ -22,6 +23,9 @@ import { helloWorldRoutes } from './routes/helloworld.js';
  * or response shape is written down and no cast at the boundary. The same schemas are what
  * the OpenAPI document is generated from, which is why there is no hand written spec in this
  * repository and no way for the spec and the code to disagree.
+ *
+ * How a failure leaves the building is decided here too, once, see problem.ts. Every error
+ * response is RFC 9457 Problem Details, whoever raised it.
  */
 
 /**
@@ -63,6 +67,10 @@ export async function buildApp({ config, database }: AppDependencies): Promise<F
   // client six weeks later.
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
+
+  // Registered on the root instance, before any route, so nothing can be registered later that
+  // answers an error in its own shape.
+  registerProblemHandlers(app);
 
   // Closing the app closes the database. Registered before anything else so it runs last:
   // Fastify calls onClose hooks in reverse order, so the file is released after the routes
