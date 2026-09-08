@@ -8,7 +8,8 @@
  *   api/src/db/       may import domain, the only place Drizzle appears
  *   api/src/http/     may import domain and db, no business logic
  *   api/src/mcp/      may import domain and db, no business logic
- *   http/ and mcp/ never import each other
+ *   api/src/cli/      may import domain and db, no business logic
+ *   http/, mcp/ and cli/ never import each other
  *   web/              may import @portionium/schemas, never anything from api/
  */
 
@@ -76,6 +77,16 @@ module.exports = {
       severity: 'error',
       from: { path: '^api/src/(http|mcp)/' },
       to: { path: '^api/src/(http|mcp)/', pathNot: '^api/src/$1/' },
+    },
+    {
+      name: 'cli-does-not-import-adapters',
+      comment:
+        'cli/ is a third adapter over the same domain and the same repositories. A command that ' +
+        'reaches into a route is a command that will one day need a request object to run, and ' +
+        'whatever it wanted from there belongs in domain/ or db/.',
+      severity: 'error',
+      from: { path: '^api/src/cli/' },
+      to: { path: '^api/src/(http|mcp)/' },
     },
     {
       name: 'drizzle-lives-only-in-db',

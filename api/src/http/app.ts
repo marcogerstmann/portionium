@@ -11,9 +11,10 @@ import { z } from 'zod';
 
 import type { Config } from '../config.js';
 import type { DatabaseHandle } from '../db/client.js';
+import { createLoginThrottle } from '../domain/auth.js';
 import { registerProblemHandlers } from './problem.js';
+import { authRoutes } from './routes/auth.js';
 import { healthRoutes } from './routes/health.js';
-import { helloWorldRoutes } from './routes/helloworld.js';
 
 /**
  * The Fastify shell. Everything about how a route is written is decided here, once.
@@ -60,6 +61,11 @@ export async function buildApp({ config, database }: AppDependencies): Promise<F
     // Behind a proxy this is what makes request.ip and the logged protocol honest.
     trustProxy: true,
   }).withTypeProvider<ZodTypeProvider>();
+
+  // One per process. It counts failed logins in its own memory, so it has to outlive a request
+  // and must not outlive the app: a second instance would mean two half filled counters and an
+  // effective limit of twice what is documented.
+  const throttle = createLoginThrottle();
 
   // Zod replaces Ajv on both sides of a request. Validation rejects a bad body with the Zod
   // issues attached, serialization runs the response through its declared schema, so a
@@ -118,9 +124,7 @@ export async function buildApp({ config, database }: AppDependencies): Promise<F
         () => app.swagger(),
       );
 
-      // helloWorldRoutes is a placeholder. Delete it, and its file, once a real endpoint has
-      // taken over its job of keeping this block and the generated document non empty.
-      void v1.register(helloWorldRoutes);
+      void v1.register(authRoutes, { db: database.db, throttle });
 
       done();
     },

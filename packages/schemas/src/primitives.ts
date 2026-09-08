@@ -67,6 +67,40 @@ export const timestampSchema = z
   .transform((value) => new Date(value));
 
 /**
+ * An email address, normalised before it is validated. Trimmed and lowercased, so the spelling
+ * that reaches the database is the spelling every later lookup derives from the same input.
+ *
+ * Lowercasing the local part is not what RFC 5321 says. That document leaves everything before
+ * the @ to the receiving server and permits it to be case sensitive. No provider anybody uses
+ * actually treats it that way, and an account that can be created a second time by capitalising
+ * a letter is a worse problem than a rule nobody implements. This is also what makes the unique
+ * constraint on the column case insensitive: there is only ever one spelling of an address here.
+ */
+export const emailSchema = z.string().trim().toLowerCase().pipe(z.email());
+
+export type Email = z.infer<typeof emailSchema>;
+
+/**
+ * The longest password that will be hashed. Not a security property: it is what stops a
+ * megabyte of input from being handed to a deliberately memory hard function on an endpoint
+ * that anybody can reach without credentials.
+ */
+export const PASSWORD_MAX_LENGTH = 256;
+
+/**
+ * A password on its way to being stored, never one being checked.
+ *
+ * Length is the only rule. NIST SP 800-63B dropped composition requirements because they push
+ * people towards Passw0rd! and away from four random words, and twelve characters sits above
+ * the floor that same document sets.
+ *
+ * Deliberately not used by the login request, see loginRequestSchema in api.ts. Holding a
+ * submitted password to this policy would answer 400 for a password that is merely wrong, and
+ * that is a second response shape on the one endpoint whose whole job is to have exactly one.
+ */
+export const passwordSchema = z.string().min(12).max(PASSWORD_MAX_LENGTH);
+
+/**
  * Each closed union is written as a readonly tuple first and the Zod enum derived from it.
  * The tuple is what Drizzle's `text(name, { enum })` needs, `.options` widens to an array and
  * would have to be cast at every column. Writing it this way means the union is declared once

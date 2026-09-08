@@ -9,7 +9,11 @@ import {
 import type { FastifyError, FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { hasZodFastifySchemaValidationErrors } from 'fastify-type-provider-zod';
 
-import { isDomainError, type DomainErrorCode } from '../domain/errors.js';
+import {
+  isDomainError,
+  TooManyLoginAttemptsError,
+  type DomainErrorCode,
+} from '../domain/errors.js';
 
 /**
  * The one place an error becomes an HTTP response.
@@ -27,14 +31,28 @@ import { isDomainError, type DomainErrorCode } from '../domain/errors.js';
  * Domain failures, mapped. A Record over the code union rather than a switch with a default,
  * so adding a code in domain/errors.ts without deciding what it means here does not compile.
  *
- * Both are 422 rather than 400. The request was well formed and the client could not have
- * known it would be refused: the shape was right, the meaning was not. A 400 would tell a
+ * The two 422s are 422 rather than 400. The request was well formed and the client could not
+ * have known it would be refused: the shape was right, the meaning was not. A 400 would tell a
  * client to fix its serialization, which is the wrong advice.
+ *
+ * The two authentication failures are the reason this map holds a status per code rather than
+ * one status for all of them. Neither says anything a client could use to work out whether the
+ * address it sent belongs to an account, which is a property of the strings written here.
  */
 const DOMAIN_PROBLEMS: Record<
   DomainErrorCode,
   Pick<ProblemDetails, 'type' | 'title' | 'status'>
 > = {
+  invalid_credentials: {
+    type: PROBLEM.invalidCredentials,
+    title: 'Invalid credentials',
+    status: 401,
+  },
+  too_many_login_attempts: {
+    type: PROBLEM.tooManyLoginAttempts,
+    title: 'Too many failed sign in attempts',
+    status: 429,
+  },
   meal_has_no_items: {
     type: PROBLEM.mealHasNoItems,
     title: 'A meal must contain at least one item',
@@ -134,6 +152,12 @@ export function registerProblemHandlers(app: FastifyInstance): void {
     }
 
     if (isDomainError(error)) {
+      // The one failure that carries something a client can act on. A 429 with no Retry-After
+      // leaves a caller guessing, and a caller that guesses retries too soon or gives up.
+      if (error instanceof TooManyLoginAttemptsError) {
+        reply.header('Retry-After', error.retryAfterSeconds);
+      }
+
       return sendProblem(request, reply, {
         ...DOMAIN_PROBLEMS[error.code],
         // Domain messages are written for a person to read and carry no internals, see

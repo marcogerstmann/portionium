@@ -59,32 +59,6 @@ describe('health route', () => {
   });
 });
 
-// Delete this block together with api/src/http/routes/helloworld.ts.
-describe('helloworld placeholder', () => {
-  it('is served under the version prefix', async () => {
-    const { app } = await buildTestApp();
-
-    const response = await app.inject({ url: `${API_PREFIX}/helloworld` });
-
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ message: 'Hello, world' });
-  });
-
-  it('applies the default from the schema, and the value when one is sent', async () => {
-    const { app } = await buildTestApp();
-
-    const response = await app.inject({ url: `${API_PREFIX}/helloworld?name=Marco` });
-
-    expect(response.json()).toEqual({ message: 'Hello, Marco' });
-  });
-
-  it('rejects a query parameter it does not declare', async () => {
-    const { app } = await buildTestApp();
-
-    expect((await app.inject({ url: `${API_PREFIX}/helloworld?nmae=x` })).statusCode).toBe(400);
-  });
-});
-
 describe('request validation', () => {
   /**
    * The route is defined here rather than shipped, because the shell has no endpoint that
@@ -159,7 +133,7 @@ describe('openapi document', () => {
     ).json<SpecDocument>();
 
     expect(document.openapi).toBe('3.1.0');
-    expect(Object.keys(document.paths).sort()).toEqual([`${API_PREFIX}/helloworld`, '/health']);
+    expect(Object.keys(document.paths).sort()).toEqual([`${API_PREFIX}/auth/login`, '/health']);
   });
 
   it('generates the response schema from the Zod schema the route is serialized with', async () => {

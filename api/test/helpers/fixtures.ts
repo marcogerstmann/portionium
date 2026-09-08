@@ -29,6 +29,19 @@ export type MealRow = typeof mealTable.$inferSelect;
 export type MealItemRow = typeof mealItemTable.$inferSelect;
 export type WeightEntryRow = typeof weightEntryTable.$inferSelect;
 
+/**
+ * The password every fixture account is created with, and its hash, precomputed.
+ *
+ * Hashing here rather than storing the result would make every test that needs a user pay for
+ * a deliberately expensive function, several times over, for a value that is the same in every
+ * run. The constant is a real Argon2id hash of the string above it, made with the parameters in
+ * domain/auth.ts, and the test beside that file is what keeps the two in step.
+ */
+export const TEST_PASSWORD = 'correct horse battery staple';
+
+export const TEST_PASSWORD_HASH =
+  '$argon2id$v=19$m=19456,t=2,p=1$BqG+n7Zh5aZxPFY9azspqg$oci1GxAoLH1EH/1nHU30HXC4VdsF4qScvsft09ChiXc';
+
 /** Keeps generated emails and names unique across a file without a test having to think. */
 let sequence = 0;
 
@@ -61,6 +74,7 @@ export function createFactories(db: Db): Factories {
       .insert(userTable)
       .values({
         email: `user-${n}@example.test`,
+        passwordHash: TEST_PASSWORD_HASH,
         displayName: `User ${n}`,
         timezone: 'Europe/Berlin',
         ...overrides,

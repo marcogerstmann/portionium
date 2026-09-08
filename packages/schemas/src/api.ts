@@ -4,10 +4,11 @@ import {
   foodSchema,
   mealItemSchema,
   mealSchema,
+  userSchema,
   weightEntrySchema,
   type WeightEntry,
 } from './entities.js';
-import { mealTypeSchema, timestampSchema } from './primitives.js';
+import { emailSchema, mealTypeSchema, PASSWORD_MAX_LENGTH, timestampSchema } from './primitives.js';
 
 /**
  * What crosses the wire. These live beside the entity schemas rather than in the API, so the
@@ -89,3 +90,50 @@ export function toWeightEntryResponse(entry: WeightEntry): WeightEntryResponse {
   const { weightGrams, ...rest } = entry;
   return { ...rest, weightKg: weightGrams / 1000 };
 }
+
+/**
+ * Credentials on their way in. The email is normalised by its own schema, so `Foo@Example.com`
+ * and `foo@example.com` are the same account before the lookup happens rather than after it.
+ *
+ * The password is checked for length and for nothing else, deliberately. passwordSchema is the
+ * policy a password is held to when it is set. Applying it here would answer a wrong password
+ * that happens to be short with a 400 and a list of issues, next to the 401 a wrong password of
+ * the right length gets, and a client that can tell those two apart has been handed a detail
+ * about stored passwords that nobody meant to send.
+ */
+export const loginRequestSchema = z.strictObject({
+  email: emailSchema,
+  password: z.string().min(1).max(PASSWORD_MAX_LENGTH),
+});
+
+export type LoginRequest = z.infer<typeof loginRequestSchema>;
+
+/**
+ * A user as the wire sees one. There is no password field to remember to strip: userSchema
+ * never had one, the hash exists only as a column, so no handler can leak it by forgetting.
+ *
+ * `createdAt` is dropped rather than converted. timestampSchema parses an instant on the way in
+ * and cannot encode one on the way out, so any response schema containing it serialises to a
+ * 500. Nothing about signing in needs the date the account was made, so this is a field that is
+ * absent rather than a conversion that is present.
+ */
+export const userResponseSchema = userSchema.omit({ createdAt: true });
+
+export type UserResponse = z.infer<typeof userResponseSchema>;
+
+export const loginResponseSchema = z.object({
+  /**
+   * The session credential, and the only time it is ever readable. The server keeps a SHA-256
+   * of it and not the string itself, so a lost token cannot be recovered from the database, and
+   * a copy of the database is not a set of live sessions.
+   *
+   * It is in the body because there is no cookie layer yet. Moving it into an HttpOnly cookie,
+   * with the sliding expiry and the revocation list around it, is the sessions story.
+   */
+  sessionToken: z.string(),
+  /** When that token stops working, whatever the client does with it in the meantime. */
+  expiresAt: z.iso.datetime(),
+  user: userResponseSchema,
+});
+
+export type LoginResponse = z.infer<typeof loginResponseSchema>;

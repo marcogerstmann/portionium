@@ -18,6 +18,9 @@ pnpm typecheck              # tsc --noEmit, every workspace
 pnpm lint                   # eslint + prettier --check
 pnpm depcruise              # layering rules
 pnpm format                 # prettier --write
+
+pnpm --filter @portionium/api user create --email you@example.com \
+  --name "Your Name" --timezone Europe/Berlin   # the first account, see Authentication
 ```
 
 ## Layout
@@ -30,6 +33,7 @@ api/                @portionium/api, Fastify server and MCP adapter
   src/db/           Drizzle schema, migrations, repositories
   src/http/         Fastify app, plugins, routes
   src/mcp/          MCP adapter over the domain services
+  src/cli/          account administration from a terminal
   test/             integration tests that need a database
   test/helpers/     the test database, the factories and the frozen clock
   drizzle/          generated migration files, committed
@@ -46,8 +50,8 @@ TypeScript source, not at build output. Vite compiles it for the browser, Node s
 for the API, so there is no build step between editing a schema and both sides seeing it.
 
 Layering inside `api`: `domain` imports nothing from `db`, `http`, `mcp` and no framework or
-database library. `db` may import `domain` and is the only place Drizzle appears. `http` and
-`mcp` may import `domain` and `db`, hold no business logic, and never import each other.
+database library. `db` may import `domain` and is the only place Drizzle appears. `http`, `mcp`
+and `cli` may import `domain` and `db`, hold no business logic, and never import each other.
 
 Layering between workspaces: `packages/schemas` imports Zod and nothing else, never anything
 from `api` or `web`. `web` may import `@portionium/schemas` and never anything from `api`, the
@@ -78,9 +82,10 @@ the only place that owns a lifecycle.
 
 A route declares Zod schemas and nothing else. `fastify-type-provider-zod` infers the handler's
 argument and return types from them, so the request and response shapes are written down once.
-[`api/src/http/routes/helloworld.ts`](./api/src/http/routes/helloworld.ts) is the worked example
-to copy from. It is a placeholder with no product meaning and it is meant to be deleted, along
-with this paragraph, once a real v1 endpoint has taken over its job.
+[`api/src/http/routes/auth.ts`](./api/src/http/routes/auth.ts) is the worked example to copy
+from. It is registered inside the `API_PREFIX` block in `app.ts`, declares a strict schema for
+its body and a schema for every status it answers with, spreads `problemResponses` into that
+map, and its handler declares no types of its own.
 
 Declare a schema for whichever of `params`, `querystring` and `body` the route takes, and for
 every status it answers with. A response is serialized through its schema, so a handler that
@@ -149,6 +154,100 @@ one fails CI on the commit that introduces it.
 runs the `onClose` hook that releases the database file. `index.ts` calls it on SIGTERM and
 SIGINT, once, so a second signal during a slow drain kills the process rather than starting a
 second shutdown.
+
+## Authentication
+
+Accounts are made by an administrator. There is no public registration endpoint in this
+repository and self service sign up is out of scope: an instance serving two people has nothing
+to gain from it and a great deal to lose.
+
+### Passwords
+
+Argon2id, at OWASP's current parameters: 19 MiB of memory, two passes, one lane. They are
+written out in `ARGON2_OPTIONS` in [`api/src/domain/auth.ts`](./api/src/domain/auth.ts) rather
+than left to the library's defaults, because a security parameter that lives in somebody else's
+package can change in a patch release without anybody deciding to.
+
+Each hash is a PHC string carrying the cost it was made with, so raising these later needs no
+migration and no downtime. It does need a rehash on the next successful login to be worth
+anything, which is a few lines that should not be written until the numbers move.
+
+### What the login endpoint refuses to say
+
+`POST /api/v1/auth/login` answers a wrong password and an address with no account with the same
+status, the same problem type and the same sentence. Two things keep that true, and both are
+easy to undo by accident:
+
+- The handler always runs a real Argon2 verification, against the account's hash or against
+  `DUMMY_PASSWORD_HASH` when there is no account. Returning early for an unknown address answers
+  in microseconds where a wrong password costs tens of milliseconds, and that gap is measurable
+  from the other side of the internet. The dummy's parameters have to match the ones above, which
+  is asserted rather than trusted.
+- Failed attempts are counted against an address whether or not it exists. A lockout that only
+  ever happened to real accounts would answer the same question, more slowly.
+
+Failures are logged with the local part of the address masked, the IP, and whether the account
+existed. That distinction is in the log, where the person reading it is entitled to it, and
+never in the response.
+
+### Lockout policy
+
+Counted in a fixed window, in process memory, in
+[`api/src/domain/auth.ts`](./api/src/domain/auth.ts).
+
+| Key   | Failures | Window     | Effect                           |
+| ----- | -------- | ---------- | -------------------------------- |
+| Email | 5        | 15 minutes | 429 for that address from any IP |
+| IP    | 20       | 15 minutes | 429 for any address from that IP |
+
+The window starts at the first failure and does not move, so a steady drip cannot hold a key
+locked forever. A successful login clears the address, never the IP, otherwise one attacker with
+one working password resets their own spray. A locked out request is refused before any hashing,
+so the lockout limits the server's work rather than inviting more of it. Every 429 carries
+`Retry-After`.
+
+The counters live in memory and reset when the process does. That is the same tradeoff recorded
+for the rate limiting story, and it is the reason both belong in one SQLite table on the day
+either of them stops being enough.
+
+### Sessions
+
+A login writes a `session` row and returns the token in the response body. The row stores a
+SHA-256 of that token and never the token itself, so a copy of the database file is not a set of
+live sessions. SHA-256 rather than Argon2id because the token is 256 bits from a CSPRNG: there is
+nothing to brute force, and it has to be cheap enough to check on every request.
+
+The token is not a UUIDv7 like every other id here. Those sort by creation time, which is what an
+identifier should do and what a credential must not.
+
+Cookies, sliding expiry, logout, listing and revoking sessions, and API tokens are the next story.
+What exists today is the credential and the row it lives in.
+
+### Administration
+
+There is no HTTP endpoint for making accounts. The first one cannot have one, because it would
+have to be reachable without credentials, and on a public instance that is not a bootstrap but a
+vulnerability. Being on the machine with the database file is the authorisation, which is the
+same authorisation restoring a backup needs.
+
+```sh
+pnpm --filter @portionium/api user create --email a@b.de --name "Ada" --timezone Europe/Berlin
+pnpm --filter @portionium/api user passwd --email a@b.de
+```
+
+The first account on a fresh instance is an admin unless `--role` says otherwise, because there
+is nobody to have granted it. The password is never an argument: anything on a command line is in
+a shell history and in the process list of everybody on the machine, so it is typed at a prompt
+that does not echo or piped in by a script that has it already.
+
+Creating a user and resetting a password over HTTP needs a request that has been authenticated as
+an administrator, and the plugin that establishes who a request is from is the next story. The
+functions such a route would call are already in [`api/src/db/auth.ts`](./api/src/db/auth.ts).
+
+Changing a password ends every session opened with the old one, in the same transaction. API
+tokens are deliberately left alone: they are a credential a user issued on purpose to a script
+that is not sitting at the keyboard, and revoking them as a side effect of good hygiene breaks
+automation. There is no `api_tokens` table yet, so today that is a promise with a test on it.
 
 ## Database
 

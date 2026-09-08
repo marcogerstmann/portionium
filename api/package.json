@@ -15,12 +15,14 @@
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src test drizzle.config.ts",
-    "db:generate": "drizzle-kit generate --name"
+    "db:generate": "drizzle-kit generate --name",
+    "user": "tsx src/cli/user.ts"
   },
   "dependencies": {
     "@fastify/swagger": "9.8.1",
     "@fastify/swagger-ui": "6.1.1",
     "@js-temporal/polyfill": "0.5.1",
+    "@node-rs/argon2": "2.2.0",
     "@portionium/schemas": "workspace:*",
     "better-sqlite3": "13.0.3",
     "drizzle-orm": "0.45.2",

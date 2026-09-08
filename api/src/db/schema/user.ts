@@ -16,7 +16,19 @@ import { baseColumns } from './base.js';
  */
 export const userTable = sqliteTable('user', {
   ...baseColumns,
+  /**
+   * Stored lowercased and trimmed. The unique index below is therefore case insensitive in
+   * effect without a collation, because there is only ever one spelling of an address in this
+   * column: every write goes through the repository in db/auth.ts, which normalises with
+   * emailSchema before it touches the table, and every read normalises the same way.
+   */
   email: text('email').notNull().unique(),
+  /**
+   * Argon2id, in the PHC string format that carries its own parameters, so a hash produced
+   * under today's cost settings stays verifiable after they are raised. Never leaves db/ and
+   * deliberately has no field on userSchema, so there is no response shape it can appear in.
+   */
+  passwordHash: text('password_hash').notNull(),
   displayName: text('display_name').notNull(),
   role: text('role', { enum: USER_ROLES }).notNull().default('user'),
   timezone: text('timezone').notNull(),

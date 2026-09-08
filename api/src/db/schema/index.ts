@@ -7,6 +7,7 @@
  */
 export * from './base.js';
 export * from './user.js';
+export * from './session.js';
 export * from './food.js';
 export * from './food-classification.js';
 export * from './meal.js';

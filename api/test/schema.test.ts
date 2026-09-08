@@ -11,6 +11,7 @@ import {
   weightEntryTable,
 } from '../src/db/schema/index.js';
 import { createTestDatabase, type TestDatabase } from './helpers/database.js';
+import { TEST_PASSWORD_HASH } from './helpers/fixtures.js';
 
 /**
  * The tables as the migration actually built them, rather than as the TypeScript describes
@@ -31,7 +32,12 @@ describe('the entity tables', () => {
   async function seedUser() {
     const [user] = await database.db
       .insert(userTable)
-      .values({ email: 'someone@example.com', displayName: 'Someone', timezone: 'Europe/Berlin' })
+      .values({
+        email: 'someone@example.com',
+        passwordHash: TEST_PASSWORD_HASH,
+        displayName: 'Someone',
+        timezone: 'Europe/Berlin',
+      })
       .returning();
     return user!;
   }
@@ -93,6 +99,18 @@ describe('the entity tables', () => {
     await seedUser();
 
     await expect(seedUser()).rejects.toThrow(/UNIQUE/i);
+  });
+
+  it('refuses an account with no password at all', async () => {
+    // The column is what makes a passwordless account impossible, rather than every code path
+    // that creates one remembering to supply a hash.
+    await expect(
+      database.db.insert(userTable).values({
+        email: 'nobody@example.com',
+        displayName: 'Nobody',
+        timezone: 'Europe/Berlin',
+      } as unknown as typeof userTable.$inferInsert),
+    ).rejects.toThrow(/NOT NULL/i);
   });
 
   it('refuses a meal belonging to a user that is not there', async () => {

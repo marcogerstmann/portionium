@@ -31,6 +31,8 @@ export const PROBLEM_NAMESPACE = 'https://portionium.dev/problems';
 export const PROBLEM = {
   unclassified: 'about:blank',
   validationFailed: `${PROBLEM_NAMESPACE}/validation-failed`,
+  invalidCredentials: `${PROBLEM_NAMESPACE}/invalid-credentials`,
+  tooManyLoginAttempts: `${PROBLEM_NAMESPACE}/too-many-login-attempts`,
   mealHasNoItems: `${PROBLEM_NAMESPACE}/meal-has-no-items`,
   implausibleWeight: `${PROBLEM_NAMESPACE}/implausible-weight`,
   internalError: `${PROBLEM_NAMESPACE}/internal-error`,
