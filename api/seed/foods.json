@@ -1,0 +1,1191 @@
+{
+  "version": 1,
+  "rule": "Colour is energy density as the food is eaten, not as it is sold: green under roughly 120 kcal per 100 g, yellow up to roughly 250, orange above that. Drinks are judged by what a normal glass delivers rather than per 100 ml, because a cola is 42 kcal per 100 ml and still a glass of sugar. Nuts and oils are orange despite being good food, which is the honest answer an energy density model gives and the point of the app.",
+  "foods": [
+    {
+      "name": "Tomate",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Gurke",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Karotte",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Paprika",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Zucchini",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Aubergine",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Brokkoli",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Blumenkohl",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Rosenkohl",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Weißkohl",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Rotkohl",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Grünkohl",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Wirsing",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Sauerkraut",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Spinat",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Feldsalat",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Kopfsalat",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Rucola",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Eisbergsalat",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Radieschen",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Kohlrabi",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Staudensellerie",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Lauch",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Zwiebel",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Frühlingszwiebel",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Knoblauch",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Champignon",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Spargel",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Grüne Bohnen",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Erbsen",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Rote Bete",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Kürbis",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Fenchel",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Mais",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Apfel",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Birne",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Banane",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Orange",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Mandarine",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Erdbeere",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Himbeere",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Blaubeere",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Kirsche",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Pflaume",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Aprikose",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Pfirsich",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Weintraube",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Wassermelone",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Ananas",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Kiwi",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Mango",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Zitrone",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Avocado",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Dattel getrocknet",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Rosine",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Linsen",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Kichererbsen",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Kidneybohnen",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Weiße Bohnen",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Tofu",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Kartoffel",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Süßkartoffel",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Salzkartoffeln",
+      "kind": "dish",
+      "category": "green"
+    },
+    {
+      "name": "Pellkartoffeln",
+      "kind": "dish",
+      "category": "green"
+    },
+    {
+      "name": "Kartoffelpüree",
+      "kind": "dish",
+      "category": "yellow"
+    },
+    {
+      "name": "Kartoffelklöße",
+      "kind": "dish",
+      "category": "yellow"
+    },
+    {
+      "name": "Bratkartoffeln",
+      "kind": "dish",
+      "category": "orange"
+    },
+    {
+      "name": "Pommes frites",
+      "kind": "dish",
+      "category": "orange"
+    },
+    {
+      "name": "Kartoffelsalat",
+      "kind": "dish",
+      "category": "orange"
+    },
+    {
+      "name": "Vollkornbrot",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Roggenbrot",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Mischbrot",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Knäckebrot",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Vollkornbrötchen",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Weizenbrötchen",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Toastbrot",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Baguette",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Brezel",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Haferflocken",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Müsli",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Knuspermüsli",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Cornflakes",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Nudeln",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Vollkornnudeln",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Spätzle",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Reis",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Vollkornreis",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Couscous",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Bulgur",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Quinoa",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Magerquark",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Speisequark 20 %",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Naturjoghurt",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Magerjoghurt",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Fruchtjoghurt",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Skyr",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Hüttenkäse",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Harzer Käse",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Mozzarella",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Frischkäse",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Gouda",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Emmentaler",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Camembert",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Feta",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Parmesan",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Vollmilch",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Milch 1,5 %",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Buttermilch",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Saure Sahne",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Schmand",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Sahne",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Butter",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Margarine",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Hähnchenbrust",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Putenbrust",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Hähnchenschenkel",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Rinderhackfleisch",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Gemischtes Hackfleisch",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Schweineschnitzel natur",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Rindersteak",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Kochschinken",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Kassler",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Rohschinken",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Bratwurst",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Wiener Würstchen",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Leberkäse",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Salami",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Fleischwurst",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Leberwurst",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Speck",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Forelle",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Kabeljau",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Seelachs",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Thunfisch in Wasser",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Garnelen",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Lachs",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Thunfisch in Öl",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Fischstäbchen",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Ei",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Olivenöl",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Rapsöl",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Sonnenblumenöl",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Walnuss",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Haselnuss",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Mandel",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Erdnuss",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Erdnussbutter",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Sonnenblumenkerne",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Kürbiskerne",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Senf",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Essig",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Tomatenmark",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Ketchup",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Mayonnaise",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Marmelade",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Honig",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Nuss-Nougat-Creme",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Zucker",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Zartbitterschokolade",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Vollmilchschokolade",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Gummibärchen",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Butterkeks",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Marmorkuchen",
+      "kind": "dish",
+      "category": "orange"
+    },
+    {
+      "name": "Käsekuchen",
+      "kind": "dish",
+      "category": "orange"
+    },
+    {
+      "name": "Apfelstrudel",
+      "kind": "dish",
+      "category": "orange"
+    },
+    {
+      "name": "Berliner",
+      "kind": "dish",
+      "category": "orange"
+    },
+    {
+      "name": "Croissant",
+      "kind": "dish",
+      "category": "orange"
+    },
+    {
+      "name": "Eiscreme",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Pudding",
+      "kind": "dish",
+      "category": "yellow"
+    },
+    {
+      "name": "Chips",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Popcorn",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Müsliriegel",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Wasser",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Mineralwasser",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Kaffee",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Schwarzer Tee",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Kräutertee",
+      "kind": "ingredient",
+      "category": "green"
+    },
+    {
+      "name": "Apfelschorle",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Orangensaft",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Apfelsaft",
+      "kind": "ingredient",
+      "category": "yellow"
+    },
+    {
+      "name": "Cola",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Limonade",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Bier",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Weißwein",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Rotwein",
+      "kind": "ingredient",
+      "category": "orange"
+    },
+    {
+      "name": "Gemüsesuppe",
+      "kind": "dish",
+      "category": "green"
+    },
+    {
+      "name": "Linsensuppe",
+      "kind": "dish",
+      "category": "green"
+    },
+    {
+      "name": "Hühnersuppe",
+      "kind": "dish",
+      "category": "green"
+    },
+    {
+      "name": "Tomatensuppe",
+      "kind": "dish",
+      "category": "yellow"
+    },
+    {
+      "name": "Kartoffelsuppe",
+      "kind": "dish",
+      "category": "yellow"
+    },
+    {
+      "name": "Gemischter Salat",
+      "kind": "dish",
+      "category": "green"
+    },
+    {
+      "name": "Gurkensalat",
+      "kind": "dish",
+      "category": "green"
+    },
+    {
+      "name": "Tomatensalat",
+      "kind": "dish",
+      "category": "green"
+    },
+    {
+      "name": "Krautsalat",
+      "kind": "dish",
+      "category": "yellow"
+    },
+    {
+      "name": "Nudelsalat",
+      "kind": "dish",
+      "category": "orange"
+    },
+    {
+      "name": "Kräuterquark",
+      "kind": "dish",
+      "category": "green"
+    },
+    {
+      "name": "Obstsalat",
+      "kind": "dish",
+      "category": "green"
+    },
+    {
+      "name": "Ofengemüse",
+      "kind": "dish",
+      "category": "green"
+    },
+    {
+      "name": "Gemüsepfanne",
+      "kind": "dish",
+      "category": "green"
+    },
+    {
+      "name": "Tzatziki",
+      "kind": "dish",
+      "category": "yellow"
+    },
+    {
+      "name": "Hummus",
+      "kind": "dish",
+      "category": "orange"
+    },
+    {
+      "name": "Rührei",
+      "kind": "dish",
+      "category": "yellow"
+    },
+    {
+      "name": "Spiegelei",
+      "kind": "dish",
+      "category": "yellow"
+    },
+    {
+      "name": "Milchreis",
+      "kind": "dish",
+      "category": "yellow"
+    },
+    {
+      "name": "Grießbrei",
+      "kind": "dish",
+      "category": "yellow"
+    },
+    {
+      "name": "Gemüseauflauf",
+      "kind": "dish",
+      "category": "yellow"
+    },
+    {
+      "name": "Maultaschen",
+      "kind": "dish",
+      "category": "yellow"
+    },
+    {
+      "name": "Rouladen",
+      "kind": "dish",
+      "category": "yellow"
+    },
+    {
+      "name": "Sauerbraten",
+      "kind": "dish",
+      "category": "yellow"
+    },
+    {
+      "name": "Königsberger Klopse",
+      "kind": "dish",
+      "category": "yellow"
+    },
+    {
+      "name": "Gulasch",
+      "kind": "dish",
+      "category": "yellow"
+    },
+    {
+      "name": "Chili con Carne",
+      "kind": "dish",
+      "category": "yellow"
+    },
+    {
+      "name": "Spaghetti Bolognese",
+      "kind": "dish",
+      "category": "yellow"
+    },
+    {
+      "name": "Hähnchencurry mit Reis",
+      "kind": "dish",
+      "category": "yellow"
+    },
+    {
+      "name": "Wiener Schnitzel",
+      "kind": "dish",
+      "category": "orange"
+    },
+    {
+      "name": "Schweinebraten",
+      "kind": "dish",
+      "category": "orange"
+    },
+    {
+      "name": "Frikadelle",
+      "kind": "dish",
+      "category": "orange"
+    },
+    {
+      "name": "Currywurst",
+      "kind": "dish",
+      "category": "orange"
+    },
+    {
+      "name": "Käsespätzle",
+      "kind": "dish",
+      "category": "orange"
+    },
+    {
+      "name": "Spaghetti Carbonara",
+      "kind": "dish",
+      "category": "orange"
+    },
+    {
+      "name": "Lasagne",
+      "kind": "dish",
+      "category": "orange"
+    },
+    {
+      "name": "Pizza Margherita",
+      "kind": "dish",
+      "category": "orange"
+    },
+    {
+      "name": "Pizza Salami",
+      "kind": "dish",
+      "category": "orange"
+    },
+    {
+      "name": "Döner Kebab",
+      "kind": "dish",
+      "category": "orange"
+    },
+    {
+      "name": "Falafel",
+      "kind": "dish",
+      "category": "orange"
+    },
+    {
+      "name": "Cheeseburger",
+      "kind": "dish",
+      "category": "orange"
+    },
+    {
+      "name": "Pfannkuchen",
+      "kind": "dish",
+      "category": "orange"
+    },
+    {
+      "name": "Kaiserschmarrn",
+      "kind": "dish",
+      "category": "orange"
+    },
+    {
+      "name": "Waffel",
+      "kind": "dish",
+      "category": "orange"
+    },
+    {
+      "name": "Nutella",
+      "kind": "branded",
+      "category": "orange"
+    },
+    {
+      "name": "Milka Alpenmilch",
+      "kind": "branded",
+      "category": "orange"
+    },
+    {
+      "name": "Ritter Sport Vollmilch",
+      "kind": "branded",
+      "category": "orange"
+    },
+    {
+      "name": "Haribo Goldbären",
+      "kind": "branded",
+      "category": "orange"
+    },
+    {
+      "name": "Kinder Schokolade",
+      "kind": "branded",
+      "category": "orange"
+    },
+    {
+      "name": "Coca-Cola",
+      "kind": "branded",
+      "category": "orange"
+    },
+    {
+      "name": "Red Bull",
+      "kind": "branded",
+      "category": "orange"
+    },
+    {
+      "name": "Alpro Sojadrink ungesüßt",
+      "kind": "branded",
+      "category": "green"
+    }
+  ]
+}

@@ -25,7 +25,7 @@ CREATE TABLE `food` (
 	`name` text NOT NULL,
 	`kind` text NOT NULL,
 	`energy_density` real,
-	`created_by` text NOT NULL,
+	`created_by` text,
 	FOREIGN KEY (`created_by`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
@@ -37,7 +37,8 @@ CREATE TABLE `user` (
 	`email` text NOT NULL,
 	`display_name` text NOT NULL,
 	`role` text DEFAULT 'user' NOT NULL,
-	`timezone` text NOT NULL
+	`timezone` text NOT NULL,
+	`day_boundary_hour` integer DEFAULT 4 NOT NULL
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `user_email_unique` ON `user` (`email`);--> statement-breakpoint

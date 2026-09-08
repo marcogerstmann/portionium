@@ -12,6 +12,7 @@
     "dev": "pnpm --filter @portionium/api dev",
     "dev:web": "pnpm --filter @portionium/web dev",
     "test": "pnpm -r test",
+    "test:coverage": "pnpm -r test:coverage",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
@@ -21,6 +22,7 @@
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@types/node": "26.4.1",
+    "@vitest/coverage-v8": "5.0.0",
     "dependency-cruiser": "18.2.0",
     "eslint": "10.10.0",
     "eslint-config-prettier": "10.1.8",

@@ -1,1 +1,0 @@
-ALTER TABLE `user` ADD `day_boundary_hour` integer DEFAULT 4 NOT NULL;

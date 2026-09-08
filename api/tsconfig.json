@@ -15,5 +15,5 @@
   // tsconfig.build.json does carry the reference, because emitting is the case where the
   // distinction matters: without it, tsc pulls the schemas sources into this program as
   // inputs and they land outside rootDir. `pnpm -r build` builds the dependency first.
-  "include": ["src/**/*.ts", "test/**/*.ts", "drizzle.config.ts"]
+  "include": ["src/**/*.ts", "test/**/*.ts", "drizzle.config.ts", "vitest.config.ts"]
 }

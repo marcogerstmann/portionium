@@ -13,6 +13,7 @@ pnpm dev                    # api in watch mode
 pnpm dev:web                # web on the Vite dev server, http://localhost:5173
 pnpm build                  # every workspace, tsc for api and schemas, Vite for web
 pnpm test                   # vitest, every workspace
+pnpm test:coverage          # the same run with a coverage report, no threshold
 pnpm typecheck              # tsc --noEmit, every workspace
 pnpm lint                   # eslint + prettier --check
 pnpm depcruise              # layering rules
@@ -30,7 +31,9 @@ api/                @portionium/api, Fastify server and MCP adapter
   src/http/         Fastify app, plugins, routes
   src/mcp/          MCP adapter over the domain services
   test/             integration tests that need a database
+  test/helpers/     the test database, the factories and the frozen clock
   drizzle/          generated migration files, committed
+  seed/             the food catalog that ships with the app, committed
 web/                @portionium/web, the PWA, Vite and React
   src/              app code
 packages/schemas/   @portionium/schemas, Zod schemas shared by both apps
@@ -103,12 +106,66 @@ sidecars, start the old version.
 This is why a migration that drops or rewrites data is worth a second pair of eyes, and why
 `strict` is on in `drizzle.config.ts`, so drizzle-kit asks before generating one.
 
+### Seed catalog
+
+[`api/seed/foods.json`](./api/seed/foods.json) is the food catalog that ships with the app,
+roughly 240 entries weighted towards German everyday eating. It is product data, not test data: a
+good catalog means the AI classifier is rarely reached, which is the behaviour the project claims.
+
+Colour is energy density as the food is eaten, not as it is sold. Green under roughly 120 kcal per
+100 g, yellow up to roughly 250, orange above that. Drinks are judged by what a normal glass
+delivers rather than per 100 ml, because a cola is 42 kcal per 100 ml and still a glass of sugar.
+Nuts and oils come out orange despite being good food, which is the honest answer an energy density
+model gives. The rule is repeated at the top of the JSON file, because that is where it gets
+ignored.
+
+`seedFoodCatalog()` in [`api/src/db/seed.ts`](./api/src/db/seed.ts) runs at startup, right after
+the migrations and for the same reason. It compares the file against the database on every run
+rather than recording that it has run, so adding entries and restarting is the whole deployment
+step, and a run interrupted halfway heals itself on the next boot.
+
+Seeded rows belong to nobody. `food.created_by` is null and so is `food_classification.user_id`,
+which is what makes one catalog serve every account while a user's own opinion stays a separate
+row. Two things the loader deliberately does not do: it leaves a soft deleted seed food deleted
+rather than resurrecting it, and it does not move a colour that changed in the file, because the
+classification table is append only and choosing between two seed verdicts needs the resolution
+rule that does not exist yet.
+
 ### Tests
 
 `createTestDatabase()` in [`api/test/helpers/database.ts`](./api/test/helpers/database.ts) gives a
 fresh migrated database in its own temp directory. `close()` drops the connection and the
 directory. It uses a file rather than `:memory:`, because WAL and the busy timeout only mean
-anything for a real file.
+anything for a real file. Integration tests run against that file, never against a mock or an
+in-memory fake.
+
+`createTestFixtures()` in [`api/test/helpers/fixtures.ts`](./api/test/helpers/fixtures.ts) is that
+database with two accounts already in it, `userA` and `userB`, plus `create`, the row factories.
+Two accounts because almost every read takes a `userId`, and a test with one user cannot tell a
+query that filters by owner from one that forgot to. They sit in different timezones on purpose,
+so a service reaching for the wrong user's day context produces a visibly wrong local date rather
+than the right answer by luck.
+
+The factories are synchronous, take overrides on top of sensible defaults, and build rows the way
+the application builds them: `create.meal()` goes through `createMeal`, so positions and the local
+date are derived rather than invented. A factory that made those up itself would let a suite pass
+against rows the application could never produce.
+
+`freezeTime()` in [`api/test/helpers/time.ts`](./api/test/helpers/time.ts) pins the clock for the
+rest of the test and restores it on its own. Day boundaries, streaks and trends answer differently
+depending on what now is, so assertions about them are only worth something against a stopped
+clock. Only `Date` is faked, not timers, which would break the driver's busy timeout for no gain.
+
+### Coverage
+
+`pnpm test:coverage`, v8 provider, text and HTML and lcov into `coverage/`. The target is
+**80 percent of `api/src/domain` and `api/src/db`**, and the adapters follow once they exist.
+
+There is no threshold and CI does not fail on the number, on purpose. A gate turns the report into
+something to satisfy, and the tests written to satisfy a gate are the ones that assert nothing. The
+report is there to be read: the useful line is a module showing up as a row of zeroes, not the
+percentage at the bottom. Schema files and the process entry point are excluded, there is nothing
+in them to cover.
 
 ## Writing changes
 

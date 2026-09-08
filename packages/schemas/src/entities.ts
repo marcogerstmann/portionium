@@ -46,7 +46,8 @@ export const foodSchema = z.object({
    * it, and the traffic light never needs it. The ceiling is pure fat, at roughly 900.
    */
   energyDensity: z.number().nonnegative().max(900).optional(),
-  createdBy: idSchema,
+  /** Absent on the entries seeded with the app. The catalog is shared, its seeds are nobody's. */
+  createdBy: idSchema.optional(),
   createdAt: timestampSchema,
 });
 

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "fdb1e313-c1c0-4c52-a569-a7c7d322299a",
+  "id": "ef1197fd-c2c6-469f-a480-6b4b5134a629",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "food_classification": {
@@ -197,7 +197,7 @@
           "name": "created_by",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         }
       },
@@ -280,6 +280,14 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "day_boundary_hour": {
+          "name": "day_boundary_hour",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 4
         }
       },
       "indexes": {

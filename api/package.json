@@ -12,6 +12,7 @@
     "dev": "tsx watch src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src test drizzle.config.ts",
     "db:generate": "drizzle-kit generate --name"
