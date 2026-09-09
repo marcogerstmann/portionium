@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createMeal } from '../src/domain/meal.js';
 import {
+  apiTokenTable,
   foodClassificationTable,
   foodTable,
   mealItemTable,
@@ -59,6 +60,8 @@ describe('the entity tables', () => {
     expect(names).toEqual(
       expect.arrayContaining([
         'user',
+        'session',
+        'api_token',
         'food',
         'food_classification',
         'meal',
@@ -66,6 +69,30 @@ describe('the entity tables', () => {
         'weight_entry',
       ]),
     );
+  });
+
+  /**
+   * The one column in the schema whose value is not a scalar. SQLite has no array type, so the
+   * scopes are JSON in a text column, and whether Drizzle hands back an array rather than the
+   * string it stored is exactly the kind of thing the TypeScript cannot tell us.
+   */
+  it('round trips an API token scope list through a text column', async () => {
+    const user = await seedUser();
+
+    const [token] = await database.db
+      .insert(apiTokenTable)
+      .values({
+        userId: user.id,
+        name: 'Deploy script',
+        tokenHash: 'a'.repeat(64),
+        scopes: ['read', 'write'],
+      })
+      .returning();
+
+    expect(token!.scopes).toEqual(['read', 'write']);
+    expect(token!.lastUsedAt).toBeNull();
+    expect(token!.expiresAt).toBeNull();
+    expect(token!.revokedAt).toBeNull();
   });
 
   it('defaults a new user to the unprivileged role', async () => {

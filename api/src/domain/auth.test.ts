@@ -1,17 +1,24 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { API_TOKEN_PREFIX } from '@portionium/schemas';
 import {
+  ACTIVITY_INTERVAL_MS,
   ARGON2_OPTIONS,
+  canGrantScopes,
+  createApiToken,
   createLoginThrottle,
   createSessionToken,
+  DEFAULT_SESSION_TTL_MS,
   DUMMY_PASSWORD_HASH,
   hashPassword,
-  hashSessionToken,
+  hashToken,
+  isApiToken,
   LOGIN_ATTEMPT_WINDOW_MS,
   maskEmail,
   MAX_ATTEMPTS_PER_EMAIL,
   MAX_ATTEMPTS_PER_IP,
-  SESSION_TTL_MS,
+  scopesForRole,
+  shouldRecordActivity,
   verifyPassword,
 } from './auth.js';
 import { DomainError, TooManyLoginAttemptsError } from './errors.js';
@@ -81,11 +88,17 @@ describe('session tokens', () => {
   it('stores a digest and hands out the token', () => {
     const { token, tokenHash, expiresAt } = createSessionToken(new Date('2026-03-01T12:00:00Z'));
 
-    expect(tokenHash).toBe(hashSessionToken(token));
+    expect(tokenHash).toBe(hashToken(token));
     expect(tokenHash).not.toContain(token);
     expect(expiresAt).toEqual(
-      new Date(new Date('2026-03-01T12:00:00Z').getTime() + SESSION_TTL_MS),
+      new Date(new Date('2026-03-01T12:00:00Z').getTime() + DEFAULT_SESSION_TTL_MS),
     );
+  });
+
+  it('expires on the configured window rather than the default one', () => {
+    const { expiresAt } = createSessionToken(new Date('2026-03-01T12:00:00Z'), 60_000);
+
+    expect(expiresAt).toEqual(new Date('2026-03-01T12:01:00Z'));
   });
 
   it('mints 256 bits of randomness, not an ordered id', () => {
@@ -222,5 +235,66 @@ describe('login throttle', () => {
     }
 
     expect(() => createLoginThrottle().assertNotLockedOut(EMAIL, IP)).not.toThrow();
+  });
+});
+
+describe('API tokens', () => {
+  it('wears a prefix a secret scanner can match on, over the same 256 bits', () => {
+    const { token, tokenHash } = createApiToken();
+
+    expect(token.startsWith(API_TOKEN_PREFIX)).toBe(true);
+    expect(token.slice(API_TOKEN_PREFIX.length)).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(tokenHash).toBe(hashToken(token));
+  });
+
+  /** The prefix is what decides which table a request is looked up in, so it has to be exact. */
+  it('is told apart from a session token by that prefix alone', () => {
+    expect(isApiToken(createApiToken().token)).toBe(true);
+    expect(isApiToken(createSessionToken().token)).toBe(false);
+    expect(isApiToken('')).toBe(false);
+  });
+
+  it('hashes the whole string, prefix included', () => {
+    const { token, tokenHash } = createApiToken();
+
+    expect(tokenHash).not.toBe(hashToken(token.slice(API_TOKEN_PREFIX.length)));
+  });
+});
+
+describe('scopes', () => {
+  it('gives a user everything but admin, and an administrator everything', () => {
+    expect(scopesForRole('user')).toEqual(['read', 'write']);
+    expect(scopesForRole('admin')).toEqual(['read', 'write', 'admin']);
+  });
+
+  it('lets a user grant only what they hold themselves', () => {
+    expect(canGrantScopes('user', ['read'])).toBe(true);
+    expect(canGrantScopes('user', ['read', 'write'])).toBe(true);
+    // The whole of privilege escalation on the token endpoint.
+    expect(canGrantScopes('user', ['admin'])).toBe(false);
+    expect(canGrantScopes('user', ['read', 'admin'])).toBe(false);
+    expect(canGrantScopes('admin', ['admin'])).toBe(true);
+  });
+
+  /** `write` implying `read` has to hold here too, or a token could grant more than it says. */
+  it('counts what a scope implies, not only what it names', () => {
+    expect(canGrantScopes('user', ['write'])).toBe(true);
+    expect(canGrantScopes('admin', ['write'])).toBe(true);
+  });
+});
+
+describe('recording activity', () => {
+  const now = new Date('2026-03-01T12:00:00Z');
+
+  it('always writes for a credential that has never been used', () => {
+    expect(shouldRecordActivity(null, now)).toBe(true);
+  });
+
+  it('writes once the record has gone stale, and not before', () => {
+    expect(shouldRecordActivity(new Date(now.getTime() - ACTIVITY_INTERVAL_MS), now)).toBe(true);
+    expect(shouldRecordActivity(new Date(now.getTime() - ACTIVITY_INTERVAL_MS + 1), now)).toBe(
+      false,
+    );
+    expect(shouldRecordActivity(now, now)).toBe(false);
   });
 });

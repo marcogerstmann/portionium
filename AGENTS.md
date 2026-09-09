@@ -212,18 +212,72 @@ either of them stops being enough.
 
 ### Sessions
 
-A login writes a `session` row and returns the token in the response body. The row stores a
-SHA-256 of that token and never the token itself, so a copy of the database file is not a set of
-live sessions. SHA-256 rather than Argon2id because the token is 256 bits from a CSPRNG: there is
-nothing to brute force, and it has to be cheap enough to check on every request.
+A login writes a `session` row and sets `portionium_session`, an `HttpOnly` cookie carrying an
+opaque token and nothing else. The token is never in the response body: a body is something the
+page can read, and a credential the page can read is a credential anything injected into that
+page can read too.
 
-The token is not a UUIDv7 like every other id here. Those sort by creation time, which is what an
-identifier should do and what a credential must not.
+The row stores a SHA-256 of the token and never the token itself, so a copy of the database file
+is not a set of live sessions. SHA-256 rather than Argon2id because the token is 256 bits from a
+CSPRNG: there is nothing to brute force, and it has to be cheap enough to check on every request.
+It is not a UUIDv7 like every other id here, because those sort by creation time, which is what
+an identifier should do and what a credential must not.
 
-Sliding expiry, logout, listing and revoking sessions, and API tokens are the next story. The
-login endpoint still returns the token in the response body and nothing sets a cookie yet, though
-[`api/src/http/plugins/auth.ts`](./api/src/http/plugins/auth.ts) already reads one, so setting it
-is a change to that one endpoint.
+Cookie attributes are written down in one place, `sessionCookie` in
+[`api/src/http/plugins/auth.ts`](./api/src/http/plugins/auth.ts): `HttpOnly`, `SameSite=Lax`,
+`Path=/`, a relative `Max-Age` so a wrong client clock cannot extend it, and `Secure` whenever
+`WEB_ORIGIN` is https. That last one follows the origin rather than `NODE_ENV`, because a
+developer on plain http needs a cookie their browser will actually store and a second variable
+is a second thing to set to the wrong half of the pair.
+
+Expiry slides. `SESSION_TTL_DAYS`, thirty by default, is an idle timeout rather than a lifetime:
+a request on a live session pushes `expires_at` out again and stamps `last_activity_at`. Both
+writes are throttled to one a minute per session by `ACTIVITY_INTERVAL_MS`, because otherwise
+every read this API serves is also a write to the row that authorised it. `GET /auth/sessions`
+lists a user's live sessions with those two timestamps and marks the one the request came in on;
+`DELETE /auth/sessions/:id` and `POST /auth/logout` delete the row, so the credential is dead
+whatever the client does with the cleared cookie.
+
+### CSRF
+
+A browser attaches cookies to a cross site request as willingly as to a first party one, which
+is the whole of CSRF. So a mutating request authenticated by the cookie has to carry an `Origin`
+header equal to `WEB_ORIGIN`. A missing header is refused rather than trusted: every browser
+sets it on a cross origin request, so its absence on a mutation is either a client nobody
+supports or somebody hoping the check is a whitelist.
+
+The check runs in the same `onRequest` hook that establishes identity, before the database is
+touched, and only for a credential that came from the cookie. Safe methods are exempt because
+forging one achieves nothing, and bearer requests are exempt because nothing attaches a bearer
+header on a page's behalf.
+
+### API tokens
+
+The other credential, for the MCP server and anything else without a browser.
+`POST /auth/tokens` mints one, `GET /auth/tokens` lists them without the tokens, and
+`DELETE /auth/tokens/:id` revokes one. Rows live in `api_token` and store a SHA-256, a name, the
+granted scopes, `last_used_at`, `expires_at` and `revoked_at`.
+
+Five things are deliberate:
+
+- **The plaintext exists in one response, once.** Only the digest is stored, so nobody can
+  produce that string again, including whoever holds the database file.
+- **Tokens wear `prt_`.** Secret scanners match on shapes like that, and a credential nobody can
+  recognise on sight is one somebody else finds first. The prefix is also how the request path
+  knows which table to read, so a request costs one lookup rather than two.
+- **A token cannot mint a token.** `POST /auth/tokens` refuses a bearer credential with
+  `SessionRequiredError`, so a stolen token cannot be turned into a successor that outlives its
+  revocation. This is why tokens are created from the web client and there is no pairing flow.
+- **A token can never carry more than its owner.** Requested scopes are checked against the
+  user's role at creation, and again intersected with it on every request, so demoting an
+  account narrows the tokens it already issued.
+- **`last_used_at` is throttled**, one write a minute per token, same as a session's activity.
+
+Revoking sets `revoked_at` and the next request carrying that token fails, because there is no
+cache in front of the lookup. A revoked row is kept rather than deleted: its name and last use
+are the record of what the credential was doing, which is the first thing anybody wants after
+turning one off. Changing a password ends every session and deliberately leaves tokens alone,
+see `setPasswordHash`.
 
 ### Authorization
 
@@ -234,10 +288,12 @@ a `portionium_session` cookie into `request.auth`. Why the design looks like thi
 
 Four rules, and each is enforced rather than remembered:
 
-- **Every route declares who may call it.** `config: { auth: 'account' }`, `'admin'`, or the word
-  `'public'`. A route that declares nothing throws at registration, so the server does not start.
-  Scopes come from `SCOPES` in [`api/src/domain/auth.ts`](./api/src/domain/auth.ts) and are
-  derived from the user's role.
+- **Every route declares who may call it.** `config: { auth: 'read' }`, `'write'`, `'admin'`, or
+  the word `'public'`. A route that declares nothing throws at registration, so the server does
+  not start. Scopes come from `SCOPES` in `packages/schemas`, because a user names them when
+  minting a token and they are therefore on the wire. Stronger implies weaker, see
+  `expandScopes`. A session carries everything its owner's role gives; a token carries what its
+  owner chose, intersected with that.
 - **The public surface is a list in a test.** `api/test/http/authorization.test.ts` holds the
   three endpoints reachable without a credential and compares them against the routes actually
   registered, so making a fourth one public is a visible line in a diff.
@@ -267,14 +323,14 @@ is nobody to have granted it. The password is never an argument: anything on a c
 a shell history and in the process list of everybody on the machine, so it is typed at a prompt
 that does not echo or piped in by a script that has it already.
 
-Creating a user and resetting a password over HTTP needs a request that has been authenticated as
-an administrator, and the plugin that establishes who a request is from is the next story. The
-functions such a route would call are already in [`api/src/db/auth.ts`](./api/src/db/auth.ts).
+Creating a user and resetting a password over HTTP would need a route declaring `admin`, which
+the plugin already enforces. The functions such a route would call are already in
+[`api/src/db/auth.ts`](./api/src/db/auth.ts). Nothing in the API requires `admin` yet.
 
 Changing a password ends every session opened with the old one, in the same transaction. API
 tokens are deliberately left alone: they are a credential a user issued on purpose to a script
 that is not sitting at the keyboard, and revoking them as a side effect of good hygiene breaks
-automation. There is no `api_tokens` table yet, so today that is a promise with a test on it.
+automation. They are revoked one at a time, by their owner.
 
 ## Database
 

@@ -26,9 +26,9 @@ import { hashPassword } from '../domain/auth.js';
  * is the authorisation here, which is the same authorisation restoring a backup needs.
  *
  * It is also, for now, the only way to make any account or reset any password. Doing those over
- * HTTP needs a request that has already been authenticated as an administrator, and the plugin
- * that establishes who a request is from is the next story. The functions it would call are in
- * db/auth.ts already, so that endpoint is a route file and not a rewrite.
+ * HTTP needs a route declaring the `admin` scope, which http/plugins/auth.ts already enforces,
+ * and the functions it would call are in db/auth.ts already, so that endpoint is a route file
+ * and not a rewrite.
  *
  *   pnpm --filter @portionium/api user create --email a@b.de --name "Ada" --timezone Europe/Berlin
  *   pnpm --filter @portionium/api user passwd --email a@b.de

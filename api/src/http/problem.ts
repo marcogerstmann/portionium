@@ -67,6 +67,16 @@ const DOMAIN_PROBLEMS: Record<
     title: 'Insufficient scope',
     status: 403,
   },
+  csrf_origin_rejected: {
+    type: PROBLEM.csrfOriginRejected,
+    title: 'Origin not recognised',
+    status: 403,
+  },
+  session_required: {
+    type: PROBLEM.sessionRequired,
+    title: 'Session required',
+    status: 403,
+  },
   resource_not_found: {
     type: PROBLEM.notFound,
     title: 'Not found',

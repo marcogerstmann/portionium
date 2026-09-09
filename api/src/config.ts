@@ -16,6 +16,32 @@ const configSchema = z.object({
    * behind a switch.
    */
   API_DOCS_ENABLED: z.stringbool().default(true),
+  /**
+   * The single origin the web client is served from, scheme and host and port, no trailing
+   * slash. Two things read it.
+   *
+   * It is the CSRF check: a mutating request that arrives on a session cookie must carry an
+   * `Origin` header equal to this, and one with a foreign origin or none at all is refused. A
+   * browser sets that header itself and a page cannot forge it, which is what makes it the one
+   * signal worth checking, unlike the cookie, which a browser attaches to a cross site request
+   * as willingly as to a first party one.
+   *
+   * Its scheme also decides whether the session cookie is marked `Secure`, so a developer on
+   * plain http gets a cookie their browser will actually store, and anything deployed over
+   * https gets one that never crosses a plain connection. Deriving it beats a second variable
+   * that can be set to the wrong half of the pair.
+   */
+  WEB_ORIGIN: z
+    .url({ protocol: /^https?$/ })
+    .default('http://localhost:5173')
+    // Normalised to what a browser actually puts in the header, so a value configured with a
+    // trailing slash or a default port spelled out does not silently refuse every request.
+    .transform((value) => new URL(value).origin),
+  /**
+   * How long a session survives without being used. Refreshed on activity, so this is an
+   * idle timeout rather than a lifetime, and a person using the app daily is never signed out.
+   */
+  SESSION_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
 });
 
 export type Config = z.infer<typeof configSchema>;

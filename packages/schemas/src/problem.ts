@@ -36,6 +36,18 @@ export const PROBLEM = {
   unauthenticated: `${PROBLEM_NAMESPACE}/unauthenticated`,
   insufficientScope: `${PROBLEM_NAMESPACE}/insufficient-scope`,
   /**
+   * A mutating request that arrived on a session cookie without an Origin this instance
+   * recognises. The browser attached the cookie because browsers always do, which is the whole
+   * of CSRF, so the header rather than the cookie is what decides it.
+   */
+  csrfOriginRejected: `${PROBLEM_NAMESPACE}/csrf-origin-rejected`,
+  /**
+   * A valid API token asking for something only a signed in person may do: minting another
+   * token, or ending a session. A token cannot issue its own successor, so a stolen one cannot
+   * be turned into a fresh credential that outlives its revocation.
+   */
+  sessionRequired: `${PROBLEM_NAMESPACE}/session-required`,
+  /**
    * A resource that is not there, or is not the caller's. One type for both, deliberately, so
    * a client cannot use the error to work out which ids exist. See
    * docs/adr/003-multi-user-authorization.md.

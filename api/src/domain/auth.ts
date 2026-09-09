@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 
 import { hash, verify } from '@node-rs/argon2';
-import type { UserRole } from '@portionium/schemas';
+import { API_TOKEN_PREFIX, expandScopes, type Scope, type UserRole } from '@portionium/schemas';
 
 import { TooManyLoginAttemptsError } from './errors.js';
 
@@ -73,14 +73,33 @@ export async function verifyPassword(storedHash: string, password: string): Prom
   }
 }
 
-/** Thirty days. Sliding expiry, refreshed on activity, belongs to the sessions story. */
-export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+/**
+ * The default sliding window. Overridden by SESSION_TTL_DAYS, which is why every function here
+ * takes the value as an argument and this constant is only the fallback config parses against.
+ */
+export const DEFAULT_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
-export interface NewSessionToken {
+/**
+ * How stale a credential's activity record is allowed to get before a request writes to it.
+ *
+ * Both a session's sliding expiry and a token's `last_used_at` are, naively, a write on every
+ * authenticated request, which turns every read this API serves into a write to the same row
+ * and every list view into a write storm. A minute of imprecision buys all of that back: the
+ * numbers a user is shown are at worst a minute old, and nothing branches on them.
+ *
+ * It is also what keeps the sliding expiry honest under load. A session refreshed on every
+ * request and one refreshed once a minute expire at the same time to within a minute.
+ */
+export const ACTIVITY_INTERVAL_MS = 60 * 1000;
+
+export interface NewCredential {
   /** Handed to the client once and never recoverable afterwards. */
   token: string;
   /** What is actually stored. */
   tokenHash: string;
+}
+
+export interface NewSessionToken extends NewCredential {
   expiresAt: Date;
 }
 
@@ -92,25 +111,53 @@ export interface NewSessionToken {
  * must not: a value somebody can narrow down by knowing roughly when it was issued is a value
  * worth guessing at. This one is unguessable and carries no information.
  */
-export function createSessionToken(now: Date = new Date()): NewSessionToken {
+export function createSessionToken(
+  now: Date = new Date(),
+  ttlMs: number = DEFAULT_SESSION_TTL_MS,
+): NewSessionToken {
   const token = randomBytes(32).toString('base64url');
 
-  return {
-    token,
-    tokenHash: hashSessionToken(token),
-    expiresAt: new Date(now.getTime() + SESSION_TTL_MS),
-  };
+  return { token, tokenHash: hashToken(token), expiresAt: new Date(now.getTime() + ttlMs) };
+}
+
+/**
+ * The same 256 random bits, wearing a label.
+ *
+ * The prefix is not decoration and it is not a namespace. Secret scanners, the ones watching
+ * public repositories and paste sites, match on shapes like this, and a credential that cannot
+ * be recognised on sight is one nobody reports to us before somebody else finds it. It is also
+ * how the request path tells a token from a session cookie value without querying both tables.
+ */
+export function createApiToken(): NewCredential {
+  const token = `${API_TOKEN_PREFIX}${randomBytes(32).toString('base64url')}`;
+
+  return { token, tokenHash: hashToken(token) };
+}
+
+/** Whether this credential is an API token rather than a session token. */
+export function isApiToken(token: string): boolean {
+  return token.startsWith(API_TOKEN_PREFIX);
 }
 
 /**
  * SHA-256, not Argon2id, and the difference is the input rather than the use.
  *
- * A password is short and human, so it has to be made expensive to guess. This token is 256
+ * A password is short and human, so it has to be made expensive to guess. These tokens are 256
  * random bits, so there is nothing to guess at whatever the cost, and a fast digest is the
  * right primitive. It also has to be fast: this runs on every authenticated request.
  */
-export function hashSessionToken(token: string): string {
+export function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
+}
+
+/**
+ * Whether an activity timestamp is stale enough to be worth a write. Null means never written,
+ * which always is. See ACTIVITY_INTERVAL_MS for why this is not simply "yes".
+ */
+export function shouldRecordActivity(lastActivityAt: Date | null, now: Date): boolean {
+  return (
+    lastActivityAt === null || now.getTime() - lastActivityAt.getTime() >= ACTIVITY_INTERVAL_MS
+  );
 }
 
 /**
@@ -254,35 +301,32 @@ export function createLoginThrottle(): LoginThrottle {
 }
 
 /**
- * What a caller is allowed to do, as a closed set. Routes name one of these and the plugin in
- * http/plugins/auth.ts checks it, so "who may call this" is written on the route rather than
- * re-derived in each handler from a role.
- *
- * Two, because two is what the application distinguishes today. `account` is everything a
- * signed in person does with their own rows, which is almost the entire API and is deliberately
- * not split into reads and writes: nothing here issues a credential narrower than a whole
- * session, so a finer grain would be a distinction no caller can actually be given. `admin` is
- * the operations that reach across accounts.
- *
- * A scope is added when a route needs one, not before. The moment API tokens exist, and a user
- * can mint a credential that carries less than they do, is the moment this list grows.
- */
-export const SCOPES = ['account', 'admin'] as const;
-
-export type Scope = (typeof SCOPES)[number];
-
-/**
- * A role is what is stored, a scope is what is checked. They are one to many today and the
- * indirection buys one thing: routes never mention roles, so the day a scope stops following
- * from a role, an API token that carries `account` and not `admin`, no route changes.
+ * A role is what is stored, a scope is what is checked. The indirection buys one thing, and as
+ * of this story it buys it for real: an API token carries scopes its owner chose, which can be
+ * fewer than the scopes their role gives them, so a route asking for a capability rather than
+ * for a role is a route that already handles both credentials.
  *
  * A Record over the role union, so a third role does not compile until it says what it may do.
+ * Each role is written as the strongest scope it holds and expanded, so the implication order
+ * is stated once, in expandScopes, rather than restated per role.
  */
 const ROLE_SCOPES: Record<UserRole, readonly Scope[]> = {
-  user: ['account'],
-  admin: ['account', 'admin'],
+  user: expandScopes(['write']),
+  admin: expandScopes(['admin']),
 };
 
 export function scopesForRole(role: UserRole): readonly Scope[] {
   return ROLE_SCOPES[role];
+}
+
+/**
+ * Whether every scope asked for is one the granting user actually holds.
+ *
+ * The whole of privilege escalation on this endpoint. Without it a `user` mints themselves an
+ * `admin` token and the role column stops meaning anything, which is a two line bug in an API
+ * that otherwise never lets a caller name their own permissions.
+ */
+export function canGrantScopes(role: UserRole, requested: readonly Scope[]): boolean {
+  const held = scopesForRole(role);
+  return expandScopes(requested).every((scope) => held.includes(scope));
 }

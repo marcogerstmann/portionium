@@ -44,6 +44,11 @@ export const OPENAPI_PATH = '/openapi.json';
 /** Path of the browsable UI, relative to the prefix. Served only when API_DOCS_ENABLED. */
 export const DOCS_PATH = '/docs';
 
+/** Days on the wire of a config file, milliseconds everywhere the code does arithmetic. */
+function sessionTtlMs(config: Config): number {
+  return config.SESSION_TTL_DAYS * 24 * 60 * 60 * 1000;
+}
+
 export interface AppDependencies {
   config: Config;
   /**
@@ -91,7 +96,11 @@ export async function buildApp({ config, database }: AppDependencies): Promise<F
   // Before every register below it, for two reasons: its onRoute hook only sees routes added
   // after it, and a route that forgets to say who may call it has to fail here rather than
   // answer. See http/plugins/auth.ts.
-  registerAuth(app, { db: database.db });
+  registerAuth(app, {
+    db: database.db,
+    webOrigin: config.WEB_ORIGIN,
+    sessionTtlMs: sessionTtlMs(config),
+  });
 
   await app.register(fastifySwagger, {
     openapi: {
@@ -136,7 +145,15 @@ export async function buildApp({ config, database }: AppDependencies): Promise<F
         () => app.swagger(),
       );
 
-      void v1.register(authRoutes, { db: database.db, throttle });
+      void v1.register(authRoutes, {
+        db: database.db,
+        throttle,
+        sessionTtlMs: sessionTtlMs(config),
+        // A cookie marked Secure is dropped by a browser over plain http, so the flag follows
+        // the origin the app is actually served from rather than a second variable that can be
+        // set to the wrong half of the pair. See WEB_ORIGIN in config.ts.
+        cookieSecure: config.WEB_ORIGIN.startsWith('https://'),
+      });
 
       done();
     },

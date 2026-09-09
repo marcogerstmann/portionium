@@ -143,6 +143,60 @@ export const userRoleSchema = z.enum(USER_ROLES);
 
 export type UserRole = z.infer<typeof userRoleSchema>;
 
+/**
+ * What a credential is allowed to do. Routes name one of these, the API layer checks it, and a
+ * user minting an API token picks from them, which is why the union lives here rather than in
+ * the API: it is on the wire in a request body, so both sides narrow the same list.
+ *
+ * Three, and they are ordered by strength. `read` is every GET a signed in person makes of
+ * their own rows, `write` is everything that changes one, and `admin` is the handful of
+ * operations that reach across accounts. Stronger implies weaker, see expandScopes: a token
+ * granted `write` can read, because a caller who can replace a meal and cannot list one is a
+ * distinction no automation wants and every automation would work around.
+ *
+ * A session carries everything its owner's role does. An API token is the reason the split
+ * exists at all: it is the first credential someone can deliberately issue for less than they
+ * themselves have.
+ */
+export const SCOPES = ['read', 'write', 'admin'] as const;
+
+export const scopeSchema = z.enum(SCOPES);
+
+export type Scope = z.infer<typeof scopeSchema>;
+
+/**
+ * Each scope, and everything holding it also grants. A Record over the union, so a fourth
+ * scope does not compile until somebody says where it sits relative to the others.
+ */
+const IMPLIED_SCOPES: Record<Scope, readonly Scope[]> = {
+  read: ['read'],
+  write: ['read', 'write'],
+  admin: ['read', 'write', 'admin'],
+};
+
+/**
+ * The scopes actually held by a caller granted these. Filtered from SCOPES rather than
+ * collected from the input, so the result is deduplicated and in a stable order whatever order
+ * the grants arrived in, which is what makes it comparable in a test and readable in a log.
+ */
+export function expandScopes(granted: readonly Scope[]): readonly Scope[] {
+  return SCOPES.filter((scope) => granted.some((held) => IMPLIED_SCOPES[held].includes(scope)));
+}
+
+/**
+ * The prefix every API token carries. It exists to be recognised: by a secret scanner watching
+ * a repository or a paste, by whoever is reading a log line that should not have one in it, and
+ * by this API itself, which uses it to tell which of the two credential tables to look in
+ * rather than querying both.
+ *
+ * Short, unmistakable and outside base64url's alphabet at the boundary, so the prefix cannot be
+ * confused with the random part that follows it.
+ */
+export const API_TOKEN_PREFIX = 'prt_';
+
+/** A human's name for a token, so a list of them is a list somebody can act on. */
+export const apiTokenNameSchema = z.string().trim().min(1).max(100);
+
 export const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 
 export const mealTypeSchema = z.enum(MEAL_TYPES);

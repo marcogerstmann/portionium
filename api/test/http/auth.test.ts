@@ -9,8 +9,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { parseConfig } from '../../src/config.js';
 import { sessionTable } from '../../src/db/schema/index.js';
-import { hashSessionToken, MAX_ATTEMPTS_PER_EMAIL } from '../../src/domain/auth.js';
+import { hashToken, MAX_ATTEMPTS_PER_EMAIL } from '../../src/domain/auth.js';
 import { API_PREFIX, buildApp } from '../../src/http/app.js';
+import { SESSION_COOKIE_NAME } from '../../src/http/plugins/auth.js';
 import { createTestFixtures, TEST_PASSWORD, type TestFixtures } from '../helpers/fixtures.js';
 
 /**
@@ -40,6 +41,17 @@ afterEach(async () => {
 
 function login(app: FastifyInstance, payload: Record<string, unknown>) {
   return app.inject({ method: 'POST', url: LOGIN, payload });
+}
+
+/**
+ * The session token, dug out of the Set-Cookie header, which is the only place it exists. Every
+ * assertion about the credential goes through here, so a change that quietly put it back in the
+ * response body would not make these tests pass again.
+ */
+function cookieToken(response: { headers: Record<string, unknown> }): string {
+  const header = response.headers['set-cookie'];
+  const value = Array.isArray(header) ? header.join(';') : String(header);
+  return value.split(';')[0]!.slice(`${SESSION_COOKIE_NAME}=`.length);
 }
 
 describe('signing in', () => {
@@ -73,16 +85,65 @@ describe('signing in', () => {
   it('stores a digest of the session token and not the token', async () => {
     const { app, fixtures } = await buildTestApp();
 
-    const { sessionToken } = (
-      await login(app, { email: fixtures.userA.email, password: TEST_PASSWORD })
-    ).json<LoginResponse>();
+    const response = await login(app, { email: fixtures.userA.email, password: TEST_PASSWORD });
+    const sessionToken = cookieToken(response);
 
     const sessions = fixtures.db.select().from(sessionTable).all();
     expect(sessions).toHaveLength(1);
-    expect(sessions[0]?.tokenHash).toBe(hashSessionToken(sessionToken));
+    expect(sessions[0]?.tokenHash).toBe(hashToken(sessionToken));
     expect(sessions[0]?.userId).toBe(fixtures.userA.id);
     // The credential itself is nowhere in the row.
     expect(JSON.stringify(sessions[0])).not.toContain(sessionToken);
+  });
+
+  /**
+   * The point of the cookie. A token in the response body is a token the page can read, which
+   * means anything injected into that page can read it too and can keep it after the tab closes.
+   */
+  it('puts the credential in an HttpOnly cookie and nowhere in the body', async () => {
+    const { app, fixtures } = await buildTestApp();
+
+    const response = await login(app, { email: fixtures.userA.email, password: TEST_PASSWORD });
+    const cookie = String(response.headers['set-cookie']);
+
+    expect(cookie).toContain(`${SESSION_COOKIE_NAME}=`);
+    expect(cookie).toContain('HttpOnly');
+    expect(cookie).toContain('SameSite=Lax');
+    expect(cookie).toContain('Path=/');
+    expect(cookie).toMatch(/Max-Age=\d+/);
+    expect(response.body).not.toContain(cookieToken(response));
+    expect(response.json<LoginResponse>()).not.toHaveProperty('sessionToken');
+  });
+
+  /**
+   * Secure follows the configured origin's scheme rather than NODE_ENV, so a developer on plain
+   * http gets a cookie their browser stores and anything on https gets one that never travels
+   * in clear. See WEB_ORIGIN in config.ts.
+   */
+  it('marks the cookie Secure when the app is served over https, and not when it is not', async () => {
+    const plain = await buildTestApp();
+    const secureFixtures = createTestFixtures();
+    const overHttps = await buildApp({
+      config: parseConfig({ LOG_LEVEL: 'fatal', WEB_ORIGIN: 'https://portionium.example' }),
+      database: secureFixtures,
+    });
+
+    try {
+      const insecure = await login(plain.app, {
+        email: plain.fixtures.userA.email,
+        password: TEST_PASSWORD,
+      });
+      const secure = await overHttps.inject({
+        method: 'POST',
+        url: LOGIN,
+        payload: { email: secureFixtures.userA.email, password: TEST_PASSWORD },
+      });
+
+      expect(String(insecure.headers['set-cookie'])).not.toContain('Secure');
+      expect(String(secure.headers['set-cookie'])).toContain('Secure');
+    } finally {
+      await overHttps.close();
+    }
   });
 
   it('accepts the address however it is capitalised', async () => {
@@ -101,8 +162,8 @@ describe('signing in', () => {
     const { app, fixtures } = await buildTestApp();
     const credentials = { email: fixtures.userA.email, password: TEST_PASSWORD };
 
-    const first = (await login(app, credentials)).json<LoginResponse>().sessionToken;
-    const second = (await login(app, credentials)).json<LoginResponse>().sessionToken;
+    const first = cookieToken(await login(app, credentials));
+    const second = cookieToken(await login(app, credentials));
 
     expect(first).not.toBe(second);
     expect(fixtures.db.select().from(sessionTable).all()).toHaveLength(2);

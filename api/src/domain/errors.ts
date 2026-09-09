@@ -13,6 +13,8 @@ export type DomainErrorCode =
   | 'too_many_login_attempts'
   | 'unauthenticated'
   | 'insufficient_scope'
+  | 'csrf_origin_rejected'
+  | 'session_required'
   | 'resource_not_found';
 
 export class DomainError extends Error {
@@ -81,6 +83,40 @@ export class InsufficientScopeError extends DomainError {
   constructor() {
     super('insufficient_scope', 'This account does not have access to that.');
     this.name = 'InsufficientScopeError';
+  }
+}
+
+/**
+ * A mutating request that arrived on a session cookie from an origin this instance does not
+ * serve, or from none at all.
+ *
+ * The cookie was valid and the browser was right to send it: a browser attaches cookies to a
+ * cross site form post exactly as willingly as to a first party fetch, which is the whole of
+ * CSRF. What a page cannot do is forge the `Origin` header, so that header is what decides,
+ * and a request that omits it is refused rather than trusted. See WEB_ORIGIN in config.ts.
+ *
+ * Bearer requests never reach this. A token is not attached by a browser, so there is nothing
+ * for a third party page to make the victim's browser do with one.
+ */
+export class CsrfOriginRejectedError extends DomainError {
+  constructor() {
+    super('csrf_origin_rejected', 'This request did not come from a recognised origin.');
+    this.name = 'CsrfOriginRejectedError';
+  }
+}
+
+/**
+ * A valid API token asking for something only a signed in person may do: minting another token,
+ * or ending a session.
+ *
+ * A token that could mint its own successor is a token whose revocation means nothing, because
+ * whoever stole it made a fresh one before anybody noticed. Requiring a password typed into a
+ * browser to create the next credential is the cheapest way to make revocation final.
+ */
+export class SessionRequiredError extends DomainError {
+  constructor() {
+    super('session_required', 'This action requires a signed in session, not an API token.');
+    this.name = 'SessionRequiredError';
   }
 }
 

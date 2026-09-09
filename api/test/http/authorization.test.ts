@@ -44,13 +44,15 @@ async function buildTestApp(env: NodeJS.ProcessEnv = {}) {
     database: fixtures,
   });
 
-  app.get('/who', { config: { auth: 'account' } }, (request) => request.auth);
+  app.get('/who', { config: { auth: 'read' } }, (request) => request.auth);
 
   app.get('/admin-only', { config: { auth: 'admin' } }, () => ({ ok: true }));
 
+  app.post('/write-something', { config: { auth: 'write' } }, () => ({ ok: true }));
+
   app.get(
     '/mine/:id',
-    { config: { auth: 'account' }, schema: { params: z.object({ id: z.string() }) } },
+    { config: { auth: 'read' }, schema: { params: z.object({ id: z.string() }) } },
     (request) => {
       // buildApp returns a plain FastifyInstance, so the type provider that would infer this
       // from the schema above does not reach a route declared out here.
@@ -73,7 +75,7 @@ async function buildTestApp(env: NodeJS.ProcessEnv = {}) {
 
   // Writes to the context, attempted from inside a handler the way a bug or a compromised
   // dependency would. Both are expected to fail, see the assertions at the bottom of the file.
-  app.get('/tamper', { config: { auth: 'account' } }, (request) => {
+  app.get('/tamper', { config: { auth: 'read' } }, (request) => {
     const replaced = attempt(() => {
       (request as { auth: unknown }).auth = { userId: 'someone-else' };
     });
@@ -164,10 +166,10 @@ describe('establishing who is calling', () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({
+    expect(response.json()).toMatchObject({
       userId: fixtures.userA.id,
       role: 'user',
-      scopes: ['account'],
+      scopes: ['read', 'write'],
     });
   });
 
@@ -194,7 +196,7 @@ describe('establishing who is calling', () => {
       headers: { authorization: `Bearer ${token}` },
     });
 
-    expect(response.json<{ scopes: string[] }>().scopes).toEqual(['account', 'admin']);
+    expect(response.json<{ scopes: string[] }>().scopes).toEqual(['read', 'write', 'admin']);
   });
 });
 

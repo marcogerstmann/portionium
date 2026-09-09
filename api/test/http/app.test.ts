@@ -133,7 +133,15 @@ describe('openapi document', () => {
     ).json<SpecDocument>();
 
     expect(document.openapi).toBe('3.1.0');
-    expect(Object.keys(document.paths).sort()).toEqual([`${API_PREFIX}/auth/login`, '/health']);
+    expect(Object.keys(document.paths).sort()).toEqual([
+      `${API_PREFIX}/auth/login`,
+      `${API_PREFIX}/auth/logout`,
+      `${API_PREFIX}/auth/sessions`,
+      `${API_PREFIX}/auth/sessions/{id}`,
+      `${API_PREFIX}/auth/tokens`,
+      `${API_PREFIX}/auth/tokens/{id}`,
+      '/health',
+    ]);
   });
 
   it('generates the response schema from the Zod schema the route is serialized with', async () => {

@@ -4,12 +4,13 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   countUsers,
   findUserByEmail,
+  insertApiToken,
   insertSession,
   insertUser,
   setPasswordHash,
 } from '../src/db/auth.js';
-import { sessionTable, userTable } from '../src/db/schema/index.js';
-import { createSessionToken } from '../src/domain/auth.js';
+import { apiTokenTable, sessionTable, userTable } from '../src/db/schema/index.js';
+import { createApiToken, createSessionToken } from '../src/domain/auth.js';
 import { createTestFixtures, TEST_PASSWORD_HASH, type TestFixtures } from './helpers/fixtures.js';
 
 /**
@@ -125,18 +126,30 @@ describe('changing a password', () => {
   });
 
   /**
-   * The other half of the promise on setPasswordHash. There is no api_tokens table yet, so what
-   * this can assert today is that the only table the change reaches into is the session one. It
-   * is here so that the story which adds tokens has to decide about them on purpose.
+   * The other half of the promise on setPasswordHash, and the decision the story that added
+   * API tokens had to make on purpose.
+   *
+   * A token is a credential its owner issued deliberately, to a script that is not sitting at
+   * the keyboard. Revoking it because somebody rotated a password would break automation as a
+   * side effect of good hygiene, so a password change reaches into exactly one table.
    */
-  it('touches sessions and nothing else', () => {
+  it('leaves API tokens working, which is the point of them being a separate credential', () => {
     const { db, userA } = open();
     const { tokenHash, expiresAt } = createSessionToken();
     insertSession(db, { userId: userA.id, tokenHash, expiresAt });
-    const before = db.select().from(userTable).all().length;
+    insertApiToken(db, {
+      userId: userA.id,
+      name: 'Deploy script',
+      tokenHash: createApiToken().tokenHash,
+      scopes: ['read', 'write'],
+      expiresAt: null,
+    });
+    const users = db.select().from(userTable).all().length;
 
     setPasswordHash(db, userA.id, 'a-new-hash');
 
-    expect(db.select().from(userTable).all()).toHaveLength(before);
+    expect(db.select().from(sessionTable).all()).toHaveLength(0);
+    expect(db.select().from(apiTokenTable).get()?.revokedAt).toBeNull();
+    expect(db.select().from(userTable).all()).toHaveLength(users);
   });
 });

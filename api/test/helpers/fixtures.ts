@@ -1,5 +1,8 @@
+import type { Scope } from '@portionium/schemas';
+
 import type { Db } from '../../src/db/client.js';
 import {
+  apiTokenTable,
   foodTable,
   mealItemTable,
   mealTable,
@@ -7,7 +10,7 @@ import {
   userTable,
   weightEntryTable,
 } from '../../src/db/schema/index.js';
-import { createSessionToken } from '../../src/domain/auth.js';
+import { createApiToken, createSessionToken } from '../../src/domain/auth.js';
 import { resolveLocalDate } from '../../src/domain/local-date.js';
 import { createMeal, type NewMealItem } from '../../src/domain/meal.js';
 import { createTestDatabase, type TestDatabase } from './database.js';
@@ -30,6 +33,8 @@ export type FoodRow = typeof foodTable.$inferSelect;
 export type MealRow = typeof mealTable.$inferSelect;
 export type MealItemRow = typeof mealItemTable.$inferSelect;
 export type WeightEntryRow = typeof weightEntryTable.$inferSelect;
+export type SessionRow = typeof sessionTable.$inferSelect;
+export type ApiTokenRow = typeof apiTokenTable.$inferSelect;
 
 /**
  * The password every fixture account is created with, and its hash, precomputed.
@@ -55,6 +60,20 @@ export interface MealOverrides {
   items?: readonly NewMealItem[];
 }
 
+export interface SessionOverrides {
+  expiresAt?: Date;
+  /** So a test can look at a session whose activity was recorded long enough ago to matter. */
+  lastActivityAt?: Date;
+}
+
+export interface ApiTokenOverrides {
+  name?: string;
+  scopes?: Scope[];
+  expiresAt?: Date | null;
+  revokedAt?: Date | null;
+  lastUsedAt?: Date | null;
+}
+
 export interface Factories {
   user(overrides?: Partial<typeof userTable.$inferInsert>): UserRow;
   /**
@@ -64,7 +83,15 @@ export interface Factories {
    *
    * `expiresAt` is an override so a test can look at an expired session without waiting a month.
    */
-  session(owner: UserRow, overrides?: { expiresAt?: Date }): string;
+  session(owner: UserRow, overrides?: SessionOverrides): string;
+  /**
+   * An API token for this user, returning the string a script would hold. Minted the way the
+   * endpoint mints one, so the row stores a digest and the token wears its prefix.
+   *
+   * `scopes` defaults to read and write, which is what a user's own session carries, so a test
+   * that is not about scopes does not have to think about them.
+   */
+  apiToken(owner: UserRow, overrides?: ApiTokenOverrides): string;
   food(overrides?: Partial<typeof foodTable.$inferInsert>): FoodRow;
   /**
    * The user is a parameter rather than an override because a meal needs one for two separate
@@ -93,10 +120,33 @@ export function createFactories(db: Db): Factories {
       .get();
   }
 
-  function session(owner: UserRow, overrides: { expiresAt?: Date } = {}): string {
+  function session(owner: UserRow, overrides: SessionOverrides = {}): string {
     const { token, tokenHash, expiresAt } = createSessionToken();
     db.insert(sessionTable)
-      .values({ userId: owner.id, tokenHash, expiresAt: overrides.expiresAt ?? expiresAt })
+      .values({
+        userId: owner.id,
+        tokenHash,
+        expiresAt: overrides.expiresAt ?? expiresAt,
+        lastActivityAt: overrides.lastActivityAt ?? new Date(),
+      })
+      .run();
+
+    return token;
+  }
+
+  function apiToken(owner: UserRow, overrides: ApiTokenOverrides = {}): string {
+    const n = ++sequence;
+    const { token, tokenHash } = createApiToken();
+    db.insert(apiTokenTable)
+      .values({
+        userId: owner.id,
+        name: overrides.name ?? `Token ${n}`,
+        tokenHash,
+        scopes: overrides.scopes ?? ['read', 'write'],
+        expiresAt: overrides.expiresAt ?? null,
+        revokedAt: overrides.revokedAt ?? null,
+        lastUsedAt: overrides.lastUsedAt ?? null,
+      })
       .run();
 
     return token;
@@ -154,7 +204,7 @@ export function createFactories(db: Db): Factories {
       .get();
   }
 
-  return { user, session, food, meal, weightEntry };
+  return { user, session, apiToken, food, meal, weightEntry };
 }
 
 export interface TestFixtures extends TestDatabase {

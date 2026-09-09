@@ -8,7 +8,15 @@ import {
   weightEntrySchema,
   type WeightEntry,
 } from './entities.js';
-import { emailSchema, mealTypeSchema, PASSWORD_MAX_LENGTH, timestampSchema } from './primitives.js';
+import {
+  apiTokenNameSchema,
+  emailSchema,
+  idSchema,
+  mealTypeSchema,
+  PASSWORD_MAX_LENGTH,
+  scopeSchema,
+  timestampSchema,
+} from './primitives.js';
 
 /**
  * What crosses the wire. These live beside the entity schemas rather than in the API, so the
@@ -123,17 +131,81 @@ export type UserResponse = z.infer<typeof userResponseSchema>;
 
 export const loginResponseSchema = z.object({
   /**
-   * The session credential, and the only time it is ever readable. The server keeps a SHA-256
-   * of it and not the string itself, so a lost token cannot be recovered from the database, and
-   * a copy of the database is not a set of live sessions.
+   * When the session stops working if nothing touches it again. The credential itself is not
+   * here and is not anywhere a script can read: it is set as an HttpOnly cookie, so the page
+   * that signed in cannot read its own session token and neither can anything injected into it.
    *
-   * It is in the body because there is no cookie layer yet. Moving it into an HttpOnly cookie,
-   * with the sliding expiry and the revocation list around it, is the sessions story.
+   * A caller that wants a credential it can hold, an MCP server or a deploy script, does not
+   * sign in at all. It is handed an API token minted from a session, see createApiTokenResponse.
    */
-  sessionToken: z.string(),
-  /** When that token stops working, whatever the client does with it in the meantime. */
   expiresAt: z.iso.datetime(),
   user: userResponseSchema,
 });
 
 export type LoginResponse = z.infer<typeof loginResponseSchema>;
+
+/**
+ * One of the browsers a user is signed in on. There is no token or hash of one here: the row's
+ * id is what a session is listed and revoked by, which is exactly why it is not the credential.
+ *
+ * `current` is the session the request asking for this list arrived on, marked so that revoking
+ * one is a decision rather than an accident.
+ */
+export const sessionResponseSchema = z.object({
+  id: idSchema,
+  createdAt: z.iso.datetime(),
+  /** Last time a request on this session moved its expiry. See ACTIVITY_INTERVAL_MS. */
+  lastActivityAt: z.iso.datetime(),
+  expiresAt: z.iso.datetime(),
+  current: z.boolean(),
+});
+
+export type SessionResponse = z.infer<typeof sessionResponseSchema>;
+
+/**
+ * An API token as its owner sees it afterwards, which is everything about it except the thing
+ * that makes it work. The plaintext exists in one response, once, see below.
+ *
+ * The nullable fields are null rather than absent. A client that has to check whether
+ * `lastUsedAt` is there before checking whether it is null has two code paths for "never used".
+ */
+export const apiTokenResponseSchema = z.object({
+  id: idSchema,
+  name: apiTokenNameSchema,
+  scopes: z.array(scopeSchema),
+  createdAt: z.iso.datetime(),
+  /** Null until the token authenticates something. Written at most once a minute after that. */
+  lastUsedAt: z.iso.datetime().nullable(),
+  /** Null means it does not expire on its own and lives until it is revoked. */
+  expiresAt: z.iso.datetime().nullable(),
+});
+
+export type ApiTokenResponse = z.infer<typeof apiTokenResponseSchema>;
+
+/**
+ * Minting one. The scopes are the caller's choice and are checked against what the caller
+ * actually has: a token cannot carry more than the user issuing it, which is the only reason
+ * this endpoint can be reached by anyone other than an administrator.
+ *
+ * `expiresInDays` is a duration rather than a date, because the client is asking for "ninety
+ * days from now" and a date computed on a laptop with a wrong clock is a token that dies on a
+ * Tuesday for no reason. Absent means it lives until it is revoked.
+ */
+export const createApiTokenRequestSchema = z.strictObject({
+  name: apiTokenNameSchema,
+  scopes: z.array(scopeSchema).min(1),
+  expiresInDays: z.int().positive().max(365).optional(),
+});
+
+export type CreateApiTokenRequest = z.infer<typeof createApiTokenRequestSchema>;
+
+/**
+ * The one response that carries a usable token, and the only time that string exists outside
+ * the client that asked for it. The server stored a SHA-256 of it, so this is not recoverable
+ * afterwards by anybody, including whoever holds the database file.
+ */
+export const createApiTokenResponseSchema = apiTokenResponseSchema.extend({
+  token: z.string(),
+});
+
+export type CreateApiTokenResponse = z.infer<typeof createApiTokenResponseSchema>;
