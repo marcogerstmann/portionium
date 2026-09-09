@@ -37,6 +37,7 @@ api/                @portionium/api, Fastify server and MCP adapter
   test/             integration tests that need a database
   test/helpers/     the test database, the factories and the frozen clock
   drizzle/          generated migration files, committed
+  openapi/          the generated spec, committed as the contract snapshot
   seed/             the food catalog that ships with the app, committed
 web/                @portionium/web, the PWA, Vite and React
   src/              app code
@@ -216,6 +217,25 @@ orchestrator or an uptime monitor, configured once by someone who is not trackin
 so versioning it means either breaking their probe the day v2 ships or keeping `/api/v1/health`
 alive forever as a fossil. Anything a client negotiates over goes under the prefix.
 
+### Pagination
+
+Written down once, in
+[`packages/schemas/src/api.ts`](./packages/schemas/src/api.ts), before the first list endpoint
+exists, so the second one cannot invent a second convention. Two query parameters, `limit` and
+`cursor`, and one envelope, `{ items, nextCursor }`.
+
+Cursor based rather than offset based. An offset addresses rows by position, so a row written
+or removed while somebody is paging shifts everything after it and the client sees an entry
+twice or misses one. Meals and weight entries come back newest first and are written
+continuously, which is exactly the case an offset gets wrong.
+
+A cursor is opaque and the only correct thing a client can do with one is send it back. What it
+contains is the endpoint's business, and since every id here is a UUIDv7 and therefore already
+sorts by creation time, in practice it is the last id of the page. There is deliberately no
+encode or decode helper yet: nothing issues a cursor, and a helper written now is a guess the
+first real endpoint would have to work around. `nextCursor` is null on the last page rather
+than absent, so a client has one check for "there is more" instead of two.
+
 ### OpenAPI
 
 The document is generated from the same schemas the routes are validated with and served at
@@ -225,6 +245,28 @@ There is no hand written spec in this repository, and there will not be one. If 
 code can disagree, the spec is wrong by construction. `api/test/http/app.test.ts` validates the
 generated document against the OpenAPI 3.1 specification, so a schema that cannot be expressed as
 one fails CI on the commit that introduces it.
+
+The generated document is also committed, at
+[`api/openapi/openapi.json`](./api/openapi/openapi.json), and
+`api/test/http/openapi-snapshot.test.ts` compares the two. A change to the public contract is
+therefore a diff in the pull request that causes it: a reviewer sees that a field was renamed
+or a status added without reading the route, and a change nobody meant to make has to be staged
+deliberately before it can be merged. Regenerate with:
+
+```sh
+pnpm --filter @portionium/api openapi
+```
+
+That script is `vitest -u` over the same test. There is no separate generator and no extra CI
+step on purpose, because a snapshot written by something other than what verifies it is a
+snapshot that can be right about a document nobody serves.
+
+There is no generated client, and there will not be one. The web app imports its request and
+response types from `@portionium/schemas`, which is the same definition the server validates and
+serializes with, so the two cannot drift and a contract change breaks the typecheck on both
+sides in one commit. A generated client would be a third copy of shapes that already exist
+twice, regenerated on a schedule somebody forgets. The spec is here for documentation, for the
+snapshot above, and for a consumer that is not this repository.
 
 ### Shutdown
 
@@ -409,6 +451,36 @@ Changing a password ends every session opened with the old one, in the same tran
 tokens are deliberately left alone: they are a credential a user issued on purpose to a script
 that is not sitting at the keyboard, and revoking them as a side effect of good hygiene breaks
 automation. They are revoked one at a time, by their owner.
+
+### The account over HTTP
+
+Three endpoints, in [`api/src/http/routes/me.ts`](./api/src/http/routes/me.ts), and no id in any
+of their paths. The caller is `request.auth` and nothing else, so `/me` is the only spelling of
+"my profile" and there is no version of it that can be pointed at another account by editing a
+URL. Reaching somebody else's row here is not refused, it is not expressible.
+
+`GET /api/v1/me` answers the profile. `PATCH /api/v1/me` changes the display name, the timezone
+and the day boundary hour, and nothing else: the request schema is derived from `userSchema` and
+has no field for an email or a role, so a caller that sends one gets a 400 rather than having it
+ignored. The timezone is held to `timezoneSchema`, which asks the runtime's own IANA database, so
+`CEST` is refused before anything tries to derive a local date from it. A field the body does not
+name is a field nobody touched, which is what stops one stale tab writing back over an edit made
+in another.
+
+`POST /api/v1/me/password` changes the password, and three things about it are deliberate:
+
+- **The current password is required and verified.** The session on the request proves the
+  browser was signed in at some point, not that the person at the keyboard is the owner, which is
+  exactly what an unattended session is.
+- **A wrong current password is 403 `invalid-current-password`, not the login's 401.** A 401 on
+  an authenticated request is read by every sensible client as "your session is over", and
+  signing a user out because they mistyped one form field is the wrong reaction to a typo.
+- **An API token cannot call it.** It answers `SessionRequiredError`, the same rule that stops a
+  token minting a token. A token is issued to a script, and a script that can change the password
+  can lock its owner out of the account it was given limited access to.
+
+It ends every session, this one included, and clears the cookie on the way out, so signing in
+again is the next step. API tokens survive, see `setPasswordHash`.
 
 ## Database
 

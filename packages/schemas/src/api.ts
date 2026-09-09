@@ -6,6 +6,7 @@ import {
   mealSchema,
   userSchema,
   weightEntrySchema,
+  type User,
   type WeightEntry,
 } from './entities.js';
 import {
@@ -14,6 +15,7 @@ import {
   idSchema,
   mealTypeSchema,
   PASSWORD_MAX_LENGTH,
+  passwordSchema,
   scopeSchema,
   timestampSchema,
 } from './primitives.js';
@@ -32,6 +34,39 @@ import {
  * schema named `*RequestSchema` is strict, and api/test/http/app.test.ts checks that the
  * HTTP layer turns the resulting issue into a 400 rather than a quiet 200.
  */
+
+/**
+ * Paging, written down once for every list this API will ever serve, before the first one
+ * exists. Two parameters, `limit` and `cursor`, and one envelope.
+ *
+ * Cursor based rather than offset based. An offset addresses rows by position, so a row
+ * inserted or removed while somebody is paging shifts everything after it and the client sees
+ * an entry twice or misses one entirely. Meals and weight entries come back newest first and
+ * are written continuously, which is exactly the case an offset gets wrong.
+ *
+ * A cursor is opaque and the only correct thing a client can do with one is send it back. What
+ * it contains is the endpoint's business: ids here are UUIDv7 and therefore already sort by
+ * creation time, so in practice it is the last id of the page. There is deliberately no encode
+ * or decode helper here, because nothing issues a cursor yet and a helper written now would be
+ * a guess that the first real endpoint has to work around.
+ *
+ * `nextCursor` is null on the last page rather than absent, so a client has one check for
+ * "there is more" instead of two.
+ */
+export const paginationQuerySchema = z.strictObject({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.string().min(1).optional(),
+});
+
+export type PaginationQuery = z.infer<typeof paginationQuerySchema>;
+
+/**
+ * A page of anything. A function rather than a constant, so the item type survives into the
+ * response type a route is inferred from.
+ */
+export function pageSchema<T extends z.ZodType>(item: T) {
+  return z.object({ items: z.array(item), nextCursor: z.string().nullable() });
+}
 
 export const createFoodRequestSchema = foodSchema
   .pick({
@@ -128,6 +163,60 @@ export type LoginRequest = z.infer<typeof loginRequestSchema>;
 export const userResponseSchema = userSchema.omit({ createdAt: true });
 
 export type UserResponse = z.infer<typeof userResponseSchema>;
+
+/**
+ * The other direction, and the one place a stored account becomes one on the wire.
+ *
+ * The fields are listed rather than spread. Every row this is called with carries a password
+ * hash, and a response that is safe because a schema happens to strip an extra key is a
+ * response that stops being safe the day somebody reaches for a looser schema.
+ */
+export function toUserResponse(user: User): UserResponse {
+  return {
+    id: user.id,
+    email: user.email,
+    displayName: user.displayName,
+    role: user.role,
+    timezone: user.timezone,
+    dayBoundaryHour: user.dayBoundaryHour,
+  };
+}
+
+/**
+ * What a user may change about themselves. Every field is optional, so a client sends the one
+ * it is changing rather than writing back the whole profile it read a minute ago, which is how
+ * one open tab silently reverts an edit made in another.
+ *
+ * Email and role are absent by construction rather than by filtering. An address identifies
+ * the account and changing one needs a confirmation flow that does not exist here; a role is
+ * something an administrator grants, and a user who could PATCH their own would already be one.
+ *
+ * The timezone is held to timezoneSchema, which asks the runtime's own IANA database rather
+ * than a list bundled here. So `Europe/Berlin` is accepted and `CEST` is a 400, before
+ * anything tries to derive a local date from it. See resolveLocalDate.
+ */
+export const updateProfileRequestSchema = userSchema
+  .pick({ displayName: true, timezone: true, dayBoundaryHour: true })
+  .partial()
+  .strict();
+
+export type UpdateProfileRequest = z.infer<typeof updateProfileRequestSchema>;
+
+/**
+ * Rotating a password. The current one is required and is verified by the server, so a session
+ * somebody left open on a shared machine is not enough to take the account over for good.
+ *
+ * The two fields are held to different schemas, the same split loginRequestSchema makes. The
+ * new one is held to the policy because it is being set. The current one is only being
+ * compared, so it is length checked and nothing else: answering a wrong password with a list of
+ * policy violations tells whoever is guessing which guesses were never worth making.
+ */
+export const changePasswordRequestSchema = z.strictObject({
+  currentPassword: z.string().min(1).max(PASSWORD_MAX_LENGTH),
+  newPassword: passwordSchema,
+});
+
+export type ChangePasswordRequest = z.infer<typeof changePasswordRequestSchema>;
 
 export const loginResponseSchema = z.object({
   /**

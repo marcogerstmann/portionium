@@ -48,6 +48,51 @@ export function findUserByEmail(db: Db, email: string): UserRecord | undefined {
     .get();
 }
 
+/**
+ * The same read by id, which is what an authenticated request has. `request.auth` carries the
+ * id, the role and the scopes and deliberately nothing else, so anything that wants a profile
+ * comes back here for the row rather than growing the context into a cache of it.
+ */
+export function findUserById(db: Db, userId: string): UserRecord | undefined {
+  return db
+    .select()
+    .from(userTable)
+    .where(and(eq(userTable.id, userId), isNull(userTable.deletedAt)))
+    .get();
+}
+
+/**
+ * The three fields a user owns about themselves. Email and role are not here: an address
+ * identifies the account and a role is granted rather than chosen, so neither is something a
+ * profile update can reach even if a caller sends one.
+ *
+ * Undefined means untouched. Drizzle drops undefined values from a set and then refuses one
+ * with nothing left in it, so an empty patch is answered with the row as it stands rather than
+ * with a thrown query.
+ */
+export interface ProfileChanges {
+  displayName?: string | undefined;
+  timezone?: string | undefined;
+  dayBoundaryHour?: number | undefined;
+}
+
+export function updateUserProfile(
+  db: Db,
+  userId: string,
+  changes: ProfileChanges,
+): UserRecord | undefined {
+  if (Object.values(changes).every((value) => value === undefined)) {
+    return findUserById(db, userId);
+  }
+
+  return db
+    .update(userTable)
+    .set(changes)
+    .where(and(eq(userTable.id, userId), isNull(userTable.deletedAt)))
+    .returning()
+    .get();
+}
+
 export function insertUser(db: Db, user: NewUser): UserRecord {
   return db
     .insert(userTable)

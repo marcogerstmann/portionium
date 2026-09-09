@@ -20,6 +20,7 @@ import { registerSecurity } from './plugins/security.js';
 import { registerProblemHandlers } from './problem.js';
 import { authRoutes } from './routes/auth.js';
 import { healthRoutes, HEALTH_PATH } from './routes/health.js';
+import { meRoutes } from './routes/me.js';
 
 /**
  * The Fastify shell. Everything about how a route is written is decided here, once.
@@ -195,6 +196,11 @@ export async function buildApp({ config, database }: AppDependencies): Promise<F
         // A cookie marked Secure is dropped by a browser over plain http, so the flag follows
         // the origin the app is actually served from rather than a second variable that can be
         // set to the wrong half of the pair. See WEB_ORIGIN in config.ts.
+        cookieSecure: config.WEB_ORIGIN.startsWith('https://'),
+      });
+
+      void v1.register(meRoutes, {
+        db: database.db,
         cookieSecure: config.WEB_ORIGIN.startsWith('https://'),
       });
 

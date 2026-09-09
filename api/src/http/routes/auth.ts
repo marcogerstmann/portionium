@@ -7,6 +7,7 @@ import {
   PROBLEM_CONTENT_TYPE,
   problemDetailsSchema,
   sessionResponseSchema,
+  toUserResponse,
   type Scope,
 } from '@portionium/schemas';
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
@@ -40,7 +41,11 @@ import {
   SessionRequiredError,
 } from '../../domain/errors.js';
 import { clearedSessionCookie, sessionCookie } from '../plugins/auth.js';
-import { idempotencyProblemResponses, problemResponses } from '../problem.js';
+import {
+  authenticatedProblemResponses,
+  idempotencyProblemResponses,
+  problemResponses,
+} from '../problem.js';
 
 /**
  * The credentials, both of them: the session a person gets by typing a password into the web
@@ -78,18 +83,6 @@ export interface AuthRouteOptions {
 const loginProblemResponses = {
   401: {
     description: 'The email and password did not match an account',
-    content: { [PROBLEM_CONTENT_TYPE]: { schema: problemDetailsSchema } },
-  },
-} as const;
-
-/** Every route below this one needs a credential, so all of them can answer these two. */
-const authenticatedProblemResponses = {
-  401: {
-    description: 'No credential, or one that no longer resolves to anybody',
-    content: { [PROBLEM_CONTENT_TYPE]: { schema: problemDetailsSchema } },
-  },
-  403: {
-    description: 'The credential may not do this, or the request failed the origin check',
     content: { [PROBLEM_CONTENT_TYPE]: { schema: problemDetailsSchema } },
   },
 } as const;
@@ -196,20 +189,9 @@ export const authRoutes: FastifyPluginCallbackZod<AuthRouteOptions> = (app, opti
 
       request.log.info({ userId: user.id }, 'login succeeded');
 
-      return {
-        expiresAt: expiresAt.toISOString(),
-        // Listed field by field rather than spread. The row carries a password hash, and a
-        // response that is correct because a schema happens to strip an extra key is a
-        // response that stops being correct the day somebody reaches for a looser schema.
-        user: {
-          id: user.id,
-          email: user.email,
-          displayName: user.displayName,
-          role: user.role,
-          timezone: user.timezone,
-          dayBoundaryHour: user.dayBoundaryHour,
-        },
-      };
+      // toUserResponse lists the fields rather than spreading the row, which is what keeps the
+      // password hash out of this body by construction rather than by a schema stripping it.
+      return { expiresAt: expiresAt.toISOString(), user: toUserResponse(user) };
     },
   );
 

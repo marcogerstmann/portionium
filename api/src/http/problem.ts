@@ -48,6 +48,11 @@ const DOMAIN_PROBLEMS: Record<
     title: 'Invalid credentials',
     status: 401,
   },
+  invalid_current_password: {
+    type: PROBLEM.invalidCurrentPassword,
+    title: 'Current password is incorrect',
+    status: 403,
+  },
   too_many_login_attempts: {
     type: PROBLEM.tooManyLoginAttempts,
     title: 'Too many failed sign in attempts',
@@ -135,6 +140,23 @@ export const problemResponses = {
   },
   500: {
     description: 'Unexpected server error',
+    content: { [PROBLEM_CONTENT_TYPE]: { schema: problemDetailsSchema } },
+  },
+} as const;
+
+/**
+ * Spread into the `response` map of every route that needs a credential, which is every route
+ * this API serves except the three in the public list. Raised by the auth plugin before a
+ * handler runs, so no route raises them itself and none would otherwise document them. See
+ * http/plugins/auth.ts.
+ */
+export const authenticatedProblemResponses = {
+  401: {
+    description: 'No credential, or one that no longer resolves to anybody',
+    content: { [PROBLEM_CONTENT_TYPE]: { schema: problemDetailsSchema } },
+  },
+  403: {
+    description: 'The credential may not do this, or the request failed the origin check',
     content: { [PROBLEM_CONTENT_TYPE]: { schema: problemDetailsSchema } },
   },
 } as const;

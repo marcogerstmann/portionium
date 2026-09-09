@@ -3,6 +3,9 @@ dist/
 coverage/
 pnpm-lock.yaml
 api/drizzle/
+# Generated, committed and diffed rather than authored. Written by the snapshot test in
+# api/test/http/openapi-snapshot.test.ts, so its formatting is that test's business.
+api/openapi/
 web/dev-dist/
 web/test-results/
 web/playwright-report/

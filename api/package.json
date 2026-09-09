@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "openapi": "vitest run test/http/openapi-snapshot.test.ts -u",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src test drizzle.config.ts",
     "db:generate": "drizzle-kit generate --name",

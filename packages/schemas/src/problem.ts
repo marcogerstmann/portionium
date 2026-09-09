@@ -32,6 +32,13 @@ export const PROBLEM = {
   unclassified: 'about:blank',
   validationFailed: `${PROBLEM_NAMESPACE}/validation-failed`,
   invalidCredentials: `${PROBLEM_NAMESPACE}/invalid-credentials`,
+  /**
+   * The current password sent with a password change did not match. Separate from
+   * invalidCredentials, which is a 401 and tells a client its credential is dead: this request
+   * arrived on a perfectly good session and a client that reacted to it by signing the user
+   * out would be reacting to a typo in a form field.
+   */
+  invalidCurrentPassword: `${PROBLEM_NAMESPACE}/invalid-current-password`,
   tooManyLoginAttempts: `${PROBLEM_NAMESPACE}/too-many-login-attempts`,
   /**
    * Too many requests, per credential or per address. Separate from the login lockout so a
@@ -49,8 +56,9 @@ export const PROBLEM = {
   csrfOriginRejected: `${PROBLEM_NAMESPACE}/csrf-origin-rejected`,
   /**
    * A valid API token asking for something only a signed in person may do: minting another
-   * token, or ending a session. A token cannot issue its own successor, so a stolen one cannot
-   * be turned into a fresh credential that outlives its revocation.
+   * token, ending a session, or changing the password. A token cannot issue its own successor,
+   * so a stolen one cannot be turned into a fresh credential that outlives its revocation, and
+   * it cannot lock its owner out of the account it was issued limited access to.
    */
   sessionRequired: `${PROBLEM_NAMESPACE}/session-required`,
   /**

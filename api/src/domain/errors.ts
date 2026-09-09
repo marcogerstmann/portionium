@@ -10,6 +10,7 @@ export type DomainErrorCode =
   | 'meal_has_no_items'
   | 'implausible_weight'
   | 'invalid_credentials'
+  | 'invalid_current_password'
   | 'too_many_login_attempts'
   | 'rate_limited'
   | 'unauthenticated'
@@ -93,6 +94,21 @@ export class InvalidCredentialsError extends DomainError {
 }
 
 /**
+ * The current password sent with a password change was wrong.
+ *
+ * Not InvalidCredentialsError, and the distinction is the whole reason this exists. That one
+ * is a 401, which every sensible client reads as "your session is over" and reacts to by
+ * throwing the user back to the sign in form. Here the session is fine and one field of a form
+ * was mistyped, so the answer says the caller may not do this rather than that they are nobody.
+ */
+export class InvalidCurrentPasswordError extends DomainError {
+  constructor() {
+    super('invalid_current_password', 'The current password is incorrect.');
+    this.name = 'InvalidCurrentPasswordError';
+  }
+}
+
+/**
  * No credential, or one that no longer resolves to anybody: expired, revoked, or belonging to
  * an account that has since been deleted. All four are one failure, because the caller's next
  * move is the same in every case, and because distinguishing them tells whoever is holding a
@@ -138,11 +154,15 @@ export class CsrfOriginRejectedError extends DomainError {
 
 /**
  * A valid API token asking for something only a signed in person may do: minting another token,
- * or ending a session.
+ * ending a session, or changing the password.
  *
  * A token that could mint its own successor is a token whose revocation means nothing, because
  * whoever stole it made a fresh one before anybody noticed. Requiring a password typed into a
  * browser to create the next credential is the cheapest way to make revocation final.
+ *
+ * The password change is here for the same reason read backwards. A token is a credential
+ * issued to a script, and a script that can change the password can lock its owner out of the
+ * account it was given limited access to, which is a stolen token turned into a takeover.
  */
 export class SessionRequiredError extends DomainError {
   constructor() {

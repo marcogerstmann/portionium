@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import type { z } from 'zod';
+import { z } from 'zod';
 
 import * as schemas from './api.js';
 import {
   createMealRequestSchema,
   createWeightEntryRequestSchema,
+  pageSchema,
+  paginationQuerySchema,
   toWeightEntryResponse,
+  updateProfileRequestSchema,
   weightEntryResponseSchema,
 } from './api.js';
 
@@ -93,6 +96,47 @@ describe('the weight boundary', () => {
     const stored = createWeightEntryRequestSchema.parse({ weightKg: 82.4 }).weightGrams;
 
     expect(toWeightEntryResponse({ ...entry, weightGrams: stored }).weightKg).toBe(82.4);
+  });
+});
+
+describe('updateProfileRequestSchema', () => {
+  it('holds the timezone to the runtime IANA database rather than to a shape', () => {
+    expect(updateProfileRequestSchema.safeParse({ timezone: 'Europe/Lisbon' }).success).toBe(true);
+    expect(updateProfileRequestSchema.safeParse({ timezone: 'CEST' }).success).toBe(false);
+  });
+
+  it('lets a client send only the field it is changing, and nothing at all', () => {
+    expect(updateProfileRequestSchema.parse({ displayName: 'Ada' })).toEqual({
+      displayName: 'Ada',
+    });
+    expect(updateProfileRequestSchema.parse({})).toEqual({});
+  });
+
+  it('has no field for the two things a user does not get to choose', () => {
+    expect(updateProfileRequestSchema.safeParse({ role: 'admin' }).success).toBe(false);
+    expect(updateProfileRequestSchema.safeParse({ email: 'a@b.de' }).success).toBe(false);
+  });
+});
+
+describe('paging', () => {
+  it('defaults the limit, so an endpoint never has to decide what no limit means', () => {
+    expect(paginationQuerySchema.parse({})).toEqual({ limit: 50 });
+  });
+
+  it('coerces the limit, because a query string only ever carries strings', () => {
+    expect(paginationQuerySchema.parse({ limit: '10' }).limit).toBe(10);
+    expect(paginationQuerySchema.safeParse({ limit: '0' }).success).toBe(false);
+    expect(paginationQuerySchema.safeParse({ limit: '1000' }).success).toBe(false);
+  });
+
+  it('wraps a page so the last one is a null cursor rather than a missing field', () => {
+    const page = pageSchema(z.string());
+
+    expect(page.parse({ items: ['a'], nextCursor: null })).toEqual({
+      items: ['a'],
+      nextCursor: null,
+    });
+    expect(page.safeParse({ items: [] }).success).toBe(false);
   });
 });
 
