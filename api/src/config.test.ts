@@ -12,6 +12,7 @@ describe('parseConfig', () => {
       WEB_ORIGIN: 'http://localhost:5173',
       SESSION_TTL_DAYS: 30,
       API_DOCS_ENABLED: true,
+      IDEMPOTENCY_RETENTION_HOURS: 24,
     });
   });
 

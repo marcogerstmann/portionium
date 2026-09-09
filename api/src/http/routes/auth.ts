@@ -40,7 +40,7 @@ import {
   SessionRequiredError,
 } from '../../domain/errors.js';
 import { clearedSessionCookie, sessionCookie } from '../plugins/auth.js';
-import { problemResponses } from '../problem.js';
+import { idempotencyProblemResponses, problemResponses } from '../problem.js';
 
 /**
  * The credentials, both of them: the session a person gets by typing a password into the web
@@ -222,6 +222,7 @@ export const authRoutes: FastifyPluginCallbackZod<AuthRouteOptions> = (app, opti
         response: {
           ...noContentResponse,
           ...authenticatedProblemResponses,
+          ...idempotencyProblemResponses,
           ...problemResponses,
         },
       },
@@ -277,6 +278,7 @@ export const authRoutes: FastifyPluginCallbackZod<AuthRouteOptions> = (app, opti
           ...noContentResponse,
           ...authenticatedProblemResponses,
           ...notFoundResponse,
+          ...idempotencyProblemResponses,
           ...problemResponses,
         },
       },
@@ -302,6 +304,7 @@ export const authRoutes: FastifyPluginCallbackZod<AuthRouteOptions> = (app, opti
         response: {
           201: createApiTokenResponseSchema,
           ...authenticatedProblemResponses,
+          ...idempotencyProblemResponses,
           ...problemResponses,
         },
       },
@@ -373,6 +376,7 @@ export const authRoutes: FastifyPluginCallbackZod<AuthRouteOptions> = (app, opti
           ...noContentResponse,
           ...authenticatedProblemResponses,
           ...notFoundResponse,
+          ...idempotencyProblemResponses,
           ...problemResponses,
         },
       },

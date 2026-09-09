@@ -53,6 +53,16 @@ export const PROBLEM = {
    * docs/adr/003-multi-user-authorization.md.
    */
   notFound: `${PROBLEM_NAMESPACE}/not-found`,
+  /**
+   * An Idempotency-Key the caller already used, sent with a different method, path or body.
+   * The stored answer belongs to another request, so neither it nor a fresh execution is given.
+   */
+  idempotencyKeyMismatch: `${PROBLEM_NAMESPACE}/idempotency-key-mismatch`,
+  /**
+   * The first request carrying this Idempotency-Key has not finished yet. Retry once it has
+   * and the stored response comes back.
+   */
+  idempotencyRequestInProgress: `${PROBLEM_NAMESPACE}/idempotency-request-in-progress`,
   mealHasNoItems: `${PROBLEM_NAMESPACE}/meal-has-no-items`,
   implausibleWeight: `${PROBLEM_NAMESPACE}/implausible-weight`,
   internalError: `${PROBLEM_NAMESPACE}/internal-error`,

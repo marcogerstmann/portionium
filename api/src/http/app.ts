@@ -13,6 +13,7 @@ import type { Config } from '../config.js';
 import type { DatabaseHandle } from '../db/client.js';
 import { createLoginThrottle } from '../domain/auth.js';
 import { registerAuth } from './plugins/auth.js';
+import { registerIdempotency } from './plugins/idempotency.js';
 import { registerProblemHandlers } from './problem.js';
 import { authRoutes } from './routes/auth.js';
 import { healthRoutes } from './routes/health.js';
@@ -100,6 +101,14 @@ export async function buildApp({ config, database }: AppDependencies): Promise<F
     db: database.db,
     webOrigin: config.WEB_ORIGIN,
     sessionTtlMs: sessionTtlMs(config),
+  });
+
+  // After auth, because a key is filed under the caller auth has just established, and on the
+  // root instance for the same reason auth is: every write gets it, none can opt out. See
+  // http/plugins/idempotency.ts.
+  registerIdempotency(app, {
+    db: database.db,
+    retentionMs: config.IDEMPOTENCY_RETENTION_HOURS * 60 * 60 * 1000,
   });
 
   await app.register(fastifySwagger, {

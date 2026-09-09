@@ -15,7 +15,9 @@ export type DomainErrorCode =
   | 'insufficient_scope'
   | 'csrf_origin_rejected'
   | 'session_required'
-  | 'resource_not_found';
+  | 'resource_not_found'
+  | 'idempotency_key_mismatch'
+  | 'idempotency_request_in_progress';
 
 export class DomainError extends Error {
   readonly code: DomainErrorCode;
@@ -132,5 +134,36 @@ export class ResourceNotFoundError extends DomainError {
   constructor() {
     super('resource_not_found', 'The requested resource does not exist.');
     this.name = 'ResourceNotFoundError';
+  }
+}
+
+/**
+ * An `Idempotency-Key` this user already sent, attached to a request that asks for something
+ * else: a different method, path or body. The stored answer belongs to the first request and
+ * would be a wrong answer to this one, so neither is given. A client that reuses keys across
+ * distinct operations has a bug, and this is the message that says so.
+ */
+export class IdempotencyKeyMismatchError extends DomainError {
+  constructor() {
+    super(
+      'idempotency_key_mismatch',
+      'This Idempotency-Key was already used for a different request.',
+    );
+    this.name = 'IdempotencyKeyMismatchError';
+  }
+}
+
+/**
+ * The first request carrying this key has not finished. Two copies of one request arrived
+ * close enough together that the second found the key claimed and the answer not yet written.
+ * The client retries after the first one completes and gets its stored response.
+ */
+export class IdempotencyRequestInProgressError extends DomainError {
+  constructor() {
+    super(
+      'idempotency_request_in_progress',
+      'A request with this Idempotency-Key is still being processed. Retry shortly.',
+    );
+    this.name = 'IdempotencyRequestInProgressError';
   }
 }

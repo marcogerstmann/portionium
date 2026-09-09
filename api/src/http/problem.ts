@@ -92,6 +92,16 @@ const DOMAIN_PROBLEMS: Record<
     title: 'Weight is not plausible',
     status: 422,
   },
+  idempotency_key_mismatch: {
+    type: PROBLEM.idempotencyKeyMismatch,
+    title: 'Idempotency-Key reused for a different request',
+    status: 422,
+  },
+  idempotency_request_in_progress: {
+    type: PROBLEM.idempotencyRequestInProgress,
+    title: 'Request still in progress',
+    status: 409,
+  },
 };
 
 /**
@@ -118,6 +128,22 @@ export const problemResponses = {
   },
   500: {
     description: 'Unexpected server error',
+    content: { [PROBLEM_CONTENT_TYPE]: { schema: problemDetailsSchema } },
+  },
+} as const;
+
+/**
+ * Spread into the `response` map of every route that changes something. These are answered by
+ * the idempotency plugin before the handler runs, so a route never raises them itself and
+ * would not otherwise know to document them. See http/plugins/idempotency.ts.
+ */
+export const idempotencyProblemResponses = {
+  409: {
+    description: 'The first request carrying this Idempotency-Key has not finished',
+    content: { [PROBLEM_CONTENT_TYPE]: { schema: problemDetailsSchema } },
+  },
+  422: {
+    description: 'The Idempotency-Key was already used for a different request',
     content: { [PROBLEM_CONTENT_TYPE]: { schema: problemDetailsSchema } },
   },
 } as const;

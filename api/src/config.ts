@@ -42,6 +42,12 @@ const configSchema = z.object({
    * idle timeout rather than a lifetime, and a person using the app daily is never signed out.
    */
   SESSION_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
+  /**
+   * How long a stored `Idempotency-Key` answers a retry before the key may be reused. Long
+   * enough to outlive any outbox retry a phone will make, short enough that the table stays
+   * small. Why 24 is docs/adr/004-idempotency-keys.md.
+   */
+  IDEMPOTENCY_RETENTION_HOURS: z.coerce.number().int().min(1).max(168).default(24),
 });
 
 export type Config = z.infer<typeof configSchema>;

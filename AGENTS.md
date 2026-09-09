@@ -127,6 +127,28 @@ failure was logged under, which is what turns "it broke yesterday" into one log 
 generates that id and does not read it from a request header, so a client cannot choose what it
 is called in the logs.
 
+### Idempotent writes
+
+Every authenticated `POST`, `PUT`, `PATCH` and `DELETE` accepts an `Idempotency-Key` header. The
+first request carrying a key runs and its response is stored, status, body and content type,
+under the key and the caller's user id. A retry with the same key and the same fingerprint, a
+SHA-256 of method, URL and canonicalised body, gets the stored response back with
+`Idempotent-Replayed: true` and runs nothing. Why, and what was rejected, is
+[ADR 004](./docs/adr/004-idempotency-keys.md).
+
+The row is claimed before the handler runs and filled in after it, in
+[`api/src/http/plugins/idempotency.ts`](./api/src/http/plugins/idempotency.ts). A unique index
+over `(user_id, key)` is the whole of the concurrency story: two copies of one request both try
+the insert, one gets through, and the other finds a row with no response yet and is answered
+409 to retry shortly. The same key with a different fingerprint is 422 and runs nothing. A 500
+releases the claim, so the retry runs the request again. A request without the header runs every
+time it is sent, and a public route, which today is the login, ignores the header because there
+is no user to file a key under.
+
+Rows are purged hourly once older than `IDEMPOTENCY_RETENTION_HOURS`, 24 by default. Routes that
+change something spread `idempotencyProblemResponses` into their `response` map so the two
+statuses appear in the generated document.
+
 ### Versioning
 
 `API_PREFIX` in `app.ts` is where `/api/v1` is written down. A future v2 is a second `register`
