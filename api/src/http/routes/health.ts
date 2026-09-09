@@ -33,6 +33,9 @@ export const healthRoutes: FastifyPluginCallbackZod = (app, _options, done) => {
   app.get(
     '/health',
     {
+      // An orchestrator has no account and cannot be given one, so this is one of the three
+      // endpoints reachable without a credential. See http/plugins/auth.ts.
+      config: { auth: 'public' },
       schema: {
         summary: 'Liveness probe',
         querystring: healthQuerySchema,

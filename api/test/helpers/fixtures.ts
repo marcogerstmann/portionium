@@ -3,9 +3,11 @@ import {
   foodTable,
   mealItemTable,
   mealTable,
+  sessionTable,
   userTable,
   weightEntryTable,
 } from '../../src/db/schema/index.js';
+import { createSessionToken } from '../../src/domain/auth.js';
 import { resolveLocalDate } from '../../src/domain/local-date.js';
 import { createMeal, type NewMealItem } from '../../src/domain/meal.js';
 import { createTestDatabase, type TestDatabase } from './database.js';
@@ -55,6 +57,14 @@ export interface MealOverrides {
 
 export interface Factories {
   user(overrides?: Partial<typeof userTable.$inferInsert>): UserRow;
+  /**
+   * A signed in session for this user, returning the token a client would hold. Minted the way
+   * a login mints one, so what a test sends is a credential the application could have issued
+   * and the row behind it stores a hash rather than the token.
+   *
+   * `expiresAt` is an override so a test can look at an expired session without waiting a month.
+   */
+  session(owner: UserRow, overrides?: { expiresAt?: Date }): string;
   food(overrides?: Partial<typeof foodTable.$inferInsert>): FoodRow;
   /**
    * The user is a parameter rather than an override because a meal needs one for two separate
@@ -81,6 +91,15 @@ export function createFactories(db: Db): Factories {
       })
       .returning()
       .get();
+  }
+
+  function session(owner: UserRow, overrides: { expiresAt?: Date } = {}): string {
+    const { token, tokenHash, expiresAt } = createSessionToken();
+    db.insert(sessionTable)
+      .values({ userId: owner.id, tokenHash, expiresAt: overrides.expiresAt ?? expiresAt })
+      .run();
+
+    return token;
   }
 
   function food(overrides: Partial<typeof foodTable.$inferInsert> = {}): FoodRow {
@@ -135,7 +154,7 @@ export function createFactories(db: Db): Factories {
       .get();
   }
 
-  return { user, food, meal, weightEntry };
+  return { user, session, food, meal, weightEntry };
 }
 
 export interface TestFixtures extends TestDatabase {

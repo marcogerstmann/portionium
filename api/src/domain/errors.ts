@@ -7,7 +7,13 @@
  * code here and not there is a compile error at that map, which is the point.
  */
 export type DomainErrorCode =
-  'meal_has_no_items' | 'implausible_weight' | 'invalid_credentials' | 'too_many_login_attempts';
+  | 'meal_has_no_items'
+  | 'implausible_weight'
+  | 'invalid_credentials'
+  | 'too_many_login_attempts'
+  | 'unauthenticated'
+  | 'insufficient_scope'
+  | 'resource_not_found';
 
 export class DomainError extends Error {
   readonly code: DomainErrorCode;
@@ -50,5 +56,45 @@ export class InvalidCredentialsError extends DomainError {
   constructor() {
     super('invalid_credentials', 'Email or password is incorrect.');
     this.name = 'InvalidCredentialsError';
+  }
+}
+
+/**
+ * No credential, or one that no longer resolves to anybody: expired, revoked, or belonging to
+ * an account that has since been deleted. All four are one failure, because the caller's next
+ * move is the same in every case, and because distinguishing them tells whoever is holding a
+ * stolen token which kind of dead it is.
+ */
+export class UnauthenticatedError extends DomainError {
+  constructor() {
+    super('unauthenticated', 'Sign in to continue.');
+    this.name = 'UnauthenticatedError';
+  }
+}
+
+/**
+ * A known caller who may not do this. The one place a 403 is correct: the request failed on
+ * what the caller is allowed to do, not on what exists, so there is nothing to leak by saying
+ * so. Ownership is the other case and it is deliberately not this one, see ResourceNotFound.
+ */
+export class InsufficientScopeError extends DomainError {
+  constructor() {
+    super('insufficient_scope', 'This account does not have access to that.');
+    this.name = 'InsufficientScopeError';
+  }
+}
+
+/**
+ * A row that does not exist, or exists and belongs to somebody else. Deliberately one error
+ * for both, so an answer never tells a caller that an id they guessed is real. See
+ * docs/adr/003-multi-user-authorization.md, which is where that tradeoff is argued.
+ *
+ * Repositories filter by userId, so a foreign row simply does not come back, and a caller
+ * raising this has no way to tell which of the two happened either.
+ */
+export class ResourceNotFoundError extends DomainError {
+  constructor() {
+    super('resource_not_found', 'The requested resource does not exist.');
+    this.name = 'ResourceNotFoundError';
   }
 }

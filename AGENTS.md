@@ -220,8 +220,35 @@ nothing to brute force, and it has to be cheap enough to check on every request.
 The token is not a UUIDv7 like every other id here. Those sort by creation time, which is what an
 identifier should do and what a credential must not.
 
-Cookies, sliding expiry, logout, listing and revoking sessions, and API tokens are the next story.
-What exists today is the credential and the row it lives in.
+Sliding expiry, logout, listing and revoking sessions, and API tokens are the next story. The
+login endpoint still returns the token in the response body and nothing sets a cookie yet, though
+[`api/src/http/plugins/auth.ts`](./api/src/http/plugins/auth.ts) already reads one, so setting it
+is a change to that one endpoint.
+
+### Authorization
+
+Who a request is from is established in one place,
+[`api/src/http/plugins/auth.ts`](./api/src/http/plugins/auth.ts), which resolves a bearer token or
+a `portionium_session` cookie into `request.auth`. Why the design looks like this is
+[ADR 003](./docs/adr/003-multi-user-authorization.md).
+
+Four rules, and each is enforced rather than remembered:
+
+- **Every route declares who may call it.** `config: { auth: 'account' }`, `'admin'`, or the word
+  `'public'`. A route that declares nothing throws at registration, so the server does not start.
+  Scopes come from `SCOPES` in [`api/src/domain/auth.ts`](./api/src/domain/auth.ts) and are
+  derived from the user's role.
+- **The public surface is a list in a test.** `api/test/http/authorization.test.ts` holds the
+  three endpoints reachable without a credential and compares them against the routes actually
+  registered, so making a fourth one public is a visible line in a diff.
+- **`request.auth` is the only source of a user id.** It is a getter over a frozen object, so a
+  handler can neither replace it nor edit it, and reading it on a public route throws. Never take
+  a user id from a body, a query string or a path segment. Request schemas are strict, so one that
+  arrives is a 400, and a test greps the adapters for a handler that reads one anyway.
+- **A row belonging to somebody else is a 404, never a 403.** Repositories filter by `userId`, so
+  a foreign row does not come back and the handler raises `ResourceNotFoundError` without knowing
+  the difference. 403 is for `InsufficientScopeError` alone, which says something about the caller
+  rather than about which ids exist.
 
 ### Administration
 

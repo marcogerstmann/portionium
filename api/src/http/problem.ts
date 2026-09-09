@@ -38,6 +38,10 @@ import {
  * The two authentication failures are the reason this map holds a status per code rather than
  * one status for all of them. Neither says anything a client could use to work out whether the
  * address it sent belongs to an account, which is a property of the strings written here.
+ *
+ * `resource_not_found` is a 404 for a row that is missing and for one belonging to somebody
+ * else, which is the whole point of it. A 403 there would answer "does this id exist" to
+ * anybody willing to ask, see docs/adr/003-multi-user-authorization.md.
  */
 const DOMAIN_PROBLEMS: Record<
   DomainErrorCode,
@@ -52,6 +56,21 @@ const DOMAIN_PROBLEMS: Record<
     type: PROBLEM.tooManyLoginAttempts,
     title: 'Too many failed sign in attempts',
     status: 429,
+  },
+  unauthenticated: {
+    type: PROBLEM.unauthenticated,
+    title: 'Not signed in',
+    status: 401,
+  },
+  insufficient_scope: {
+    type: PROBLEM.insufficientScope,
+    title: 'Insufficient scope',
+    status: 403,
+  },
+  resource_not_found: {
+    type: PROBLEM.notFound,
+    title: 'Not found',
+    status: 404,
   },
   meal_has_no_items: {
     type: PROBLEM.mealHasNoItems,

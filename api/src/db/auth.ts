@@ -1,5 +1,5 @@
 import { emailSchema } from '@portionium/schemas';
-import { and, count, eq, isNull } from 'drizzle-orm';
+import { and, count, eq, gt, isNull } from 'drizzle-orm';
 
 import type { Db } from './client.js';
 import { sessionTable, userTable } from './schema/index.js';
@@ -61,6 +61,42 @@ export function countUsers(db: Db): number {
     db.select({ value: count() }).from(userTable).where(isNull(userTable.deletedAt)).get()?.value ??
     0
   );
+}
+
+/**
+ * The one read on the authenticated request path: a session token hash in, the account it
+ * belongs to out. Joined rather than fetched in two steps, because a session is worthless
+ * without its user and every caller wants both.
+ *
+ * Three conditions, and leaving any of them to the caller is how one adapter eventually forgets
+ * one: the hash has to match, the session has to be live, and the account has to be live. An
+ * expired row and a deleted owner are both "not signed in", answered here rather than argued
+ * about upstream.
+ *
+ * `now` is a parameter so a test can look at a session from either side of its expiry without
+ * moving the clock.
+ *
+ * ponytail: expired rows are filtered, never deleted. They accumulate at one row per login and
+ * SQLite does not care. Sweep them on a schedule if a busy instance ever makes that untrue,
+ * which is the sessions story that also adds logout.
+ */
+export function findSessionUser(
+  db: Db,
+  tokenHash: string,
+  now: Date = new Date(),
+): UserRecord | undefined {
+  return db
+    .select({ user: userTable })
+    .from(sessionTable)
+    .innerJoin(userTable, eq(userTable.id, sessionTable.userId))
+    .where(
+      and(
+        eq(sessionTable.tokenHash, tokenHash),
+        gt(sessionTable.expiresAt, now),
+        isNull(userTable.deletedAt),
+      ),
+    )
+    .get()?.user;
 }
 
 export function insertSession(

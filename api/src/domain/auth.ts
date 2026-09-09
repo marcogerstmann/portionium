@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 
 import { hash, verify } from '@node-rs/argon2';
+import type { UserRole } from '@portionium/schemas';
 
 import { TooManyLoginAttemptsError } from './errors.js';
 
@@ -250,4 +251,38 @@ export function createLoginThrottle(): LoginThrottle {
       counters.delete(`email:${email}`);
     },
   };
+}
+
+/**
+ * What a caller is allowed to do, as a closed set. Routes name one of these and the plugin in
+ * http/plugins/auth.ts checks it, so "who may call this" is written on the route rather than
+ * re-derived in each handler from a role.
+ *
+ * Two, because two is what the application distinguishes today. `account` is everything a
+ * signed in person does with their own rows, which is almost the entire API and is deliberately
+ * not split into reads and writes: nothing here issues a credential narrower than a whole
+ * session, so a finer grain would be a distinction no caller can actually be given. `admin` is
+ * the operations that reach across accounts.
+ *
+ * A scope is added when a route needs one, not before. The moment API tokens exist, and a user
+ * can mint a credential that carries less than they do, is the moment this list grows.
+ */
+export const SCOPES = ['account', 'admin'] as const;
+
+export type Scope = (typeof SCOPES)[number];
+
+/**
+ * A role is what is stored, a scope is what is checked. They are one to many today and the
+ * indirection buys one thing: routes never mention roles, so the day a scope stops following
+ * from a role, an API token that carries `account` and not `admin`, no route changes.
+ *
+ * A Record over the role union, so a third role does not compile until it says what it may do.
+ */
+const ROLE_SCOPES: Record<UserRole, readonly Scope[]> = {
+  user: ['account'],
+  admin: ['account', 'admin'],
+};
+
+export function scopesForRole(role: UserRole): readonly Scope[] {
+  return ROLE_SCOPES[role];
 }

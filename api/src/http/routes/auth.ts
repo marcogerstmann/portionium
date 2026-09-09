@@ -54,6 +54,9 @@ export const authRoutes: FastifyPluginCallbackZod<AuthRouteOptions> = (app, opti
   app.post(
     '/auth/login',
     {
+      // The endpoint that mints the credential, so requiring one would be a circle. It is the
+      // only write in the API that anybody can reach, which is why the lockout below exists.
+      config: { auth: 'public' },
       schema: {
         summary: 'Exchange an email and password for a session',
         body: loginRequestSchema,

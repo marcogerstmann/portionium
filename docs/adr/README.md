@@ -8,7 +8,8 @@ Copy [`template.md`](./template.md) to `NNN-short-title.md` and add a row below.
 
 A story with an ADR acceptance criterion is not done until its ADR exists.
 
-| ADR                                    | Title                                                                    | Status   |
-| -------------------------------------- | ------------------------------------------------------------------------ | -------- |
-| [001](./001-sqlite-over-postgresql.md) | SQLite instead of PostgreSQL for a small shared instance                 | Accepted |
-| [002](./002-local-day-boundaries.md)   | Local day boundaries, per-user timezone, and handling of backdated edits | Accepted |
+| ADR                                      | Title                                                                    | Status   |
+| ---------------------------------------- | ------------------------------------------------------------------------ | -------- |
+| [001](./001-sqlite-over-postgresql.md)   | SQLite instead of PostgreSQL for a small shared instance                 | Accepted |
+| [002](./002-local-day-boundaries.md)     | Local day boundaries, per-user timezone, and handling of backdated edits | Accepted |
+| [003](./003-multi-user-authorization.md) | Multi-user from the start, and 404 rather than 403 for foreign resources | Accepted |

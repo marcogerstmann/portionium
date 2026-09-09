@@ -71,7 +71,7 @@ describe('request validation', () => {
 
     app.post(
       '/echo',
-      { schema: { body: z.strictObject({ name: z.string() }) } },
+      { config: { auth: 'public' }, schema: { body: z.strictObject({ name: z.string() }) } },
       (request) => request.body,
     );
     await app.ready();

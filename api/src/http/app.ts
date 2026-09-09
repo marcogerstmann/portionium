@@ -12,6 +12,7 @@ import { z } from 'zod';
 import type { Config } from '../config.js';
 import type { DatabaseHandle } from '../db/client.js';
 import { createLoginThrottle } from '../domain/auth.js';
+import { registerAuth } from './plugins/auth.js';
 import { registerProblemHandlers } from './problem.js';
 import { authRoutes } from './routes/auth.js';
 import { healthRoutes } from './routes/health.js';
@@ -26,7 +27,9 @@ import { healthRoutes } from './routes/health.js';
  * repository and no way for the spec and the code to disagree.
  *
  * How a failure leaves the building is decided here too, once, see problem.ts. Every error
- * response is RFC 9457 Problem Details, whoever raised it.
+ * response is RFC 9457 Problem Details, whoever raised it. So is who a request is from, see
+ * plugins/auth.ts: routes are authenticated by default and one that says nothing about who may
+ * call it stops this function from returning.
  */
 
 /**
@@ -85,6 +88,11 @@ export async function buildApp({ config, database }: AppDependencies): Promise<F
     database.close();
   });
 
+  // Before every register below it, for two reasons: its onRoute hook only sees routes added
+  // after it, and a route that forgets to say who may call it has to fail here rather than
+  // answer. See http/plugins/auth.ts.
+  registerAuth(app, { db: database.db });
+
   await app.register(fastifySwagger, {
     openapi: {
       openapi: '3.1.0',
@@ -116,6 +124,10 @@ export async function buildApp({ config, database }: AppDependencies): Promise<F
       v1.get(
         OPENAPI_PATH,
         {
+          // The contract a client is built from, which is a document it reads before it has
+          // ever signed in. The Swagger UI over it is public for the same reason, and is
+          // behind API_DOCS_ENABLED besides.
+          config: { auth: 'public' },
           schema: {
             hide: true,
             response: { 200: z.looseObject({ openapi: z.string() }) },

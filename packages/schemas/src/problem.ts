@@ -33,6 +33,14 @@ export const PROBLEM = {
   validationFailed: `${PROBLEM_NAMESPACE}/validation-failed`,
   invalidCredentials: `${PROBLEM_NAMESPACE}/invalid-credentials`,
   tooManyLoginAttempts: `${PROBLEM_NAMESPACE}/too-many-login-attempts`,
+  unauthenticated: `${PROBLEM_NAMESPACE}/unauthenticated`,
+  insufficientScope: `${PROBLEM_NAMESPACE}/insufficient-scope`,
+  /**
+   * A resource that is not there, or is not the caller's. One type for both, deliberately, so
+   * a client cannot use the error to work out which ids exist. See
+   * docs/adr/003-multi-user-authorization.md.
+   */
+  notFound: `${PROBLEM_NAMESPACE}/not-found`,
   mealHasNoItems: `${PROBLEM_NAMESPACE}/meal-has-no-items`,
   implausibleWeight: `${PROBLEM_NAMESPACE}/implausible-weight`,
   internalError: `${PROBLEM_NAMESPACE}/internal-error`,

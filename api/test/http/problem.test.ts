@@ -34,6 +34,10 @@ async function buildTestApp() {
   app.post(
     '/echo',
     {
+      // Public, like every route in this file: what is under test is how a failure is
+      // rendered, and a credential check in front of it would only add a way for these tests
+      // to fail for a reason that has nothing to do with the error handler.
+      config: { auth: 'public' },
       schema: {
         body: z.strictObject({ name: z.string(), portions: z.int().positive() }),
         response: { 200: z.object({ name: z.string() }), ...problemResponses },
@@ -42,13 +46,17 @@ async function buildTestApp() {
     (request) => ({ name: (request.body as { name: string }).name }),
   );
 
-  app.get('/domain-failure', () => {
+  app.get('/domain-failure', { config: { auth: 'public' } }, () => {
     throw new DomainError('meal_has_no_items', 'A meal must contain at least one item.');
   });
 
-  app.get('/bug', { schema: { response: { ...problemResponses } } }, () => {
-    throw new Error('connection string was postgres://admin:hunter2@internal');
-  });
+  app.get(
+    '/bug',
+    { config: { auth: 'public' }, schema: { response: { ...problemResponses } } },
+    () => {
+      throw new Error('connection string was postgres://admin:hunter2@internal');
+    },
+  );
 
   await app.ready();
 
