@@ -238,7 +238,7 @@ describe('problem details in the openapi document', () => {
 
     const responses = (await fetchSpec(app)).paths['/health']?.get.responses;
 
-    expect(Object.keys(responses ?? {}).sort()).toEqual(['200', '400', '500']);
+    expect(Object.keys(responses ?? {}).sort()).toEqual(['200', '400', '429', '500']);
     expect(responses?.['500']?.content[PROBLEM_CONTENT_TYPE]).toBeDefined();
   });
 });

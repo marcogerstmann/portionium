@@ -11,6 +11,7 @@ export type DomainErrorCode =
   | 'implausible_weight'
   | 'invalid_credentials'
   | 'too_many_login_attempts'
+  | 'rate_limited'
   | 'unauthenticated'
   | 'insufficient_scope'
   | 'csrf_origin_rejected'
@@ -35,19 +36,47 @@ export function isDomainError(error: unknown): error is DomainError {
 
 /**
  * Carries the one thing a client can act on: how long to wait. The base class has no room for
- * extra data on purpose, and this is the only failure so far that needs any, because a 429
+ * extra data on purpose, and these two are the only failures that need any, because a 429
  * without a Retry-After tells a caller to guess and they will guess wrong in both directions.
+ *
+ * http/problem.ts turns this one field into the header, for anything that extends this, so a
+ * third throttle cannot ship a 429 that forgot it.
+ */
+export class ThrottledError extends DomainError {
+  readonly retryAfterSeconds: number;
+
+  constructor(code: DomainErrorCode, message: string, retryAfterSeconds: number) {
+    super(code, message);
+    this.retryAfterSeconds = retryAfterSeconds;
+  }
+}
+
+/**
+ * Too many failed sign in attempts for this address or from this IP.
  *
  * Its message says nothing about which limit was reached, per email or per IP. Which one it was
  * is in the log, where the person reading it is entitled to know.
  */
-export class TooManyLoginAttemptsError extends DomainError {
-  readonly retryAfterSeconds: number;
-
+export class TooManyLoginAttemptsError extends ThrottledError {
   constructor(retryAfterSeconds: number) {
-    super('too_many_login_attempts', 'Too many failed sign in attempts. Try again later.');
+    super(
+      'too_many_login_attempts',
+      'Too many failed sign in attempts. Try again later.',
+      retryAfterSeconds,
+    );
     this.name = 'TooManyLoginAttemptsError';
-    this.retryAfterSeconds = retryAfterSeconds;
+  }
+}
+
+/**
+ * Too many requests from one credential or one address. Distinct from the login lockout, which
+ * counts failures rather than requests and is about guessing a password rather than about load,
+ * so a client can tell "slow down" apart from "you are being locked out".
+ */
+export class RateLimitedError extends ThrottledError {
+  constructor(retryAfterSeconds: number) {
+    super('rate_limited', 'Too many requests. Slow down and try again.', retryAfterSeconds);
+    this.name = 'RateLimitedError';
   }
 }
 

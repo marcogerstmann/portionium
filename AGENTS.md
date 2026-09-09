@@ -149,6 +149,62 @@ Rows are purged hourly once older than `IDEMPOTENCY_RETENTION_HOURS`, 24 by defa
 change something spread `idempotencyProblemResponses` into their `response` map so the two
 statuses appear in the generated document.
 
+### Rate limiting, headers and CORS
+
+Three hooks on the root instance, registered in `buildApp` before the auth plugin, so no route
+opts in and no route can opt out.
+
+**Rate limiting.** Counted per minute in three buckets, because the three cost the server
+different things: a read is a query against a file already in the page cache, a write is a
+transaction and an fsync, and a sign in is an Argon2id verification at 19 MiB. Anything under
+`/api/v1/auth` is charged to the auth bucket whatever its method, everything else by method,
+safe or not. Defaults are 120, 30 and 20, all three configurable.
+
+Every request is counted against two keys, the SHA-256 of whatever credential it presented and
+the caller's address, and both have to be under the limit. Neither would do alone. Without the
+address key, sending a different forged token on every request buys an unlimited number of
+buckets. Without the credential key, one stolen token spread over a hundred addresses leaves a
+hundred untouched counters. For one person on one address the address counter is the binding
+one, which is expected.
+
+The hook runs **before** authentication, and that ordering is the point rather than an accident
+of the file order. Fastify stops the hook chain at the first failure, so a limiter behind the
+auth plugin would never count a request carrying a dead credential, which is what a flood is
+made of. It also means the cheapest check happens before the database is touched and before
+Argon2 runs.
+
+`GET /health` is never limited. An orchestrator reads a 429 as a dead process, and behind a
+proxy that does not forward the client address every caller shares one IP, which is exactly the
+case where the probe would be starved and the container restarted.
+
+A refusal is 429 with `Retry-After` and `PROBLEM.rateLimited`, distinct from the login lockout's
+`PROBLEM.tooManyLoginAttempts` so a client can tell "slow down" from "this address is being
+locked out". Both are `ThrottledError`, and `http/problem.ts` sets the header off the base class
+so a third throttle cannot ship a 429 that forgot it.
+
+Counters are a `Map` in this process, one integer and one timestamp per key, sharing
+[`domain/window-counter.ts`](./api/src/domain/window-counter.ts) with the login lockout. They
+reset when the process does. Why that is acceptable, why not Redis, and what would change our
+minds is [ADR 005](./docs/adr/005-no-redis-no-metrics-stack.md).
+
+**Security headers**, in [`api/src/http/plugins/security.ts`](./api/src/http/plugins/security.ts)
+and nowhere else: `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and a
+`Content-Security-Policy` that permits nothing, since this API answers JSON. The Swagger UI is
+a real page and gets its own looser policy rather than an exemption. `Strict-Transport-Security`
+follows `WEB_ORIGIN`'s scheme, the same derivation as the session cookie's `Secure` flag, so a
+developer on plain http does not pin localhost to https for an afternoon.
+
+**Body size** is `MAX_BODY_BYTES`, a megabyte by default, passed to Fastify's own `bodyLimit`.
+It refuses before the body is read into memory, which is what makes it a limit rather than a
+check, and the 413 becomes a problem document like anything else.
+
+**CORS is off** unless `CORS_ORIGINS` lists exact origins. There is no wildcard and no pattern:
+every response here is credentialed, so `*` is refused by the specification anyway. When the
+list is non empty, `Vary: Origin` goes on every response including the ones that get no allow
+header, or a shared cache hands the allowed answer to somebody else. A preflight is answered in
+the hook rather than by a route, before authentication, because a browser sends it without
+credentials by definition and a 401 to it reads as "blocked by CORS" in every console.
+
 ### Versioning
 
 `API_PREFIX` in `app.ts` is where `/api/v1` is written down. A future v2 is a second `register`

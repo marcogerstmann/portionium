@@ -4,6 +4,7 @@ import { hash, verify } from '@node-rs/argon2';
 import { API_TOKEN_PREFIX, expandScopes, type Scope, type UserRole } from '@portionium/schemas';
 
 import { TooManyLoginAttemptsError } from './errors.js';
+import { createWindowCounters, retryAfterSeconds } from './window-counter.js';
 
 /**
  * The decisions behind signing in, with no database and no request in sight: how a password is
@@ -194,22 +195,6 @@ export const LOGIN_ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
 export const MAX_ATTEMPTS_PER_EMAIL = 5;
 export const MAX_ATTEMPTS_PER_IP = 20;
 
-/**
- * Above this many tracked keys the map is swept for expired entries. Failed logins are the only
- * thing that creates a key, so reaching this at all means something is spraying addresses, which
- * is the one case where the bookkeeping needs a bound.
- *
- * ponytail: fixed window in process memory, swept on write. Limits reset when the process does,
- * which is the same tradeoff the rate limiting story records for its own state. Move both to a
- * SQLite table together if a restart loop ever becomes a way through the door.
- */
-const SWEEP_THRESHOLD = 1000;
-
-interface Counter {
-  failures: number;
-  resetAt: number;
-}
-
 export interface LoginThrottle {
   /**
    * Called before any work is done on the credentials, so a locked out request costs a map
@@ -222,80 +207,44 @@ export interface LoginThrottle {
 }
 
 /**
- * Counts failures per address and per IP in a fixed window.
+ * Counts failures per address and per IP in a fixed window, see domain/window-counter.ts.
  *
  * Both keys are counted for every failure, whether or not the address belongs to an account.
  * Skipping the count for an unknown address would make a lockout something that only ever
  * happens to real accounts, which is the same disclosure the identical error message is there
  * to prevent, arrived at from the other direction.
  *
- * Each instance owns its own map, so a test gets a fresh one by calling this and the process
- * gets exactly one, created in buildApp.
+ * Each instance owns its own counters, so a test gets a fresh set by calling this and the
+ * process gets exactly one, created in buildApp.
  */
 export function createLoginThrottle(): LoginThrottle {
-  const counters = new Map<string, Counter>();
+  const counters = createWindowCounters();
 
-  /** Returns a live counter, dropping it first if its window has closed. */
-  function live(key: string, now: number): Counter | undefined {
-    const counter = counters.get(key);
-    if (counter === undefined) {
-      return undefined;
-    }
-
-    if (counter.resetAt <= now) {
-      counters.delete(key);
-      return undefined;
-    }
-
-    return counter;
-  }
-
-  /** Milliseconds left on this key's lockout, or zero if it is not at its limit. */
-  function remainingLockMs(key: string, now: number, limit: number): number {
-    const counter = live(key, now);
-    return counter !== undefined && counter.failures >= limit ? counter.resetAt - now : 0;
+  /** Seconds left on this key's lockout, or zero if it is not at its limit. */
+  function remainingLock(key: string, limit: number): number {
+    const window = counters.peek(key);
+    return window !== undefined && window.count >= limit ? retryAfterSeconds(window) : 0;
   }
 
   return {
     assertNotLockedOut(email, ip) {
-      const now = Date.now();
       const remaining = Math.max(
-        remainingLockMs(`email:${email}`, now, MAX_ATTEMPTS_PER_EMAIL),
-        remainingLockMs(`ip:${ip}`, now, MAX_ATTEMPTS_PER_IP),
+        remainingLock(`email:${email}`, MAX_ATTEMPTS_PER_EMAIL),
+        remainingLock(`ip:${ip}`, MAX_ATTEMPTS_PER_IP),
       );
 
       if (remaining > 0) {
-        // Rounded up, so a client that waits exactly this long is past the window rather than
-        // one millisecond short of it and immediately refused again.
-        throw new TooManyLoginAttemptsError(Math.ceil(remaining / 1000));
+        throw new TooManyLoginAttemptsError(remaining);
       }
     },
 
     recordFailure(email, ip) {
-      const now = Date.now();
-
-      if (counters.size > SWEEP_THRESHOLD) {
-        for (const [key, counter] of counters) {
-          if (counter.resetAt <= now) {
-            counters.delete(key);
-          }
-        }
-      }
-
-      for (const key of [`email:${email}`, `ip:${ip}`]) {
-        const counter = live(key, now);
-        if (counter === undefined) {
-          // The window starts at the first failure and does not move, so a steady drip of
-          // attempts cannot hold a key locked forever by refreshing it.
-          counters.set(key, { failures: 1, resetAt: now + LOGIN_ATTEMPT_WINDOW_MS });
-        } else {
-          counter.failures += 1;
-        }
-      }
+      counters.hit(`email:${email}`, LOGIN_ATTEMPT_WINDOW_MS);
+      counters.hit(`ip:${ip}`, LOGIN_ATTEMPT_WINDOW_MS);
     },
 
     clearEmail(email) {
-      counters.delete(`email:${email}`);
+      counters.clear(`email:${email}`);
     },
   };
 }

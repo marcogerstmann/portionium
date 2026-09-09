@@ -12,11 +12,14 @@ import { z } from 'zod';
 import type { Config } from '../config.js';
 import type { DatabaseHandle } from '../db/client.js';
 import { createLoginThrottle } from '../domain/auth.js';
+import { createRateLimiter } from '../domain/rate-limit.js';
 import { registerAuth } from './plugins/auth.js';
 import { registerIdempotency } from './plugins/idempotency.js';
+import { registerRateLimit } from './plugins/rate-limit.js';
+import { registerSecurity } from './plugins/security.js';
 import { registerProblemHandlers } from './problem.js';
 import { authRoutes } from './routes/auth.js';
-import { healthRoutes } from './routes/health.js';
+import { healthRoutes, HEALTH_PATH } from './routes/health.js';
 
 /**
  * The Fastify shell. Everything about how a route is written is decided here, once.
@@ -69,12 +72,24 @@ export async function buildApp({ config, database }: AppDependencies): Promise<F
     logger: { level: config.LOG_LEVEL },
     // Behind a proxy this is what makes request.ip and the logged protocol honest.
     trustProxy: true,
+    // Refused before the body is read into memory, which is what makes it a limit rather than
+    // a check. Fastify answers 413 itself and the error handler turns it into a problem
+    // document like any other. See MAX_BODY_BYTES in config.ts.
+    bodyLimit: config.MAX_BODY_BYTES,
   }).withTypeProvider<ZodTypeProvider>();
 
   // One per process. It counts failed logins in its own memory, so it has to outlive a request
   // and must not outlive the app: a second instance would mean two half filled counters and an
   // effective limit of twice what is documented.
   const throttle = createLoginThrottle();
+
+  // The same reasoning, for the same reason: one set of counters per process, or the documented
+  // limit is not the limit.
+  const rateLimiter = createRateLimiter({
+    read: config.RATE_LIMIT_READ_PER_MINUTE,
+    write: config.RATE_LIMIT_WRITE_PER_MINUTE,
+    auth: config.RATE_LIMIT_AUTH_PER_MINUTE,
+  });
 
   // Zod replaces Ajv on both sides of a request. Validation rejects a bad body with the Zod
   // issues attached, serialization runs the response through its declared schema, so a
@@ -92,6 +107,25 @@ export async function buildApp({ config, database }: AppDependencies): Promise<F
   // that might still be using it have finished.
   app.addHook('onClose', () => {
     database.close();
+  });
+
+  // First of the three request hooks, and deliberately before authentication. Fastify stops
+  // the chain at the first failure, so a limiter placed after auth would never count a request
+  // carrying a dead credential, which is what a flood is made of. See http/plugins/rate-limit.ts.
+  registerRateLimit(app, {
+    limiter: rateLimiter,
+    authPathPrefix: `${API_PREFIX}/auth`,
+    exemptPaths: [HEALTH_PATH],
+  });
+
+  // Second, so a CORS preflight is answered before anything asks it for a credential it cannot
+  // carry, and so the headers are on an error response as well as a successful one. See
+  // http/plugins/security.ts.
+  registerSecurity(app, {
+    // Same derivation as the session cookie's Secure flag, from the same variable.
+    secure: config.WEB_ORIGIN.startsWith('https://'),
+    docsPathPrefix: `${API_PREFIX}${DOCS_PATH}`,
+    corsOrigins: config.CORS_ORIGINS,
   });
 
   // Before every register below it, for two reasons: its onRoute hook only sees routes added

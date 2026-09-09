@@ -68,14 +68,16 @@ export interface AuthRouteOptions {
   cookieSecure: boolean;
 }
 
-/** Declared here rather than in problemResponses: only the login route can answer with these. */
+/**
+ * Declared here rather than in problemResponses: only the login route can answer with this.
+ *
+ * There is no entry for the lockout's 429. Every route already declares one, because every
+ * route is rate limited, and one status has one entry in an OpenAPI response map. The two
+ * failures are told apart by `type` in the body, which is what a client branches on anyway.
+ */
 const loginProblemResponses = {
   401: {
     description: 'The email and password did not match an account',
-    content: { [PROBLEM_CONTENT_TYPE]: { schema: problemDetailsSchema } },
-  },
-  429: {
-    description: 'Too many failed attempts. Carries Retry-After',
     content: { [PROBLEM_CONTENT_TYPE]: { schema: problemDetailsSchema } },
   },
 } as const;

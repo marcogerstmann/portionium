@@ -48,6 +48,53 @@ const configSchema = z.object({
    * small. Why 24 is docs/adr/004-idempotency-keys.md.
    */
   IDEMPOTENCY_RETENTION_HOURS: z.coerce.number().int().min(1).max(168).default(24),
+  /**
+   * Requests a single caller may make per minute, counted per credential and per address, in
+   * three buckets because the three cost the server wildly different things. A read is a query
+   * against a file already in the page cache, a write is a transaction and an fsync, and a sign
+   * in is an Argon2id verification at 19 MiB, which is the most expensive thing this process
+   * does and therefore the most attractive thing to point a flood at.
+   *
+   * The defaults are generous for a person and mean for a script: nothing a human does with the
+   * web app comes close to two reads a second sustained for a minute. Where the counters live,
+   * and why not Redis, is docs/adr/005-no-redis-no-metrics-stack.md.
+   */
+  RATE_LIMIT_READ_PER_MINUTE: z.coerce.number().int().min(1).default(120),
+  RATE_LIMIT_WRITE_PER_MINUTE: z.coerce.number().int().min(1).default(30),
+  RATE_LIMIT_AUTH_PER_MINUTE: z.coerce.number().int().min(1).default(20),
+  /**
+   * Largest request body accepted, in bytes. Anything above it is refused with 413 before the
+   * body is read into memory, which is what makes it a limit rather than a check.
+   *
+   * A megabyte is Fastify's own default and roughly two orders of magnitude more than the
+   * largest thing this API takes, a meal with a long list of items. It is written down here
+   * rather than left implicit so that the day something wants to accept a photograph, raising
+   * it is a decision somebody makes on purpose.
+   */
+  MAX_BODY_BYTES: z.coerce.number().int().min(1024).default(1_048_576),
+  /**
+   * Origins allowed to call this API from a browser they were not served by. Empty by default,
+   * so no CORS headers are sent at all and only the origin this API is served alongside can
+   * read a response.
+   *
+   * A comma separated list of exact origins. There is no wildcard and there is no pattern:
+   * every response here is credentialed, so `*` is both refused by the specification and the
+   * wrong answer for a personal food diary.
+   */
+  CORS_ORIGINS: z
+    .string()
+    .default('')
+    .transform((value) =>
+      value
+        .split(',')
+        .map((origin) => origin.trim())
+        .filter((origin) => origin !== ''),
+    )
+    .pipe(
+      z
+        .array(z.url({ protocol: /^https?$/ }))
+        .transform((origins) => origins.map((origin) => new URL(origin).origin)),
+    ),
 });
 
 export type Config = z.infer<typeof configSchema>;

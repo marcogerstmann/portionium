@@ -29,9 +29,12 @@ const healthResponseSchema = z.object({
 
 // Callback rather than async: registering a route is synchronous, and a plugin that awaits
 // nothing has no reason to be a promise.
+/** Written down once, because the rate limit plugin exempts it by path. */
+export const HEALTH_PATH = '/health';
+
 export const healthRoutes: FastifyPluginCallbackZod = (app, _options, done) => {
   app.get(
-    '/health',
+    HEALTH_PATH,
     {
       // An orchestrator has no account and cannot be given one, so this is one of the three
       // endpoints reachable without a credential. See http/plugins/auth.ts.

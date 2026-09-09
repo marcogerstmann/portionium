@@ -124,7 +124,7 @@ function isUnannotatedPrefix(url: string): boolean {
 }
 
 /** Where the credential came from, which decides whether the CSRF check applies to it. */
-interface Credential {
+export interface Credential {
   token: string;
   source: 'bearer' | 'cookie';
 }
@@ -135,8 +135,11 @@ interface Credential {
  * A bearer token wins over a cookie when both are present. A script that went to the trouble of
  * setting the header meant it, and a stale cookie left in a shared client should not quietly
  * take over the identity of a request that named one.
+ *
+ * Exported because the rate limit plugin runs before this one and needs the same answer: it
+ * keys a caller by the credential they presented, without caring whether it resolves.
  */
-function readCredential(request: FastifyRequest): Credential | undefined {
+export function readCredential(request: FastifyRequest): Credential | undefined {
   const header = request.headers.authorization;
   if (header?.startsWith('Bearer ')) {
     const token = header.slice('Bearer '.length).trim();

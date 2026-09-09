@@ -9,11 +9,7 @@ import {
 import type { FastifyError, FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { hasZodFastifySchemaValidationErrors } from 'fastify-type-provider-zod';
 
-import {
-  isDomainError,
-  TooManyLoginAttemptsError,
-  type DomainErrorCode,
-} from '../domain/errors.js';
+import { isDomainError, ThrottledError, type DomainErrorCode } from '../domain/errors.js';
 
 /**
  * The one place an error becomes an HTTP response.
@@ -55,6 +51,11 @@ const DOMAIN_PROBLEMS: Record<
   too_many_login_attempts: {
     type: PROBLEM.tooManyLoginAttempts,
     title: 'Too many failed sign in attempts',
+    status: 429,
+  },
+  rate_limited: {
+    type: PROBLEM.rateLimited,
+    title: 'Too many requests',
     status: 429,
   },
   unauthenticated: {
@@ -117,13 +118,19 @@ const INTERNAL_DETAIL =
  * body is serialized through the schema, so a problem that does not match the contract fails
  * in the test suite rather than in a client.
  *
- * 400 and 500 are on every route by construction: any route can be sent a request its schemas
- * reject, and any route can hit a bug. Statuses that depend on what a route does, a 404 for a
- * resource that is looked up, are declared by that route.
+ * 400, 429 and 500 are on every route by construction: any route can be sent a request its
+ * schemas reject, any route can be sent too fast, and any route can hit a bug. The 429 is
+ * raised by the rate limit plugin before a route runs, so no route raises it itself, see
+ * http/plugins/rate-limit.ts. Statuses that depend on what a route does, a 404 for a resource
+ * that is looked up, are declared by that route.
  */
 export const problemResponses = {
   400: {
     description: 'The request does not match the schema',
+    content: { [PROBLEM_CONTENT_TYPE]: { schema: problemDetailsSchema } },
+  },
+  429: {
+    description: 'The caller is over the rate limit for this kind of request',
     content: { [PROBLEM_CONTENT_TYPE]: { schema: problemDetailsSchema } },
   },
   500: {
@@ -207,9 +214,10 @@ export function registerProblemHandlers(app: FastifyInstance): void {
     }
 
     if (isDomainError(error)) {
-      // The one failure that carries something a client can act on. A 429 with no Retry-After
-      // leaves a caller guessing, and a caller that guesses retries too soon or gives up.
-      if (error instanceof TooManyLoginAttemptsError) {
+      // The one family of failures that carries something a client can act on. A 429 with no
+      // Retry-After leaves a caller guessing, and a caller that guesses retries too soon or
+      // gives up. Matched on the base class, so a third throttle cannot forget the header.
+      if (error instanceof ThrottledError) {
         reply.header('Retry-After', error.retryAfterSeconds);
       }
 

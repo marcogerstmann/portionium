@@ -33,6 +33,12 @@ export const PROBLEM = {
   validationFailed: `${PROBLEM_NAMESPACE}/validation-failed`,
   invalidCredentials: `${PROBLEM_NAMESPACE}/invalid-credentials`,
   tooManyLoginAttempts: `${PROBLEM_NAMESPACE}/too-many-login-attempts`,
+  /**
+   * Too many requests, per credential or per address. Separate from the login lockout so a
+   * client can tell "wait and retry the same call" apart from "this account is being locked
+   * out". Both carry `Retry-After`, which is the field to obey rather than a backoff guess.
+   */
+  rateLimited: `${PROBLEM_NAMESPACE}/rate-limited`,
   unauthenticated: `${PROBLEM_NAMESPACE}/unauthenticated`,
   insufficientScope: `${PROBLEM_NAMESPACE}/insufficient-scope`,
   /**
