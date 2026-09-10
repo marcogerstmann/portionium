@@ -15,3 +15,4 @@ A story with an ADR acceptance criterion is not done until its ADR exists.
 | [003](./003-multi-user-authorization.md)  | Multi-user from the start, and 404 rather than 403 for foreign resources | Accepted |
 | [004](./004-idempotency-keys.md)          | Idempotency keys on all writes, and the retention window                 | Accepted |
 | [005](./005-no-redis-no-metrics-stack.md) | No Redis, no metrics stack, structured logs only                         | Accepted |
+| [006](./006-single-foods-table.md)        | Single foods table for ingredients and dishes, no composition            | Accepted |

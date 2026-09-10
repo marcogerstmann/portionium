@@ -39,7 +39,12 @@ export type User = z.infer<typeof userSchema>;
 
 export const foodSchema = z.object({
   id: idSchema,
-  name: z.string().min(1).max(200),
+  /**
+   * Trimmed before it is measured, the same way an email address is normalised by its own
+   * schema. Surrounding whitespace is never meaningful in a food name and a leading space is
+   * how one catalog ends up with two entries that read identically.
+   */
+  name: z.string().trim().min(1).max(200),
   kind: foodKindSchema,
   /**
    * Kilocalories per 100 g. Optional because most foods are classified without anyone knowing

@@ -19,6 +19,7 @@ import { registerRateLimit } from './plugins/rate-limit.js';
 import { registerSecurity } from './plugins/security.js';
 import { registerProblemHandlers } from './problem.js';
 import { authRoutes } from './routes/auth.js';
+import { foodRoutes } from './routes/foods.js';
 import { healthRoutes, HEALTH_PATH } from './routes/health.js';
 import { meRoutes } from './routes/me.js';
 
@@ -198,6 +199,8 @@ export async function buildApp({ config, database }: AppDependencies): Promise<F
         // set to the wrong half of the pair. See WEB_ORIGIN in config.ts.
         cookieSecure: config.WEB_ORIGIN.startsWith('https://'),
       });
+
+      void v1.register(foodRoutes, { db: database.db });
 
       void v1.register(meRoutes, {
         db: database.db,

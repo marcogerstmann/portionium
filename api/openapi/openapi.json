@@ -58,6 +58,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -136,6 +137,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -214,6 +216,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -390,6 +393,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -468,6 +472,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -546,6 +551,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -624,6 +630,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -712,6 +719,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -790,6 +798,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -868,6 +877,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -946,6 +956,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -1024,6 +1035,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -1102,6 +1114,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -1180,6 +1193,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -1311,6 +1325,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -1389,6 +1404,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -1467,6 +1483,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -1545,6 +1562,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -1623,6 +1641,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -1723,6 +1742,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -1801,6 +1821,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -1879,6 +1900,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -1957,6 +1979,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -2035,6 +2058,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -2113,6 +2137,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -2191,6 +2216,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -2269,6 +2295,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -2468,6 +2495,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -2546,6 +2574,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -2624,6 +2653,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -2702,6 +2732,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -2780,6 +2811,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -2858,6 +2890,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -2936,6 +2969,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -3093,6 +3127,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -3171,6 +3206,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -3249,6 +3285,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -3327,6 +3364,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -3405,6 +3443,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -3505,6 +3544,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -3583,6 +3623,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -3661,6 +3702,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -3739,6 +3781,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -3817,6 +3860,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -3895,6 +3939,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -3973,6 +4018,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -4051,6 +4097,3270 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/foods": {
+      "get": {
+        "summary": "Browse the catalog, with the colour resolved for the caller",
+        "parameters": [
+          {
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "query",
+            "name": "cursor",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ingredient",
+                "dish",
+                "branded"
+              ]
+            },
+            "in": "query",
+            "name": "kind",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "unclassified",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "ingredient",
+                              "dish",
+                              "branded"
+                            ]
+                          },
+                          "energyDensity": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 900
+                          },
+                          "createdBy": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+                          },
+                          "category": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "green",
+                                  "yellow",
+                                  "orange"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "kind",
+                          "category"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request does not match the schema",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one that no longer resolves to anybody",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential may not do this, or the request failed the origin check",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The caller is over the rate limit for this kind of request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Add an entry to the catalog, or get back the one that already means this",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "energyDensity": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 900
+                  },
+                  "kind": {
+                    "default": "ingredient",
+                    "type": "string",
+                    "enum": [
+                      "ingredient",
+                      "dish",
+                      "branded"
+                    ]
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "An entry with this name already existed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "ingredient",
+                        "dish",
+                        "branded"
+                      ]
+                    },
+                    "energyDensity": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 900
+                    },
+                    "createdBy": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+                    },
+                    "category": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "green",
+                            "yellow",
+                            "orange"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "kind",
+                    "category"
+                  ],
+                  "additionalProperties": false,
+                  "description": "An entry with this name already existed"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "ingredient",
+                        "dish",
+                        "branded"
+                      ]
+                    },
+                    "energyDensity": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 900
+                    },
+                    "createdBy": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+                    },
+                    "category": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "green",
+                            "yellow",
+                            "orange"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "kind",
+                    "category"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Created"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request does not match the schema",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one that no longer resolves to anybody",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential may not do this, or the request failed the origin check",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The first request carrying this Idempotency-Key has not finished",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The Idempotency-Key was already used for a different request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The caller is over the rate limit for this kind of request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/foods/{id}": {
+      "get": {
+        "summary": "One entry, with the provenance of its colour",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "ingredient",
+                        "dish",
+                        "branded"
+                      ]
+                    },
+                    "energyDensity": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 900
+                    },
+                    "createdBy": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+                    },
+                    "category": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "green",
+                            "yellow",
+                            "orange"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "classification": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+                            },
+                            "category": {
+                              "type": "string",
+                              "enum": [
+                                "green",
+                                "yellow",
+                                "orange"
+                              ]
+                            },
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "seed",
+                                "ai_text",
+                                "ai_vision",
+                                "user"
+                              ]
+                            },
+                            "model": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 100
+                            },
+                            "promptVersion": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 50
+                            },
+                            "confidence": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "reasoning": {
+                              "type": "string",
+                              "maxLength": 2000
+                            },
+                            "assumptions": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 500
+                              }
+                            },
+                            "createdAt": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "category",
+                            "source",
+                            "createdAt"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "kind",
+                    "category",
+                    "classification"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request does not match the schema",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one that no longer resolves to anybody",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential may not do this, or the request failed the origin check",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such food, or it has been deleted",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The caller is over the rate limit for this kind of request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Correct the name or the kind of an entry",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "ingredient",
+                      "dish",
+                      "branded"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "ingredient",
+                        "dish",
+                        "branded"
+                      ]
+                    },
+                    "energyDensity": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 900
+                    },
+                    "createdBy": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+                    },
+                    "category": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "green",
+                            "yellow",
+                            "orange"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "kind",
+                    "category"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request does not match the schema",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one that no longer resolves to anybody",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential may not do this, or the request failed the origin check",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such food, or it has been deleted",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The first request carrying this Idempotency-Key has not finished",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The Idempotency-Key was already used for a different request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The caller is over the rate limit for this kind of request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Remove an entry nobody has eaten",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "The request does not match the schema",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one that no longer resolves to anybody",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential may not do this, or the request failed the origin check",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such food, or it has been deleted",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The food is used by a meal, or the first request carrying this Idempotency-Key has not finished",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The Idempotency-Key was already used for a different request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The caller is over the rate limit for this kind of request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -4187,6 +7497,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -4265,6 +7576,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -4343,6 +7655,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -4421,6 +7734,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -4499,6 +7813,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -4659,6 +7974,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -4737,6 +8053,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -4815,6 +8132,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -4893,6 +8211,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -4971,6 +8290,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -5049,6 +8369,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -5127,6 +8448,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -5242,6 +8564,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -5320,6 +8643,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -5398,6 +8722,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -5476,6 +8801,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -5554,6 +8880,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -5632,6 +8959,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -5710,6 +9038,7 @@
                         "https://portionium.dev/problems/not-found",
                         "https://portionium.dev/problems/idempotency-key-mismatch",
                         "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"

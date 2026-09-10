@@ -77,6 +77,11 @@ export const PROBLEM = {
    * and the stored response comes back.
    */
   idempotencyRequestInProgress: `${PROBLEM_NAMESPACE}/idempotency-request-in-progress`,
+  /**
+   * A food that at least one meal names. It is not deleted, because a meal pointing at a row
+   * nothing returns is a history with holes in it. Rename it instead.
+   */
+  foodInUse: `${PROBLEM_NAMESPACE}/food-in-use`,
   mealHasNoItems: `${PROBLEM_NAMESPACE}/meal-has-no-items`,
   implausibleWeight: `${PROBLEM_NAMESPACE}/implausible-weight`,
   internalError: `${PROBLEM_NAMESPACE}/internal-error`,

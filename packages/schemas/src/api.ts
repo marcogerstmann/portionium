@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import {
+  foodClassificationSchema,
   foodSchema,
   mealItemSchema,
   mealSchema,
@@ -11,7 +12,9 @@ import {
 } from './entities.js';
 import {
   apiTokenNameSchema,
+  categorySchema,
   emailSchema,
+  foodKindSchema,
   idSchema,
   mealTypeSchema,
   PASSWORD_MAX_LENGTH,
@@ -68,15 +71,48 @@ export function pageSchema<T extends z.ZodType>(item: T) {
   return z.object({ items: z.array(item), nextCursor: z.string().nullable() });
 }
 
+/**
+ * Adding to the catalog. `kind` is optional and defaults to `ingredient`, because the moment a
+ * food is created is the moment somebody is halfway through logging a meal, and a required
+ * label that nothing branches on would be a question asked at the worst possible time.
+ *
+ * There is no `category` here, and there is not one on the update either. A colour is a verdict
+ * with a source and an author, so it is written through the classification endpoint and never
+ * as a field on the food. See docs/adr/006-single-foods-table.md.
+ */
 export const createFoodRequestSchema = foodSchema
-  .pick({
-    name: true,
-    kind: true,
-    energyDensity: true,
-  })
+  .pick({ name: true, energyDensity: true })
+  .extend({ kind: foodKindSchema.default('ingredient') })
   .strict();
 
 export type CreateFoodRequest = z.infer<typeof createFoodRequestSchema>;
+
+/**
+ * Editing one. Both fields optional, so a client sends the one it is changing rather than
+ * writing back a whole entry it read a minute ago. An empty body is a no-op, not a 400: it
+ * asks for nothing and gets the entry as it stands.
+ */
+export const updateFoodRequestSchema = foodSchema
+  .pick({ name: true, kind: true })
+  .partial()
+  .strict();
+
+export type UpdateFoodRequest = z.infer<typeof updateFoodRequestSchema>;
+
+/**
+ * Browsing it. `kind` narrows to one label, `unclassified` narrows to the entries that resolve
+ * to no colour for whoever is asking, which is the caller's own backlog rather than a global
+ * one: two users looking at the same catalog see different entries here.
+ *
+ * A query string only ever carries strings, so the flag goes through `z.stringbool` rather than
+ * `z.boolean`, which would reject the `?unclassified=true` every client actually sends.
+ */
+export const foodListQuerySchema = paginationQuerySchema.extend({
+  kind: foodKindSchema.optional(),
+  unclassified: z.stringbool().optional(),
+});
+
+export type FoodListQuery = z.infer<typeof foodListQuerySchema>;
 
 export const createMealRequestSchema = z.strictObject({
   type: mealTypeSchema,
@@ -99,9 +135,45 @@ export const mealResponseSchema = mealSchema.extend({
 
 export type MealResponse = z.infer<typeof mealResponseSchema>;
 
-export const foodResponseSchema = foodSchema;
+/**
+ * A catalog entry on its way out, with the colour resolved for whoever asked for it. There is
+ * no raw global category anywhere in this API: `category` is always the answer to "what colour
+ * is this for you", which for two people in one household is two different answers.
+ *
+ * Null rather than absent, because a food with no verdict yet is a state the client renders
+ * rather than a field it has to feel around for. Logging one is always allowed, see
+ * docs/adr/006-single-foods-table.md.
+ *
+ * `createdAt` is dropped rather than converted, for the reason userResponseSchema states:
+ * timestampSchema parses an instant and cannot encode one, so a response carrying it would
+ * serialise to a 500. Nothing about a catalog entry needs the minute it was added.
+ */
+export const foodResponseSchema = foodSchema
+  .omit({ createdAt: true })
+  .extend({ category: categorySchema.nullable() });
 
 export type FoodResponse = z.infer<typeof foodResponseSchema>;
+
+/**
+ * Why a food is the colour it is: which verdict won, where it came from, and what the model was
+ * unsure about if a model produced it.
+ *
+ * `foodId` and `userId` are dropped. The first is in the URL that fetched this, and the second
+ * is either absent or the caller, since resolution never looks at anybody else's rows: `source`
+ * already says whether this verdict is the caller's own, a model's, or the one that shipped.
+ */
+export const foodClassificationResponseSchema = foodClassificationSchema
+  .omit({ foodId: true, userId: true, createdAt: true })
+  .extend({ createdAt: z.iso.datetime() });
+
+export type FoodClassificationResponse = z.infer<typeof foodClassificationResponseSchema>;
+
+/** One entry, with the provenance of the colour beside the colour. Null when there is none. */
+export const foodDetailResponseSchema = foodResponseSchema.extend({
+  classification: foodClassificationResponseSchema.nullable(),
+});
+
+export type FoodDetailResponse = z.infer<typeof foodDetailResponseSchema>;
 
 /**
  * Kilograms on the wire, grams in the database. Nobody types their weight in grams, and no

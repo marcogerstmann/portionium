@@ -5,8 +5,13 @@ import { baseColumns } from './base.js';
 import { userTable } from './user.js';
 
 /**
- * A thing that can be eaten. Deliberately carries no category: what colour a food is depends on
- * who is asking and who decided, which is a row in food_classification, not a column here.
+ * A thing that can be eaten. One table for ingredients, dishes and branded products alike, with
+ * `kind` as a descriptive label that nothing branches on and no composition anywhere: a dish is
+ * a flat entry with its own colour, and if a recipe model is ever wanted it becomes a join table
+ * pointing back at this one. Why, and what that costs, is docs/adr/006-single-foods-table.md.
+ *
+ * Deliberately carries no category: what colour a food is depends on who is asking and who
+ * decided, which is a row in food_classification, not a column here.
  *
  * `energy_density` is kilocalories per 100 g and is usually null. Nothing reads it yet.
  *

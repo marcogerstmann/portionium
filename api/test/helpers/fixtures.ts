@@ -3,6 +3,7 @@ import type { Scope } from '@portionium/schemas';
 import type { Db } from '../../src/db/client.js';
 import {
   apiTokenTable,
+  foodClassificationTable,
   foodTable,
   mealItemTable,
   mealTable,
@@ -30,6 +31,7 @@ import { createTestDatabase, type TestDatabase } from './database.js';
 
 export type UserRow = typeof userTable.$inferSelect;
 export type FoodRow = typeof foodTable.$inferSelect;
+export type FoodClassificationRow = typeof foodClassificationTable.$inferSelect;
 export type MealRow = typeof mealTable.$inferSelect;
 export type MealItemRow = typeof mealItemTable.$inferSelect;
 export type WeightEntryRow = typeof weightEntryTable.$inferSelect;
@@ -93,6 +95,18 @@ export interface Factories {
    */
   apiToken(owner: UserRow, overrides?: ApiTokenOverrides): string;
   food(overrides?: Partial<typeof foodTable.$inferInsert>): FoodRow;
+  /**
+   * One verdict about one food. Defaults to the shared seed verdict, which is the row every
+   * food in the shipped catalog has, so a test that is about something else does not have to
+   * think about provenance.
+   *
+   * The food is a parameter rather than an override because a verdict without one is not a
+   * verdict. Pass `userId` for somebody's own opinion, and `source: 'user'` with it.
+   */
+  classification(
+    food: FoodRow,
+    overrides?: Partial<typeof foodClassificationTable.$inferInsert>,
+  ): FoodClassificationRow;
   /**
    * The user is a parameter rather than an override because a meal needs one for two separate
    * reasons: it is the owner, and its timezone and boundary hour are what date the meal.
@@ -163,6 +177,17 @@ export function createFactories(db: Db): Factories {
       .get();
   }
 
+  function classification(
+    food: FoodRow,
+    overrides: Partial<typeof foodClassificationTable.$inferInsert> = {},
+  ): FoodClassificationRow {
+    return db
+      .insert(foodClassificationTable)
+      .values({ foodId: food.id, category: 'green', source: 'seed', ...overrides })
+      .returning()
+      .get();
+  }
+
   function meal(owner: UserRow, overrides: MealOverrides = {}) {
     const items = overrides.items ?? [{ foodId: food().id }];
 
@@ -204,7 +229,7 @@ export function createFactories(db: Db): Factories {
       .get();
   }
 
-  return { user, session, apiToken, food, meal, weightEntry };
+  return { user, session, apiToken, food, classification, meal, weightEntry };
 }
 
 export interface TestFixtures extends TestDatabase {

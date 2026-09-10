@@ -18,6 +18,7 @@ export type DomainErrorCode =
   | 'csrf_origin_rejected'
   | 'session_required'
   | 'resource_not_found'
+  | 'food_in_use'
   | 'idempotency_key_mismatch'
   | 'idempotency_request_in_progress';
 
@@ -183,6 +184,22 @@ export class ResourceNotFoundError extends DomainError {
   constructor() {
     super('resource_not_found', 'The requested resource does not exist.');
     this.name = 'ResourceNotFoundError';
+  }
+}
+
+/**
+ * A catalog entry somebody has already eaten. Deleting it would leave every meal that names it
+ * pointing at a row no read path returns, so a history that was correct when it was written
+ * would quietly develop holes.
+ *
+ * Not a 404 and not a permission failure: the food is there, the caller may well be allowed to
+ * remove it, and the answer is that this particular one cannot go. Renaming it is the way out,
+ * which is why PATCH does not care how often a food has been eaten.
+ */
+export class FoodInUseError extends DomainError {
+  constructor() {
+    super('food_in_use', 'This food is used by a meal and cannot be deleted.');
+    this.name = 'FoodInUseError';
   }
 }
 
