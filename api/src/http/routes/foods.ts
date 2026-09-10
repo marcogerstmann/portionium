@@ -1,5 +1,6 @@
 import {
   createFoodRequestSchema,
+  foodClassificationResponseSchema,
   foodDetailResponseSchema,
   foodListQuerySchema,
   foodResponseSchema,
@@ -14,17 +15,20 @@ import {
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
+import {
+  findClassificationHistory,
+  findClassificationsForFoods,
+  type FoodClassificationRecord,
+} from '../../db/classification.js';
 import type { Db } from '../../db/client.js';
 import {
   countMealsUsingFood,
-  findClassificationsForFoods,
   findFoodById,
   findFoodByName,
   insertFood,
   listFoods,
   softDeleteFood,
   updateFood,
-  type FoodClassificationRecord,
   type FoodRecord,
 } from '../../db/food.js';
 import { resolveClassification, resolveClassifications } from '../../domain/classification.js';
@@ -43,7 +47,7 @@ import {
  * The shared catalog. One table for ingredients, dishes and branded products, and one entry per
  * food for the whole instance, see docs/adr/006-single-foods-table.md.
  *
- * Two properties run through all five endpoints:
+ * Two properties run through the five catalog endpoints:
  *
  *   Nothing here answers with a raw category. Every food that leaves this file has been through
  *   resolveClassification for the caller, so two people in one household reading the same entry
@@ -52,6 +56,11 @@ import {
  *   Nothing here writes a category either. A colour is a verdict with a source and an author,
  *   so it is a row in food_classification written by the classification endpoint, and there is
  *   no field on a create or an update that could carry one.
+ *
+ * The history endpoint is the log itself, unresolved. Everything else in this file answers with
+ * the one verdict that won; that one answers with all of them, which is only a question worth
+ * asking because nothing in this application ever overwrites one. See
+ * docs/adr/007-append-only-classification-log.md.
  */
 
 export interface FoodRouteOptions {
@@ -278,6 +287,35 @@ export const foodRoutes: FastifyPluginCallbackZod<FoodRouteOptions> = (app, opti
         classification:
           classification === undefined ? null : toClassificationResponse(classification),
       };
+    },
+  );
+
+  app.get(
+    '/foods/:id/classification/history',
+    {
+      config: { auth: 'read' },
+      schema: {
+        summary: 'Every verdict this caller may see about one food, newest first',
+        params: idParamsSchema,
+        response: {
+          200: z.array(foodClassificationResponseSchema),
+          ...authenticatedProblemResponses,
+          ...notFoundResponse,
+          ...problemResponses,
+        },
+      },
+    },
+    (request) => {
+      const { userId } = request.auth;
+      const food = requireFood(request.params.id);
+
+      // Not paged, unlike the catalog. This is one food's chain: the seeded verdict, whatever
+      // the model said, and the handful of times its owner changed their mind, which is a list
+      // that is read in full or not at all. The same reasoning as the session and token lists.
+      //
+      // The other household member's opinions are not in here and are not omitted from a page
+      // either, they never leave the database. See findClassificationHistory.
+      return findClassificationHistory(db, food.id, userId).map(toClassificationResponse);
     },
   );
 

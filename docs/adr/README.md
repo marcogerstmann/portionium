@@ -8,11 +8,12 @@ Copy [`template.md`](./template.md) to `NNN-short-title.md` and add a row below.
 
 A story with an ADR acceptance criterion is not done until its ADR exists.
 
-| ADR                                       | Title                                                                    | Status   |
-| ----------------------------------------- | ------------------------------------------------------------------------ | -------- |
-| [001](./001-sqlite-over-postgresql.md)    | SQLite instead of PostgreSQL for a small shared instance                 | Accepted |
-| [002](./002-local-day-boundaries.md)      | Local day boundaries, per-user timezone, and handling of backdated edits | Accepted |
-| [003](./003-multi-user-authorization.md)  | Multi-user from the start, and 404 rather than 403 for foreign resources | Accepted |
-| [004](./004-idempotency-keys.md)          | Idempotency keys on all writes, and the retention window                 | Accepted |
-| [005](./005-no-redis-no-metrics-stack.md) | No Redis, no metrics stack, structured logs only                         | Accepted |
-| [006](./006-single-foods-table.md)        | Single foods table for ingredients and dishes, no composition            | Accepted |
+| ADR                                            | Title                                                                                      | Status   |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------ | -------- |
+| [001](./001-sqlite-over-postgresql.md)         | SQLite instead of PostgreSQL for a small shared instance                                   | Accepted |
+| [002](./002-local-day-boundaries.md)           | Local day boundaries, per-user timezone, and handling of backdated edits                   | Accepted |
+| [003](./003-multi-user-authorization.md)       | Multi-user from the start, and 404 rather than 403 for foreign resources                   | Accepted |
+| [004](./004-idempotency-keys.md)               | Idempotency keys on all writes, and the retention window                                   | Accepted |
+| [005](./005-no-redis-no-metrics-stack.md)      | No Redis, no metrics stack, structured logs only                                           | Accepted |
+| [006](./006-single-foods-table.md)             | Single foods table for ingredients and dishes, no composition                              | Accepted |
+| [007](./007-append-only-classification-log.md) | Append-only classification log with a resolution rule instead of a mutable category column | Accepted |

@@ -1,10 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { categorySchema, foodKindSchema, type Category } from '@portionium/schemas';
+import { categorySchema, foodKindSchema } from '@portionium/schemas';
 import { and, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 
+import { insertClassifications, type NewClassification } from './classification.js';
 import type { Db } from './client.js';
 import { foodClassificationTable, foodTable } from './schema/index.js';
 
@@ -72,8 +73,9 @@ export interface SeedResult {
  * resolves with its case insensitive match, not something to half solve here.
  *
  * Changing a colour in the file does not move an existing row. This table is append only, so
- * correcting a verdict means adding a second one, and picking between two seed rows needs the
- * classification resolution rule that does not exist yet.
+ * correcting a verdict means adding a second one, and the resolution rule takes the newest of
+ * two seed rows, which would make a corrected colour arrive without anybody deciding it should.
+ * Correcting a shipped verdict is a deliberate act, not a side effect of a restart.
  */
 export function seedFoodCatalog(db: Db): SeedResult {
   const catalog = readSeedCatalog();
@@ -113,7 +115,7 @@ export function seedFoodCatalog(db: Db): SeedResult {
       .map((row) => row.foodId),
   );
 
-  const verdicts: { foodId: string; category: Category; source: 'seed' }[] = [];
+  const verdicts: NewClassification[] = [];
   for (const food of catalog.foods) {
     const foodId = seededIdsByName.get(food.name);
     if (foodId === undefined || alreadyClassified.has(foodId)) {
@@ -122,9 +124,10 @@ export function seedFoodCatalog(db: Db): SeedResult {
     verdicts.push({ foodId, category: food.category, source: 'seed' });
   }
 
-  if (verdicts.length > 0) {
-    db.insert(foodClassificationTable).values(verdicts).run();
-  }
+  // Through the repository like every other verdict in this application, rather than straight
+  // at the table. There is one way to write this log and it inserts, and a bulk loader that
+  // reached past that is exactly where the first exception to that would appear.
+  insertClassifications(db, verdicts);
 
   return { foodsInserted: missingFoods.length, classificationsInserted: verdicts.length };
 }

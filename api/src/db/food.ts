@@ -1,5 +1,5 @@
 import type { FoodKind } from '@portionium/schemas';
-import { and, count, eq, gt, inArray, isNull, notExists, or, sql } from 'drizzle-orm';
+import { and, count, eq, gt, isNull, notExists, or, sql } from 'drizzle-orm';
 
 import { normalizeFoodName } from '../domain/food.js';
 import type { Db } from './client.js';
@@ -16,10 +16,13 @@ import { foodClassificationTable, foodTable, mealItemTable } from './schema/inde
  *
  * Soft deleted foods never come back from anything here. A meal that names one keeps its row,
  * which is the reason a food in use cannot be deleted at all.
+ *
+ * The verdicts themselves are next door, in classification.ts. They are a separate log with a
+ * separate rule about who may read which row, and keeping them out of here is what makes it
+ * visible that the module holding them offers no way to update or delete one.
  */
 
 export type FoodRecord = typeof foodTable.$inferSelect;
-export type FoodClassificationRecord = typeof foodClassificationTable.$inferSelect;
 
 export interface NewFood {
   name: string;
@@ -170,30 +173,4 @@ export function countMealsUsingFood(db: Db, foodId: string): number {
     db.select({ value: count() }).from(mealItemTable).where(eq(mealItemTable.foodId, foodId)).get()
       ?.value ?? 0
   );
-}
-
-/**
- * Every verdict on these foods that this user may see, in one query rather than one per food.
- * Resolution happens over the result, in domain/classification.ts, which is the only place the
- * order of precedence is written down.
- */
-export function findClassificationsForFoods(
-  db: Db,
-  foodIds: readonly string[],
-  userId: string,
-): FoodClassificationRecord[] {
-  if (foodIds.length === 0) {
-    return [];
-  }
-
-  return db
-    .select()
-    .from(foodClassificationTable)
-    .where(
-      and(
-        inArray(foodClassificationTable.foodId, [...foodIds]),
-        or(isNull(foodClassificationTable.userId), eq(foodClassificationTable.userId, userId)),
-      ),
-    )
-    .all();
 }

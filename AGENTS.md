@@ -542,9 +542,34 @@ step, and a run interrupted halfway heals itself on the next boot.
 Seeded rows belong to nobody. `food.created_by` is null and so is `food_classification.user_id`,
 which is what makes one catalog serve every account while a user's own opinion stays a separate
 row. Two things the loader deliberately does not do: it leaves a soft deleted seed food deleted
-rather than resurrecting it, and it does not move a colour that changed in the file, because the
-classification table is append only and choosing between two seed verdicts needs the resolution
-rule that does not exist yet.
+rather than resurrecting it, and it does not move a colour that changed in the file. The
+resolution rule would take the newer of two seed verdicts, so a corrected colour would arrive on
+a restart without anybody deciding it should, and correcting a shipped verdict is a deliberate
+act. The loader writes through `insertClassifications` like everything else, see below.
+
+### Classifications
+
+A food has no colour. It has a stack of opinions about its colour, and
+[`api/src/db/classification.ts`](./api/src/db/classification.ts) is the log of them: one row per
+verdict, carrying the source (`seed`, `ai_text`, `ai_vision`, `user`), the user it belongs to or
+null when it belongs to everybody, and the model's provenance when a model produced it.
+
+Nothing updates a row and nothing deletes one. A verdict is corrected by inserting a newer one,
+which is what keeps the disagreement, and the disagreement is the data: it is what later answers
+how often the classifier was wrong and at what confidence. The enforcement is that the module
+exposes one write and it inserts, so there is no function that could break the rule. Why, and
+what it costs on every read, is [ADR 007](./docs/adr/007-append-only-classification-log.md).
+
+Which verdict wins is `resolveClassification` in
+[`api/src/domain/classification.ts`](./api/src/domain/classification.ts), and that is the only
+place the order is written down: the caller's own most recent verdict, then the most recent model
+verdict, then the one that shipped, then no colour, which is a state rather than a failure. Every
+read path goes through it, so a list and a detail view cannot disagree about what somebody is
+looking at. `resolveClassifications` does the same for a whole page from one query, which is why
+fifty foods are two statements and not fifty one.
+
+`GET /api/v1/foods/{id}/classification/history` is the log itself, unresolved and newest first.
+It carries the shared rows and the caller's own, never another account's.
 
 ### Tests
 

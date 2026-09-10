@@ -29,6 +29,13 @@
       "when": 1788973389455,
       "tag": "0003_add_idempotency_key_table",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1789045028473,
+      "tag": "0004_add_classification_resolution_index",
+      "breakpoints": true
     }
   ]
 }

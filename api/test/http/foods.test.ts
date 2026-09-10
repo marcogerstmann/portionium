@@ -1,5 +1,6 @@
 import {
   PROBLEM,
+  type FoodClassificationResponse,
   type FoodDetailResponse,
   type FoodResponse,
   type ProblemDetails,
@@ -562,5 +563,137 @@ describe('removing an entry', () => {
 
     expect(response.statusCode).toBe(403);
     expect(problem(response.payload).type).toBe(PROBLEM.csrfOriginRejected);
+  });
+});
+
+/**
+ * The log itself, unresolved. Every other endpoint in this file answers with the one verdict
+ * that won, which is the only thing a client renders; this one answers with all of them, and
+ * that is a question worth asking only because nothing ever overwrites one. See
+ * docs/adr/007-append-only-classification-log.md.
+ */
+describe('the classification history of a food', () => {
+  /**
+   * Verdicts a minute apart. The factory stamps `createdAt` with the clock, so a chain written
+   * in one test arrives inside a single millisecond and any assertion about its order would be
+   * asserting the tiebreak instead of the ordering.
+   */
+  function minutesAgo(minutes: number): Date {
+    return new Date(Date.UTC(2026, 0, 1, 12, 60 - minutes));
+  }
+
+  function historyOf(app: FastifyInstance, foodId: string, token: string) {
+    return app.inject({
+      url: `${FOODS}/${foodId}/classification/history`,
+      headers: browser(token),
+    });
+  }
+
+  it('answers with the whole chain, newest first', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const food = fixtures.create.food({ name: 'Peanut butter' });
+    fixtures.create.classification(food, { category: 'orange', createdAt: minutesAgo(30) });
+    fixtures.create.classification(food, {
+      category: 'yellow',
+      source: 'ai_text',
+      model: 'claude-test',
+      confidence: 0.62,
+      createdAt: minutesAgo(20),
+    });
+    fixtures.create.classification(food, {
+      category: 'green',
+      source: 'user',
+      userId: fixtures.userA.id,
+      createdAt: minutesAgo(10),
+    });
+
+    const response = await historyOf(app, food.id, fixtures.create.session(fixtures.userA));
+    const history = response.json<FoodClassificationResponse[]>();
+
+    expect(response.statusCode).toBe(200);
+    expect(history.map((row) => row.source)).toEqual(['user', 'ai_text', 'seed']);
+    expect(history.map((row) => row.category)).toEqual(['green', 'yellow', 'orange']);
+    // The provenance is the point of keeping the row rather than overwriting it: this is what
+    // says the model was 62 percent sure of something a human then disagreed with.
+    expect(history[1]).toMatchObject({ model: 'claude-test', confidence: 0.62 });
+  });
+
+  it('keeps the superseded verdict when a user changes their mind twice', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const food = fixtures.create.food();
+    const mine = { source: 'user', userId: fixtures.userA.id } as const;
+    fixtures.create.classification(food, { category: 'green', ...mine, createdAt: minutesAgo(30) });
+    fixtures.create.classification(food, {
+      category: 'orange',
+      ...mine,
+      createdAt: minutesAgo(20),
+    });
+    fixtures.create.classification(food, {
+      category: 'yellow',
+      ...mine,
+      createdAt: minutesAgo(10),
+    });
+
+    const history = (await historyOf(app, food.id, fixtures.create.session(fixtures.userA))).json<
+      FoodClassificationResponse[]
+    >();
+
+    expect(history.map((row) => row.category)).toEqual(['yellow', 'orange', 'green']);
+  });
+
+  it("never shows one household member the other's opinion", async () => {
+    const { app, fixtures } = await buildTestApp();
+    const food = fixtures.create.food();
+    fixtures.create.classification(food, { category: 'green', createdAt: minutesAgo(30) });
+    fixtures.create.classification(food, {
+      category: 'orange',
+      source: 'user',
+      userId: fixtures.userB.id,
+      createdAt: minutesAgo(10),
+    });
+
+    const forA = (await historyOf(app, food.id, fixtures.create.session(fixtures.userA))).json<
+      FoodClassificationResponse[]
+    >();
+    const forB = (await historyOf(app, food.id, fixtures.create.session(fixtures.userB))).json<
+      FoodClassificationResponse[]
+    >();
+
+    // A shares the shipped verdict with B and sees nothing else. B sees their own on top of it.
+    expect(forA.map((row) => row.source)).toEqual(['seed']);
+    expect(forB.map((row) => row.source)).toEqual(['user', 'seed']);
+    // And the detail view agrees with the history it belongs to.
+    const detail = await app.inject({
+      url: `${FOODS}/${food.id}`,
+      headers: browser(fixtures.create.session(fixtures.userA)),
+    });
+    expect(detail.json<FoodDetailResponse>().category).toBe('green');
+  });
+
+  it('answers with an empty chain for a food nobody has judged', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const food = fixtures.create.food();
+
+    const response = await historyOf(app, food.id, fixtures.create.session(fixtures.userA));
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual([]);
+  });
+
+  it('answers 404 for a food that is not there, the same as the detail view', async () => {
+    const { app, fixtures } = await buildTestApp();
+    // Created by this user, so they are allowed to remove it. A deleted food and a food that
+    // never existed get the same answer here, for the reason requireFood exists.
+    const food = fixtures.create.food({ createdBy: fixtures.userA.id });
+    const token = fixtures.create.session(fixtures.userA);
+
+    const deleted = await app.inject({
+      method: 'DELETE',
+      url: `${FOODS}/${food.id}`,
+      headers: browser(token),
+    });
+    expect(deleted.statusCode).toBe(204);
+
+    expect((await historyOf(app, food.id, token)).statusCode).toBe(404);
   });
 });

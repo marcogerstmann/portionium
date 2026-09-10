@@ -1,4 +1,5 @@
 import { CATEGORIES, CLASSIFICATION_SOURCES } from '@portionium/schemas';
+import { desc } from 'drizzle-orm';
 import { index, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 import { baseColumns } from './base.js';
@@ -30,7 +31,13 @@ export const foodClassificationTable = sqliteTable(
     /** JSON array of strings. A list this small does not earn a table of its own. */
     assumptions: text('assumptions', { mode: 'json' }).$type<string[]>(),
   },
-  // Resolving a food's colour reads every verdict for that food and picks one. That is the
-  // only way this table is ever queried.
-  (table) => [index('food_classification_food_idx').on(table.foodId, table.userId)],
+  // Resolving a food's colour reads every verdict for that food that the caller may see and
+  // picks the newest one that wins. That is the only way this table is ever queried, and the
+  // three columns are the three the query names, in the order it names them: the food, then
+  // whose verdicts count, then the order the winner is picked in. Without the third the engine
+  // matches on the first two and sorts what it finds; with it the rows arrive in the order the
+  // resolution rule wants them. See docs/adr/007-append-only-classification-log.md.
+  (table) => [
+    index('food_classification_food_idx').on(table.foodId, table.userId, desc(table.createdAt)),
+  ],
 );
