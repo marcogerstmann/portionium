@@ -59,6 +59,13 @@ function storedFood(fixtures: TestFixtures, id: string) {
   return fixtures.db.select().from(foodTable).where(eq(foodTable.id, id)).get();
 }
 
+function historyOf(app: FastifyInstance, foodId: string, token: string) {
+  return app.inject({
+    url: `${FOODS}/${foodId}/classification/history`,
+    headers: browser(token),
+  });
+}
+
 describe('browsing the catalog', () => {
   it('answers with the colour resolved for the caller, never a global one', async () => {
     const { app, fixtures } = await buildTestApp();
@@ -582,13 +589,6 @@ describe('the classification history of a food', () => {
     return new Date(Date.UTC(2026, 0, 1, 12, 60 - minutes));
   }
 
-  function historyOf(app: FastifyInstance, foodId: string, token: string) {
-    return app.inject({
-      url: `${FOODS}/${foodId}/classification/history`,
-      headers: browser(token),
-    });
-  }
-
   it('answers with the whole chain, newest first', async () => {
     const { app, fixtures } = await buildTestApp();
     const food = fixtures.create.food({ name: 'Peanut butter' });
@@ -695,6 +695,191 @@ describe('the classification history of a food', () => {
     expect(deleted.statusCode).toBe(204);
 
     expect((await historyOf(app, food.id, token)).statusCode).toBe(404);
+  });
+});
+
+/**
+ * Overriding and withdrawing a colour. The two write routes behind
+ * docs/adr/007-append-only-classification-log.md: one appends, the other never touches the log
+ * at all. See classification.test.ts for the same properties one layer down.
+ */
+describe("a caller's own opinion", () => {
+  function classificationUrl(foodId: string) {
+    return `${FOODS}/${foodId}/classification`;
+  }
+
+  it('inserts a user verdict with the caller as its author', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const food = fixtures.create.food({ name: 'Erdnussbutter' });
+
+    const response = await app.inject({
+      method: 'PUT',
+      url: classificationUrl(food.id),
+      headers: browser(fixtures.create.session(fixtures.userA)),
+      payload: { category: 'orange', reasoning: 'Eaten by the spoon.' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json<FoodClassificationResponse>()).toMatchObject({
+      category: 'orange',
+      source: 'user',
+      reasoning: 'Eaten by the spoon.',
+    });
+
+    const detail = await app.inject({
+      url: `${FOODS}/${food.id}`,
+      headers: browser(fixtures.create.session(fixtures.userA)),
+    });
+    expect(detail.json<FoodDetailResponse>().category).toBe('orange');
+  });
+
+  it('is valid on a food nobody has ever classified, and creates its first entry', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const food = fixtures.create.food({ name: 'Kohlrabi' });
+
+    const response = await app.inject({
+      method: 'PUT',
+      url: classificationUrl(food.id),
+      headers: browser(fixtures.create.session(fixtures.userA)),
+      payload: { category: 'green' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const history = (await historyOf(app, food.id, fixtures.create.session(fixtures.userA))).json<
+      FoodClassificationResponse[]
+    >();
+    expect(history).toHaveLength(1);
+    expect(history[0]).toMatchObject({ category: 'green', source: 'user' });
+  });
+
+  it('never modifies the verdict it supersedes, only adds a newer one', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const food = fixtures.create.food({ name: 'Skyr' });
+    const token = fixtures.create.session(fixtures.userA);
+
+    await app.inject({
+      method: 'PUT',
+      url: classificationUrl(food.id),
+      headers: browser(token),
+      payload: { category: 'yellow' },
+    });
+    await app.inject({
+      method: 'PUT',
+      url: classificationUrl(food.id),
+      headers: browser(token),
+      payload: { category: 'green' },
+    });
+
+    const history = (await historyOf(app, food.id, token)).json<FoodClassificationResponse[]>();
+    expect(history.map((row) => row.category)).toEqual(['green', 'yellow']);
+  });
+
+  it('falls back to the AI or seed verdict once withdrawn', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const food = fixtures.create.food({ name: 'Erdnussbutter' });
+    fixtures.create.classification(food, { category: 'yellow' });
+    const token = fixtures.create.session(fixtures.userA);
+    await app.inject({
+      method: 'PUT',
+      url: classificationUrl(food.id),
+      headers: browser(token),
+      payload: { category: 'orange' },
+    });
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: classificationUrl(food.id),
+      headers: browser(token),
+    });
+
+    expect(response.statusCode).toBe(204);
+    const detail = await app.inject({ url: `${FOODS}/${food.id}`, headers: browser(token) });
+    expect(detail.json<FoodDetailResponse>().category).toBe('yellow');
+    // The withdrawn verdict is not gone, only out of the resolved answer. Only the marker is a
+    // new row; the classification log itself was never touched.
+    const history = (await historyOf(app, food.id, token)).json<FoodClassificationResponse[]>();
+    expect(history.map((row) => row.category)).toEqual(['orange', 'yellow']);
+  });
+
+  it('withdrawing what was never overridden is harmless', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const food = fixtures.create.food({ name: 'Kohlrabi' });
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: classificationUrl(food.id),
+      headers: browser(fixtures.create.session(fixtures.userA)),
+    });
+
+    expect(response.statusCode).toBe(204);
+  });
+
+  it('is invisible to the other household member, in either direction', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const food = fixtures.create.food({ name: 'Erdnussbutter' });
+    fixtures.create.classification(food, { category: 'yellow' });
+
+    await app.inject({
+      method: 'PUT',
+      url: classificationUrl(food.id),
+      headers: browser(fixtures.create.session(fixtures.userA)),
+      payload: { category: 'orange' },
+    });
+    await app.inject({
+      method: 'PUT',
+      url: classificationUrl(food.id),
+      headers: browser(fixtures.create.session(fixtures.userB)),
+      payload: { category: 'green' },
+    });
+
+    const forA = await app.inject({
+      url: `${FOODS}/${food.id}`,
+      headers: browser(fixtures.create.session(fixtures.userA)),
+    });
+    const forB = await app.inject({
+      url: `${FOODS}/${food.id}`,
+      headers: browser(fixtures.create.session(fixtures.userB)),
+    });
+    expect(forA.json<FoodDetailResponse>().category).toBe('orange');
+    expect(forB.json<FoodDetailResponse>().category).toBe('green');
+
+    // B withdraws; A's own override is untouched by it.
+    await app.inject({
+      method: 'DELETE',
+      url: classificationUrl(food.id),
+      headers: browser(fixtures.create.session(fixtures.userB)),
+    });
+    const stillA = await app.inject({
+      url: `${FOODS}/${food.id}`,
+      headers: browser(fixtures.create.session(fixtures.userA)),
+    });
+    expect(stillA.json<FoodDetailResponse>().category).toBe('orange');
+  });
+
+  it('needs a credential like every write in the catalog', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const food = fixtures.create.food();
+
+    const response = await app.inject({
+      method: 'PUT',
+      url: classificationUrl(food.id),
+      payload: { category: 'green' },
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it('answers 404 for a food that does not exist', async () => {
+    const { app, fixtures } = await buildTestApp();
+
+    const response = await app.inject({
+      method: 'PUT',
+      url: classificationUrl('0199e0e9-1c4b-7000-8f2c-6e4c1c2a9b31'),
+      headers: browser(fixtures.create.session(fixtures.userA)),
+      payload: { category: 'green' },
+    });
+
+    expect(response.statusCode).toBe(404);
   });
 });
 

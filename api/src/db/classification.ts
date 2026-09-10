@@ -1,8 +1,8 @@
 import type { Category, ClassificationSource } from '@portionium/schemas';
-import { and, desc, eq, inArray, isNull, or } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, isNull, not, notExists, or, sql } from 'drizzle-orm';
 
 import type { Db } from './client.js';
-import { foodClassificationTable } from './schema/index.js';
+import { foodClassificationTable, foodClassificationWithdrawalTable } from './schema/index.js';
 
 /**
  * Every query the classification log needs, and deliberately no more than that.
@@ -46,6 +46,26 @@ function visibleTo(userId: string) {
 }
 
 /**
+ * Whether the caller withdrew their own verdict on the correlated row's food at or after that
+ * verdict was written. Correlated on the outer query, the same way visibleClassifications in
+ * food.ts is, so asking "is this withdrawn" costs an index lookup rather than a second round
+ * trip. See food-classification-withdrawal.ts for why a newer withdrawal is what outdates it,
+ * and why a still newer verdict needs nothing done to it to stop being withdrawn.
+ */
+function withdrawnSince(db: Db, userId: string) {
+  return db
+    .select({ present: sql`1` })
+    .from(foodClassificationWithdrawalTable)
+    .where(
+      and(
+        eq(foodClassificationWithdrawalTable.foodId, foodClassificationTable.foodId),
+        eq(foodClassificationWithdrawalTable.userId, userId),
+        gte(foodClassificationWithdrawalTable.createdAt, foodClassificationTable.createdAt),
+      ),
+    );
+}
+
+/**
  * The only way a verdict is written.
  *
  * Takes a list because the seed loader inserts a few hundred at once and a caller with one
@@ -68,7 +88,11 @@ export function insertClassifications(
 }
 
 /**
- * Every verdict on these foods that this user may see, in one query rather than one per food.
+ * Every verdict on these foods that this user may see, in one query rather than one per food,
+ * and with the caller's own verdict left out of it wherever they have withdrawn it since. That
+ * exclusion is what resolveClassification needs to fall back to the AI or seed verdict, and it
+ * is deliberately not in findClassificationHistory: a withdrawn verdict is still a verdict that
+ * was made, and the history is the log itself, unresolved.
  */
 export function findClassificationsForFoods(
   db: Db,
@@ -82,7 +106,13 @@ export function findClassificationsForFoods(
   return db
     .select()
     .from(foodClassificationTable)
-    .where(and(inArray(foodClassificationTable.foodId, [...foodIds]), visibleTo(userId)))
+    .where(
+      and(
+        inArray(foodClassificationTable.foodId, [...foodIds]),
+        visibleTo(userId),
+        or(not(eq(foodClassificationTable.source, 'user')), notExists(withdrawnSince(db, userId))),
+      ),
+    )
     .all();
 }
 

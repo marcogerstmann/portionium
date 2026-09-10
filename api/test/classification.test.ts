@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { withdrawClassification } from '../src/db/classification-withdrawal.js';
 import * as classifications from '../src/db/classification.js';
 import {
   findClassificationHistory,
@@ -7,6 +8,7 @@ import {
   insertClassifications,
 } from '../src/db/classification.js';
 import type { Db } from '../src/db/client.js';
+import { foodClassificationWithdrawalTable } from '../src/db/schema/index.js';
 import { createTestFixtures, type TestFixtures } from './helpers/fixtures.js';
 
 /**
@@ -132,5 +134,90 @@ describe('the classification repository', () => {
     expect(forA.map((row) => row.category)).toEqual(expect.arrayContaining(['green', 'orange']));
     expect(forA.some((row) => row.userId === fixtures.userB.id)).toBe(false);
     expect(forB.some((row) => row.userId === fixtures.userA.id)).toBe(false);
+  });
+});
+
+/**
+ * Withdrawing an override. See docs/adr/007-append-only-classification-log.md and
+ * food-classification-withdrawal.ts for why this is a separate table rather than a row this
+ * module updates or deletes: the log itself is never touched by any of this.
+ */
+describe('withdrawing a classification', () => {
+  it('is left out of resolution once withdrawn, in favour of the AI or seed verdict', () => {
+    const food = fixtures.create.food();
+    fixtures.create.classification(food, { category: 'green' });
+    fixtures.create.classification(food, {
+      category: 'orange',
+      source: 'user',
+      userId: fixtures.userA.id,
+    });
+
+    withdrawClassification(fixtures.db, food.id, fixtures.userA.id);
+
+    const rows = findClassificationsForFoods(fixtures.db, [food.id], fixtures.userA.id);
+    expect(rows.map((row) => row.source)).toEqual(['seed']);
+  });
+
+  it('leaves the history exactly as it was, the withdrawn verdict included', () => {
+    const food = fixtures.create.food();
+    fixtures.create.classification(food, {
+      category: 'orange',
+      source: 'user',
+      userId: fixtures.userA.id,
+    });
+
+    withdrawClassification(fixtures.db, food.id, fixtures.userA.id);
+
+    const history = findClassificationHistory(fixtures.db, food.id, fixtures.userA.id);
+    expect(history.map((row) => row.category)).toEqual(['orange']);
+  });
+
+  it('stops mattering the moment the caller overrides the food again', () => {
+    const food = fixtures.create.food();
+    fixtures.create.classification(food, {
+      category: 'orange',
+      source: 'user',
+      userId: fixtures.userA.id,
+      createdAt: new Date(Date.UTC(2026, 0, 1, 0, 0)),
+    });
+    fixtures.db
+      .insert(foodClassificationWithdrawalTable)
+      .values({
+        foodId: food.id,
+        userId: fixtures.userA.id,
+        createdAt: new Date(Date.UTC(2026, 0, 1, 0, 5)),
+      })
+      .run();
+
+    insertClassifications(fixtures.db, [
+      {
+        foodId: food.id,
+        category: 'yellow',
+        source: 'user',
+        userId: fixtures.userA.id,
+      },
+    ]);
+
+    const rows = findClassificationsForFoods(fixtures.db, [food.id], fixtures.userA.id);
+    expect(rows.map((row) => row.category)).toEqual(expect.arrayContaining(['yellow']));
+  });
+
+  it("never withdraws the other household member's own opinion", () => {
+    const food = fixtures.create.food();
+    fixtures.create.classification(food, {
+      category: 'orange',
+      source: 'user',
+      userId: fixtures.userA.id,
+    });
+    fixtures.create.classification(food, {
+      category: 'yellow',
+      source: 'user',
+      userId: fixtures.userB.id,
+    });
+
+    withdrawClassification(fixtures.db, food.id, fixtures.userA.id);
+
+    const forB = findClassificationsForFoods(fixtures.db, [food.id], fixtures.userB.id);
+    expect(forB.map((row) => row.category)).toEqual(expect.arrayContaining(['yellow']));
   });
 });

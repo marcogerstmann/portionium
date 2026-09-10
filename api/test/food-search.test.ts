@@ -350,7 +350,11 @@ describe('the migration that adds the index', () => {
     const journal = JSON.parse(readFileSync(join(source, 'meta/_journal.json'), 'utf8')) as {
       entries: { idx: number; tag: string }[];
     };
-    const earlier = journal.entries.filter((entry) => entry.tag !== FOOD_SEARCH_MIGRATION);
+    // Strictly before, by index, not "every migration except this one": a migration added
+    // after this one is still part of the release that already has the index, and belongs on
+    // the upgraded side of this test rather than being mistaken for history that predates it.
+    const targetIdx = journal.entries.find((entry) => entry.tag === FOOD_SEARCH_MIGRATION)?.idx;
+    const earlier = journal.entries.filter((entry) => entry.idx < (targetIdx ?? 0));
     for (const entry of earlier) {
       copyFileSync(join(source, `${entry.tag}.sql`), join(before, `${entry.tag}.sql`));
     }

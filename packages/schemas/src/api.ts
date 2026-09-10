@@ -188,6 +188,21 @@ export const foodClassificationResponseSchema = foodClassificationSchema
 
 export type FoodClassificationResponse = z.infer<typeof foodClassificationResponseSchema>;
 
+/**
+ * Overriding a food's colour. `category` is the verdict, `reasoning` is why, the same field a
+ * model's own verdict carries it under, and it is optional for the same reason a model's is not
+ * required to guess right: not every disagreement needs a sentence attached to it.
+ *
+ * There is no `source` and no `userId` here. Both are the server's to assign: the endpoint
+ * that accepts this is what makes the source `user`, and the caller in `request.auth` is the
+ * only place a user id for a write ever comes from. See docs/adr/007-append-only-classification-log.md.
+ */
+export const createClassificationRequestSchema = foodClassificationSchema
+  .pick({ category: true, reasoning: true })
+  .strict();
+
+export type CreateClassificationRequest = z.infer<typeof createClassificationRequestSchema>;
+
 /** One entry, with the provenance of the colour beside the colour. Null when there is none. */
 export const foodDetailResponseSchema = foodResponseSchema.extend({
   classification: foodClassificationResponseSchema.nullable(),

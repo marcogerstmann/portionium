@@ -1,4 +1,5 @@
 import {
+  createClassificationRequestSchema,
   createFoodRequestSchema,
   foodClassificationResponseSchema,
   foodDetailResponseSchema,
@@ -16,9 +17,11 @@ import {
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
+import { withdrawClassification } from '../../db/classification-withdrawal.js';
 import {
   findClassificationHistory,
   findClassificationsForFoods,
+  insertClassifications,
   type FoodClassificationRecord,
 } from '../../db/classification.js';
 import type { Db } from '../../db/client.js';
@@ -49,15 +52,16 @@ import {
  * The shared catalog. One table for ingredients, dishes and branded products, and one entry per
  * food for the whole instance, see docs/adr/006-single-foods-table.md.
  *
- * Two properties run through the five catalog endpoints:
+ * Two properties run through the catalog endpoints:
  *
  *   Nothing here answers with a raw category. Every food that leaves this file has been through
  *   resolveClassification for the caller, so two people in one household reading the same entry
  *   get their own answer and neither can see the other's opinion.
  *
- *   Nothing here writes a category either. A colour is a verdict with a source and an author,
- *   so it is a row in food_classification written by the classification endpoint, and there is
- *   no field on a create or an update that could carry one.
+ *   No create or update on a food carries a category. A colour is a verdict with a source and
+ *   an author, so the only way to write one is PUT .../classification, which inserts a row in
+ *   food_classification rather than setting a field on the food. DELETE on the same path never
+ *   touches that row either: it withdraws it, see classification-withdrawal.ts.
  *
  * The history endpoint is the log itself, unresolved. Everything else in this file answers with
  * the one verdict that won; that one answers with all of them, which is only a question worth
@@ -361,6 +365,75 @@ export const foodRoutes: FastifyPluginCallbackZod<FoodRouteOptions> = (app, opti
       // The other household member's opinions are not in here and are not omitted from a page
       // either, they never leave the database. See findClassificationHistory.
       return findClassificationHistory(db, food.id, userId).map(toClassificationResponse);
+    },
+  );
+
+  app.put(
+    '/foods/:id/classification',
+    {
+      config: { auth: 'write' },
+      schema: {
+        summary: "Override this food's colour with the caller's own opinion",
+        params: idParamsSchema,
+        body: createClassificationRequestSchema,
+        response: {
+          200: foodClassificationResponseSchema,
+          ...authenticatedProblemResponses,
+          ...notFoundResponse,
+          ...idempotencyProblemResponses,
+          ...problemResponses,
+        },
+      },
+    },
+    (request) => {
+      const { userId } = request.auth;
+      const food = requireFood(request.params.id);
+
+      // The only write this food gets: a new row, never a change to one that is already there.
+      // insertClassifications always answers with one row per verdict it was given one of.
+      const [classification] = insertClassifications(db, [
+        {
+          foodId: food.id,
+          category: request.body.category,
+          source: 'user',
+          userId,
+          ...(request.body.reasoning === undefined ? {} : { reasoning: request.body.reasoning }),
+        },
+      ]);
+
+      request.log.info({ userId, foodId: food.id }, 'food classification overridden');
+
+      return toClassificationResponse(classification as FoodClassificationRecord);
+    },
+  );
+
+  app.delete(
+    '/foods/:id/classification',
+    {
+      config: { auth: 'write' },
+      schema: {
+        summary: "Withdraw the caller's own opinion, falling back to the AI or seed verdict",
+        params: idParamsSchema,
+        response: {
+          ...noContentResponse,
+          ...authenticatedProblemResponses,
+          ...notFoundResponse,
+          ...idempotencyProblemResponses,
+          ...problemResponses,
+        },
+      },
+    },
+    (request, reply) => {
+      const { userId } = request.auth;
+      const food = requireFood(request.params.id);
+
+      // Never touches the log. See findClassificationsForFoods for the other half of this: a
+      // caller's own verdict is left out of resolution once a withdrawal this new exists for it.
+      withdrawClassification(db, food.id, userId);
+
+      request.log.info({ userId, foodId: food.id }, 'food classification withdrawn');
+
+      reply.code(204).send(null);
     },
   );
 

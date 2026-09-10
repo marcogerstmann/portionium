@@ -43,6 +43,13 @@
       "when": 1789045895307,
       "tag": "0005_add_food_search_index",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1789047296337,
+      "tag": "0006_add_food_classification_withdrawal_table",
+      "breakpoints": true
     }
   ]
 }
