@@ -571,6 +571,40 @@ fifty foods are two statements and not fifty one.
 `GET /api/v1/foods/{id}/classification/history` is the log itself, unresolved and newest first.
 It carries the shared rows and the caller's own, never another account's.
 
+### Search
+
+`GET /api/v1/foods/search?q=` is the endpoint the core interaction sits on, so the two halves of
+it are deliberately in different places.
+
+Recall is SQLite's FTS5, in a `food_search` virtual table tokenised into trigrams. That is what
+makes a query match inside a word and across a space, so `kyr` finds `Skyr` and `nut but` finds
+`Peanut Butter`. The table is kept in step with `food` by triggers, added in
+[`0005_add_food_search_index.sql`](./api/drizzle/0005_add_food_search_index.sql), so nothing in
+TypeScript writes to the index and nothing can forget to. That migration also backfills the
+entries already in the catalog, which is the half that fails invisibly, and
+`api/test/food-search.test.ts` runs the migrations in two halves to prove it does not.
+
+Ranking is [`api/src/domain/food-search.ts`](./api/src/domain/food-search.ts), in memory, over
+the rows that came back. Exact match, then the caller's own most recently eaten foods, then how
+often the instance eats it, then lexical relevance. The second key is the one that matters: most
+of anyone's diet is the same twenty foods, so a personal history predicts what somebody is
+typing better than anything about the catalog does.
+
+Two things the index cannot do, and both fall through to a scan of the live names in
+JavaScript, which runs only when the index came back with less than a full page. A query shorter
+than three characters, because a trigram index has nothing to match it against, which is
+answered with a prefix. And a typo, because `Sykr` shares no trigram at all with `Skyr`, which
+is answered with a Damerau edit distance of one. Case folding happens there rather than in SQL
+for the reason `normalizeFoodName` gives.
+
+An empty `q` is not an error. It answers with the caller's most eaten foods, degrading to what
+the instance eats and then to the catalog by name, because a search box is focused before it is
+typed into and an autocomplete that opens empty is one nobody uses.
+
+`api/test/food-search.test.ts` holds the benchmark: 5000 entries, a median under 50 ms per
+query. It is there to catch a change of kind, a scan added to the hot path or an index that
+stopped being used, rather than to police a millisecond.
+
 ### Tests
 
 `createTestDatabase()` in [`api/test/helpers/database.ts`](./api/test/helpers/database.ts) gives a

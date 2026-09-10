@@ -141,6 +141,7 @@ describe('openapi document', () => {
       `${API_PREFIX}/auth/tokens`,
       `${API_PREFIX}/auth/tokens/{id}`,
       `${API_PREFIX}/foods`,
+      `${API_PREFIX}/foods/search`,
       `${API_PREFIX}/foods/{id}`,
       `${API_PREFIX}/foods/{id}/classification/history`,
       `${API_PREFIX}/me`,

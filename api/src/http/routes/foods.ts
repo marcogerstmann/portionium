@@ -4,6 +4,7 @@ import {
   foodDetailResponseSchema,
   foodListQuerySchema,
   foodResponseSchema,
+  foodSearchQuerySchema,
   pageSchema,
   PROBLEM_CONTENT_TYPE,
   problemDetailsSchema,
@@ -21,6 +22,7 @@ import {
   type FoodClassificationRecord,
 } from '../../db/classification.js';
 import type { Db } from '../../db/client.js';
+import { searchFoods } from '../../db/food-search.js';
 import {
   countMealsUsingFood,
   findFoodById,
@@ -210,6 +212,49 @@ export const foodRoutes: FastifyPluginCallbackZod<FoodRouteOptions> = (app, opti
         items: items.map((food) => toFoodResponse(food, resolved.get(food.id))),
         nextCursor: page.length > limit ? (items.at(-1)?.id ?? null) : null,
       };
+    },
+  );
+
+  /**
+   * Registered before /foods/:id, though Fastify's router would prefer a literal segment over a
+   * parameter either way. The order is here for whoever reads the file.
+   */
+  app.get(
+    '/foods/search',
+    {
+      config: { auth: 'read' },
+      schema: {
+        summary: 'Find a food by what somebody has typed so far',
+        querystring: foodSearchQuerySchema,
+        response: {
+          200: z.array(foodResponseSchema),
+          ...authenticatedProblemResponses,
+          ...problemResponses,
+        },
+      },
+    },
+    (request) => {
+      const { userId } = request.auth;
+      const { q, limit } = request.query;
+
+      // Not a page and not a cursor, unlike everything else that lists foods. A ranked answer
+      // is only meaningful from the top, and paging one means paging a ranking that the next
+      // keystroke replaces anyway.
+      const results = searchFoods(db, { userId, query: q, limit });
+
+      // The colour comes back with the entry rather than a request per result, which is the
+      // whole reason it is here: a dropdown that has to fetch a colour for each of twenty rows
+      // before it can draw them is a dropdown that flashes grey.
+      const resolved = resolveClassifications(
+        findClassificationsForFoods(
+          db,
+          results.map((food) => food.id),
+          userId,
+        ),
+        userId,
+      );
+
+      return results.map((food) => toFoodResponse(food, resolved.get(food.id)));
     },
   );
 

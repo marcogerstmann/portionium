@@ -114,6 +114,26 @@ export const foodListQuerySchema = paginationQuerySchema.extend({
 
 export type FoodListQuery = z.infer<typeof foodListQuerySchema>;
 
+/**
+ * Searching it. `q` is what somebody has typed so far, so it is matched loosely: inside a word,
+ * across a space, and through a single typo. What that means exactly is api/src/domain/food-search.ts.
+ *
+ * An empty `q` is the default rather than a 400, and it is why the field has one. An
+ * autocomplete is focused before it is typed into, and the useful answer at that moment is the
+ * caller's own most eaten foods, which is a result the same endpoint can give.
+ *
+ * There is no cursor here and results are not a page. A ranked list is only meaningful from the
+ * top, the interesting part of it is the first handful, and a second page of increasingly
+ * unlikely guesses is not something a search box asks for. `limit` is smaller than the
+ * catalog's for the same reason: a dropdown nobody scrolls.
+ */
+export const foodSearchQuerySchema = z.strictObject({
+  q: z.string().max(200).default(''),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+});
+
+export type FoodSearchQuery = z.infer<typeof foodSearchQuerySchema>;
+
 export const createMealRequestSchema = z.strictObject({
   type: mealTypeSchema,
   /** Absent means now. The server stamps it and derives the local date from it. */

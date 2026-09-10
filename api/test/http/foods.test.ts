@@ -697,3 +697,138 @@ describe('the classification history of a food', () => {
     expect((await historyOf(app, food.id, token)).statusCode).toBe(404);
   });
 });
+
+describe('searching the catalog', () => {
+  const SEARCH = `${FOODS}/search`;
+
+  it('ranks the caller own foods first, and answers with the colour resolved for them', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const plain = fixtures.create.food({ name: 'Skyr Plain' });
+    const mango = fixtures.create.food({ name: 'Skyr Mango' });
+    fixtures.create.classification(plain, { category: 'green' });
+    fixtures.create.classification(mango, { category: 'green' });
+    fixtures.create.classification(mango, {
+      category: 'orange',
+      source: 'user',
+      userId: fixtures.userA.id,
+    });
+    fixtures.create.meal(fixtures.userA, { items: [{ foodId: mango.id }] });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `${SEARCH}?q=skyr`,
+      headers: browser(fixtures.create.session(fixtures.userA)),
+    });
+
+    expect(response.statusCode).toBe(200);
+    const results = JSON.parse(response.payload) as FoodResponse[];
+    // The colour is here rather than a request away, which is the whole point: a dropdown that
+    // fetches a category per row is a dropdown that draws grey and then repaints.
+    expect(results.map((food) => [food.name, food.category])).toEqual([
+      ['Skyr Mango', 'orange'],
+      ['Skyr Plain', 'green'],
+    ]);
+  });
+
+  it('gives the other household member their own colour and their own order', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const plain = fixtures.create.food({ name: 'Skyr Plain' });
+    const mango = fixtures.create.food({ name: 'Skyr Mango' });
+    fixtures.create.classification(plain, { category: 'green' });
+    fixtures.create.classification(mango, { category: 'green' });
+    fixtures.create.classification(mango, {
+      category: 'orange',
+      source: 'user',
+      userId: fixtures.userA.id,
+    });
+    fixtures.create.meal(fixtures.userA, { items: [{ foodId: mango.id }] });
+    fixtures.create.meal(fixtures.userB, { items: [{ foodId: plain.id }] });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `${SEARCH}?q=skyr`,
+      headers: browser(fixtures.create.session(fixtures.userB)),
+    });
+
+    const results = JSON.parse(response.payload) as FoodResponse[];
+    expect(results.map((food) => [food.name, food.category])).toEqual([
+      ['Skyr Plain', 'green'],
+      ['Skyr Mango', 'green'],
+    ]);
+  });
+
+  it('answers an empty box with the useful default rather than a 400', async () => {
+    const { app, fixtures } = await buildTestApp();
+    fixtures.create.food({ name: 'Aardvark Steak' });
+    const usual = fixtures.create.food({ name: 'Zucchini' });
+    fixtures.create.meal(fixtures.userA, { items: [{ foodId: usual.id }] });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: SEARCH,
+      headers: browser(fixtures.create.session(fixtures.userA)),
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect((JSON.parse(response.payload) as FoodResponse[])[0]?.name).toBe('Zucchini');
+  });
+
+  it('honours the limit and refuses one outside the range', async () => {
+    const { app, fixtures } = await buildTestApp();
+    for (const name of ['Skyr A', 'Skyr B', 'Skyr C']) {
+      fixtures.create.food({ name });
+    }
+    const cookie = browser(fixtures.create.session(fixtures.userA));
+
+    const page = await app.inject({
+      method: 'GET',
+      url: `${SEARCH}?q=skyr&limit=2`,
+      headers: cookie,
+    });
+    expect(JSON.parse(page.payload)).toHaveLength(2);
+
+    const tooMany = await app.inject({
+      method: 'GET',
+      url: `${SEARCH}?q=skyr&limit=500`,
+      headers: cookie,
+    });
+    expect(tooMany.statusCode).toBe(400);
+  });
+
+  it('refuses a parameter nobody declared, the way every query string here does', async () => {
+    const { app, fixtures } = await buildTestApp();
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `${SEARCH}?q=skyr&kind=dish`,
+      headers: browser(fixtures.create.session(fixtures.userA)),
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  it('does not let a query be read as FTS5 syntax', async () => {
+    const { app, fixtures } = await buildTestApp();
+    fixtures.create.food({ name: 'Skyr' });
+    const cookie = browser(fixtures.create.session(fixtures.userA));
+
+    for (const q of ['skyr OR quark', 'sky*', 'sky"r', '"', '((']) {
+      const response = await app.inject({
+        method: 'GET',
+        url: `${SEARCH}?q=${encodeURIComponent(q)}`,
+        headers: cookie,
+      });
+
+      expect(response.statusCode, `searching for ${q}`).toBe(200);
+    }
+  });
+
+  it('needs a credential, like everything else in the catalog', async () => {
+    const { app } = await buildTestApp();
+
+    const response = await app.inject({ method: 'GET', url: `${SEARCH}?q=skyr` });
+
+    expect(response.statusCode).toBe(401);
+    expect(problem(response.payload).type).toBe(PROBLEM.unauthenticated);
+  });
+});
