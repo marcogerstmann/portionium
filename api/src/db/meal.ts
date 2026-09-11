@@ -181,6 +181,32 @@ export function findMealsForDay(db: Db, userId: string, localDate: string): Meal
 }
 
 /**
+ * Every item logged in a local date range, with the day it landed on, in one query regardless
+ * of how many days or meals the range spans. See the performance note in domain/stats.ts, which
+ * groups and resolves colours over whatever this returns.
+ */
+export function findItemsForDateRange(
+  db: Db,
+  userId: string,
+  from: string,
+  to: string,
+): { foodId: string; localDate: string }[] {
+  return db
+    .select({ foodId: mealItemTable.foodId, localDate: mealTable.localDate })
+    .from(mealItemTable)
+    .innerJoin(mealTable, eq(mealTable.id, mealItemTable.mealId))
+    .where(
+      and(
+        eq(mealTable.userId, userId),
+        isNull(mealTable.deletedAt),
+        gte(mealTable.localDate, from),
+        lte(mealTable.localDate, to),
+      ),
+    )
+    .all();
+}
+
+/**
  * Every item across a page or a day of meals, in one query rather than one per meal. That is
  * the whole of the performance note on GET /days/{date}: a day with twenty items costs the same
  * round trip as a day with two.

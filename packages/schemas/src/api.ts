@@ -509,6 +509,52 @@ export const dayResponseSchema = z.object({
 export type DayResponse = z.infer<typeof dayResponseSchema>;
 
 /**
+ * Asking how a range of days looked, POR-36. `from` and `to` are both required, unlike a feed's
+ * optional bounds: gap filling only means something against an explicit range, there is no
+ * "everything" for a chart of days to default to.
+ *
+ * ponytail: no cap on the range beyond `to` not preceding `from`. A day's aggregate is four
+ * integers, so even a multi-year request is a few thousand small rows, not a query that widens
+ * with the range. Add a cap if a client ever asks for one nobody meant to send.
+ */
+export const statsDaysQuerySchema = z
+  .strictObject({ from: localDateSchema, to: localDateSchema })
+  .refine((query) => query.to >= query.from, {
+    message: '`to` must not be before `from`',
+    path: ['to'],
+  });
+
+export type StatsDaysQuery = z.infer<typeof statsDaysQuerySchema>;
+
+/**
+ * One day's worth of colour, whether or not anything was logged on it. `counts` is the same
+ * shape a single day's summary carries, see colourCountsSchema; `share` is the same four numbers
+ * as a fraction of the day's items, 0 when nothing was logged so a client never divides by zero
+ * itself.
+ */
+export const dayColourStatsSchema = z.object({
+  date: localDateSchema,
+  counts: colourCountsSchema,
+  share: z.object({
+    green: z.number().min(0).max(1),
+    yellow: z.number().min(0).max(1),
+    orange: z.number().min(0).max(1),
+    unclassified: z.number().min(0).max(1),
+  }),
+});
+
+export type DayColourStats = z.infer<typeof dayColourStatsSchema>;
+
+/**
+ * One entry per local date in the requested range, `from` and `to` both included, oldest first.
+ * A day nobody logged anything on is still an entry, all zeroes, rather than a gap a client has
+ * to fill in itself, see computeDailyColourStats in api/src/domain/stats.ts.
+ */
+export const statsDaysResponseSchema = z.object({ days: z.array(dayColourStatsSchema) });
+
+export type StatsDaysResponse = z.infer<typeof statsDaysResponseSchema>;
+
+/**
  * Credentials on their way in. The email is normalised by its own schema, so `Foo@Example.com`
  * and `foo@example.com` are the same account before the lookup happens rather than after it.
  *

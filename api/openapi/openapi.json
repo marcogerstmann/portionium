@@ -18324,6 +18324,554 @@
         }
       }
     },
+    "/api/v1/stats/days": {
+      "get": {
+        "summary": "Per-day colour counts over a local date range, gaps filled with zeroes",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+            },
+            "in": "query",
+            "name": "from",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+            },
+            "in": "query",
+            "name": "to",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "days": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "date": {
+                            "type": "string",
+                            "format": "date",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                          },
+                          "counts": {
+                            "type": "object",
+                            "properties": {
+                              "green": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              "yellow": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              "orange": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              "unclassified": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            "required": [
+                              "green",
+                              "yellow",
+                              "orange",
+                              "unclassified"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "share": {
+                            "type": "object",
+                            "properties": {
+                              "green": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              "yellow": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              "orange": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              "unclassified": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              }
+                            },
+                            "required": [
+                              "green",
+                              "yellow",
+                              "orange",
+                              "unclassified"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "date",
+                          "counts",
+                          "share"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "days"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request does not match the schema",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
+                        "https://portionium.dev/problems/unknown-food-reference",
+                        "https://portionium.dev/problems/meal-from-id-with-items",
+                        "https://portionium.dev/problems/favourite-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one that no longer resolves to anybody",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
+                        "https://portionium.dev/problems/unknown-food-reference",
+                        "https://portionium.dev/problems/meal-from-id-with-items",
+                        "https://portionium.dev/problems/favourite-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential may not do this, or the request failed the origin check",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
+                        "https://portionium.dev/problems/unknown-food-reference",
+                        "https://portionium.dev/problems/meal-from-id-with-items",
+                        "https://portionium.dev/problems/favourite-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The caller is over the rate limit for this kind of request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
+                        "https://portionium.dev/problems/unknown-food-reference",
+                        "https://portionium.dev/problems/meal-from-id-with-items",
+                        "https://portionium.dev/problems/favourite-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
+                        "https://portionium.dev/problems/unknown-food-reference",
+                        "https://portionium.dev/problems/meal-from-id-with-items",
+                        "https://portionium.dev/problems/favourite-has-no-items",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/weight": {
       "post": {
         "summary": "Record a weight for a local date, defaulting to today",

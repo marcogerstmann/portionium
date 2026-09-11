@@ -23,6 +23,7 @@ import { foodRoutes } from './routes/foods.js';
 import { healthRoutes, HEALTH_PATH } from './routes/health.js';
 import { mealRoutes } from './routes/meals.js';
 import { meRoutes } from './routes/me.js';
+import { statsRoutes } from './routes/stats.js';
 import { weightRoutes } from './routes/weight.js';
 
 /**
@@ -205,6 +206,8 @@ export async function buildApp({ config, database }: AppDependencies): Promise<F
       void v1.register(foodRoutes, { db: database.db });
 
       void v1.register(mealRoutes, { db: database.db });
+
+      void v1.register(statsRoutes, { db: database.db });
 
       void v1.register(weightRoutes, {
         db: database.db,
