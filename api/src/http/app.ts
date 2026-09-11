@@ -21,6 +21,7 @@ import { registerProblemHandlers } from './problem.js';
 import { authRoutes } from './routes/auth.js';
 import { foodRoutes } from './routes/foods.js';
 import { healthRoutes, HEALTH_PATH } from './routes/health.js';
+import { mealRoutes } from './routes/meals.js';
 import { meRoutes } from './routes/me.js';
 
 /**
@@ -201,6 +202,8 @@ export async function buildApp({ config, database }: AppDependencies): Promise<F
       });
 
       void v1.register(foodRoutes, { db: database.db });
+
+      void v1.register(mealRoutes, { db: database.db });
 
       void v1.register(meRoutes, {
         db: database.db,

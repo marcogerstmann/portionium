@@ -83,6 +83,10 @@ export const PROBLEM = {
    */
   foodInUse: `${PROBLEM_NAMESPACE}/food-in-use`,
   mealHasNoItems: `${PROBLEM_NAMESPACE}/meal-has-no-items`,
+  /** A client supplied a meal id that already belongs to a row. Retry with a new one. */
+  mealIdConflict: `${PROBLEM_NAMESPACE}/meal-id-conflict`,
+  /** An item named a food id the catalog has no live entry for. */
+  unknownFoodReference: `${PROBLEM_NAMESPACE}/unknown-food-reference`,
   implausibleWeight: `${PROBLEM_NAMESPACE}/implausible-weight`,
   internalError: `${PROBLEM_NAMESPACE}/internal-error`,
 } as const;

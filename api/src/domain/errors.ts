@@ -8,6 +8,8 @@
  */
 export type DomainErrorCode =
   | 'meal_has_no_items'
+  | 'meal_id_conflict'
+  | 'unknown_food_reference'
   | 'implausible_weight'
   | 'invalid_credentials'
   | 'invalid_current_password'

@@ -98,6 +98,16 @@ const DOMAIN_PROBLEMS: Record<
     title: 'A meal must contain at least one item',
     status: 422,
   },
+  meal_id_conflict: {
+    type: PROBLEM.mealIdConflict,
+    title: 'A meal with this id already exists',
+    status: 409,
+  },
+  unknown_food_reference: {
+    type: PROBLEM.unknownFoodReference,
+    title: 'Unknown food reference',
+    status: 422,
+  },
   implausible_weight: {
     type: PROBLEM.implausibleWeight,
     title: 'Weight is not plausible',

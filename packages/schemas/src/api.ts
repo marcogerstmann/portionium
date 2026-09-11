@@ -16,6 +16,7 @@ import {
   emailSchema,
   foodKindSchema,
   idSchema,
+  localDateSchema,
   mealTypeSchema,
   PASSWORD_MAX_LENGTH,
   passwordSchema,
@@ -135,6 +136,14 @@ export const foodSearchQuerySchema = z.strictObject({
 export type FoodSearchQuery = z.infer<typeof foodSearchQuerySchema>;
 
 export const createMealRequestSchema = z.strictObject({
+  /**
+   * Absent means the server mints one. Present is what lets a meal logged offline keep the id
+   * it was given on the device: the client generates a UUIDv7 the moment somebody logs it, and
+   * syncing later is handing the server that same id rather than asking for a new one. An id
+   * that already belongs to a row is refused rather than silently overwriting it, see
+   * insertMeal in api/src/db/meal.ts.
+   */
+  id: idSchema.optional(),
   type: mealTypeSchema,
   /** Absent means now. The server stamps it and derives the local date from it. */
   loggedAt: timestampSchema.optional(),
@@ -149,11 +158,56 @@ export const createMealRequestSchema = z.strictObject({
 
 export type CreateMealRequest = z.infer<typeof createMealRequestSchema>;
 
-export const mealResponseSchema = mealSchema.extend({
-  items: z.array(mealItemSchema),
+/** One item on its way out, with the colour resolved for whoever asked, the same as a food. */
+export const mealItemResponseSchema = mealItemSchema.omit({ mealId: true }).extend({
+  category: categorySchema.nullable(),
+});
+
+export type MealItemResponse = z.infer<typeof mealItemResponseSchema>;
+
+/**
+ * `loggedAt` is re-typed rather than inherited from mealSchema. timestampSchema is a one way
+ * transform, built to turn a string or a Date arriving on a request into a Date the domain
+ * works with; asked to run the other way, in a response, it throws. Every instant that leaves
+ * this API over HTTP is a plain ISO string for that reason, see foodClassificationResponseSchema
+ * and toMealResponse in api/src/http/routes/meals.ts, which is where the Date becomes one.
+ */
+export const mealResponseSchema = mealSchema.omit({ loggedAt: true }).extend({
+  loggedAt: z.iso.datetime(),
+  items: z.array(mealItemResponseSchema),
 });
 
 export type MealResponse = z.infer<typeof mealResponseSchema>;
+
+/**
+ * Browsing a caller's own meals. Newest first, like every feed of a user's own rows, which is
+ * why the cursor here means "older than this" rather than foodListQuerySchema's "after this":
+ * see listMeals in api/src/db/meal.ts.
+ *
+ * `from` and `to` are local dates rather than instants, because a day is what a client filters
+ * by, "yesterday" or "this week", and a local date is the column meals are already grouped by.
+ */
+export const mealListQuerySchema = paginationQuerySchema.extend({
+  type: mealTypeSchema.optional(),
+  from: localDateSchema.optional(),
+  to: localDateSchema.optional(),
+});
+
+export type MealListQuery = z.infer<typeof mealListQuerySchema>;
+
+/**
+ * How many of a day's items landed in each colour, including the ones nobody has judged yet.
+ * Counted over items rather than meals, since a colour is a property of what was eaten and one
+ * meal usually carries more than one.
+ */
+export const colourCountsSchema = z.object({
+  green: z.int().nonnegative(),
+  yellow: z.int().nonnegative(),
+  orange: z.int().nonnegative(),
+  unclassified: z.int().nonnegative(),
+});
+
+export type ColourCounts = z.infer<typeof colourCountsSchema>;
 
 /**
  * A catalog entry on its way out, with the colour resolved for whoever asked for it. There is
@@ -229,17 +283,33 @@ export const createWeightEntryRequestSchema = z
 
 export type CreateWeightEntryRequest = z.infer<typeof createWeightEntryRequestSchema>;
 
+/** `recordedAt` re-typed for the same reason mealResponseSchema's `loggedAt` is, see there. */
 export const weightEntryResponseSchema = weightEntrySchema
-  .omit({ weightGrams: true })
-  .extend({ weightKg: z.number().positive() });
+  .omit({ weightGrams: true, recordedAt: true })
+  .extend({ weightKg: z.number().positive(), recordedAt: z.iso.datetime() });
 
 export type WeightEntryResponse = z.infer<typeof weightEntryResponseSchema>;
 
 /** The other half of the boundary conversion. The only place grams turn back into kilograms. */
 export function toWeightEntryResponse(entry: WeightEntry): WeightEntryResponse {
-  const { weightGrams, ...rest } = entry;
-  return { ...rest, weightKg: weightGrams / 1000 };
+  const { weightGrams, recordedAt, ...rest } = entry;
+  return { ...rest, weightKg: weightGrams / 1000, recordedAt: recordedAt.toISOString() };
 }
+
+/**
+ * Everything the app needs the moment it opens: the day's meals with their items and colours,
+ * today's weight if there is one, and the counts a summary bar draws without re-deriving them
+ * from the meal list. See the performance note on GET /days/{date} for why this is assembled
+ * from a small fixed number of queries rather than one per meal or per item.
+ */
+export const dayResponseSchema = z.object({
+  date: localDateSchema,
+  meals: z.array(mealResponseSchema),
+  weightEntry: weightEntryResponseSchema.nullable(),
+  colourCounts: colourCountsSchema,
+});
+
+export type DayResponse = z.infer<typeof dayResponseSchema>;
 
 /**
  * Credentials on their way in. The email is normalised by its own schema, so `Foo@Example.com`

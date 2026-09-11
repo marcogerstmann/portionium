@@ -1,5 +1,5 @@
 import type { FoodKind } from '@portionium/schemas';
-import { and, count, eq, gt, isNull, notExists, or, sql } from 'drizzle-orm';
+import { and, count, eq, gt, inArray, isNull, notExists, or, sql } from 'drizzle-orm';
 
 import { normalizeFoodName } from '../domain/food.js';
 import type { Db } from './client.js';
@@ -161,6 +161,29 @@ export function softDeleteFood(db: Db, id: string): boolean {
       .returning({ id: foodTable.id })
       .get() !== undefined
   );
+}
+
+/**
+ * Which of these ids are live entries in the catalog, as a set for an O(1) membership check.
+ *
+ * One query for a whole meal's worth of items, so a request naming a dozen foods costs the same
+ * as one naming a single food, and the caller is left to say which of the ids it asked about
+ * were missing rather than just that some were. See createMeal's caller in
+ * api/src/http/routes/meals.ts, which is what turns the gap into a clear validation problem
+ * instead of the foreign key constraint failing the insert with a 500.
+ */
+export function findExistingFoodIds(db: Db, ids: readonly string[]): Set<string> {
+  if (ids.length === 0) {
+    return new Set();
+  }
+
+  const rows = db
+    .select({ id: foodTable.id })
+    .from(foodTable)
+    .where(and(inArray(foodTable.id, [...new Set(ids)]), isNull(foodTable.deletedAt)))
+    .all();
+
+  return new Set(rows.map((row) => row.id));
 }
 
 /**
