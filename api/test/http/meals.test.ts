@@ -1,4 +1,10 @@
-import type { DayResponse, MealResponse, ProblemDetails } from '@portionium/schemas';
+import type {
+  DayResponse,
+  FavouriteResponse,
+  MealResponse,
+  MealSuggestionResponse,
+  ProblemDetails,
+} from '@portionium/schemas';
 import type { FastifyInstance } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -18,6 +24,9 @@ const WEB_ORIGIN = 'http://localhost:5173';
 const MEALS = `${API_PREFIX}/meals`;
 const meal = (id: string) => `${MEALS}/${id}`;
 const days = (date: string) => `${API_PREFIX}/days/${date}`;
+const SUGGESTIONS = `${API_PREFIX}/meals/suggestions`;
+const FAVOURITES = `${API_PREFIX}/meals/favourites`;
+const favourite = (id: string) => `${FAVOURITES}/${id}`;
 
 let open: { app: FastifyInstance; fixtures: TestFixtures } | undefined;
 
@@ -603,5 +612,254 @@ describe('one local day', () => {
     const response = await app.inject({ url: days(localDate), headers: browser(token) });
 
     expect(response.json<DayResponse>().meals).toHaveLength(1);
+  });
+});
+
+describe('repeating a meal with fromMealId', () => {
+  it('copies the items of an existing meal into a new one logged now', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const food = fixtures.create.food();
+    const token = fixtures.create.session(fixtures.userA);
+    const { meal: original } = fixtures.create.meal(fixtures.userA, {
+      type: 'breakfast',
+      items: [{ foodId: food.id, quantity: 150 }],
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: MEALS,
+      headers: browser(token),
+      payload: { type: 'breakfast', fromMealId: original.id },
+    });
+
+    expect(response.statusCode).toBe(201);
+    const body = response.json<MealResponse>();
+    expect(body.id).not.toBe(original.id);
+    expect(body.items).toEqual([
+      expect.objectContaining({ foodId: food.id, quantity: 150, position: 0 }) as MealResponse,
+    ]);
+  });
+
+  it('refuses items and fromMealId together rather than picking one silently', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const food = fixtures.create.food();
+    const token = fixtures.create.session(fixtures.userA);
+    const { meal: original } = fixtures.create.meal(fixtures.userA);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: MEALS,
+      headers: browser(token),
+      payload: { type: 'lunch', fromMealId: original.id, items: [{ foodId: food.id }] },
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(problem(response.payload).type).toBe(
+      'https://portionium.dev/problems/meal-from-id-with-items',
+    );
+  });
+
+  it('answers 404 for a fromMealId nothing serves, and never copies a foreign meal', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const tokenA = fixtures.create.session(fixtures.userA);
+    const { meal: foreign } = fixtures.create.meal(fixtures.userB);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: MEALS,
+      headers: browser(tokenA),
+      payload: { type: 'lunch', fromMealId: foreign.id },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+});
+
+describe('meal suggestions', () => {
+  it('answers an empty list for a caller with no history, rather than an error', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+
+    const response = await app.inject({
+      url: `${SUGGESTIONS}?type=breakfast`,
+      headers: browser(token),
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json<MealSuggestionResponse[]>()).toEqual([]);
+  });
+
+  it('ranks the more frequently logged composition first, with its colour resolved', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const skyr = fixtures.create.food({ name: 'Skyr' });
+    fixtures.create.classification(skyr, { category: 'green' });
+    const croissant = fixtures.create.food({ name: 'Croissant' });
+    const token = fixtures.create.session(fixtures.userA);
+
+    for (let day = 1; day <= 3; day += 1) {
+      fixtures.create.meal(fixtures.userA, {
+        type: 'breakfast',
+        loggedAt: new Date(2026, 3, day, 8),
+        items: [{ foodId: skyr.id }],
+      });
+    }
+    fixtures.create.meal(fixtures.userA, {
+      type: 'breakfast',
+      loggedAt: new Date(2026, 3, 4, 8),
+      items: [{ foodId: croissant.id }],
+    });
+
+    const response = await app.inject({
+      url: `${SUGGESTIONS}?type=breakfast`,
+      headers: browser(token),
+    });
+
+    const body = response.json<MealSuggestionResponse[]>();
+    expect(body[0]?.items).toEqual([{ foodId: skyr.id, category: 'green' }]);
+    expect(body[0]?.mealId).toEqual(expect.any(String) as string);
+  });
+
+  it('treats the same foods logged in a different order as one composition', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const a = fixtures.create.food();
+    const b = fixtures.create.food();
+    const token = fixtures.create.session(fixtures.userA);
+
+    fixtures.create.meal(fixtures.userA, {
+      type: 'lunch',
+      items: [{ foodId: a.id }, { foodId: b.id }],
+    });
+    fixtures.create.meal(fixtures.userA, {
+      type: 'lunch',
+      items: [{ foodId: b.id }, { foodId: a.id }],
+    });
+
+    const response = await app.inject({
+      url: `${SUGGESTIONS}?type=lunch`,
+      headers: browser(token),
+    });
+
+    expect(response.json<MealSuggestionResponse[]>()).toHaveLength(1);
+  });
+
+  it('never suggests from another meal type or another account', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+    fixtures.create.meal(fixtures.userA, { type: 'dinner' });
+    fixtures.create.meal(fixtures.userB, { type: 'breakfast' });
+
+    const response = await app.inject({
+      url: `${SUGGESTIONS}?type=breakfast`,
+      headers: browser(token),
+    });
+
+    expect(response.json<MealSuggestionResponse[]>()).toEqual([]);
+  });
+});
+
+describe('pinning a favourite', () => {
+  it('stores it with a resolved category per item, private to the caller', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const skyr = fixtures.create.food({ name: 'Skyr' });
+    fixtures.create.classification(skyr, { category: 'green' });
+    const token = fixtures.create.session(fixtures.userA);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: FAVOURITES,
+      headers: browser(token),
+      payload: {
+        name: 'Standard Frühstück',
+        type: 'breakfast',
+        items: [{ foodId: skyr.id, quantity: 200 }],
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    const body = response.json<FavouriteResponse>();
+    expect(body).toMatchObject({ name: 'Standard Frühstück', type: 'breakfast' });
+    expect(body.items).toEqual([{ foodId: skyr.id, quantity: 200, category: 'green' }]);
+  });
+
+  it('rejects an empty favourite as a domain error rather than an empty row', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: FAVOURITES,
+      headers: browser(token),
+      payload: { name: 'Nothing', type: 'snack', items: [] },
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(problem(response.payload).type).toBe(
+      'https://portionium.dev/problems/favourite-has-no-items',
+    );
+  });
+
+  it("lists only the caller's own favourites, newest first", async () => {
+    const { app, fixtures } = await buildTestApp();
+    const foodA = fixtures.create.food();
+    const foodB = fixtures.create.food();
+    const tokenA = fixtures.create.session(fixtures.userA);
+    const tokenB = fixtures.create.session(fixtures.userB);
+
+    await app.inject({
+      method: 'POST',
+      url: FAVOURITES,
+      headers: browser(tokenA),
+      payload: { name: 'First', type: 'breakfast', items: [{ foodId: foodA.id }] },
+    });
+    await app.inject({
+      method: 'POST',
+      url: FAVOURITES,
+      headers: browser(tokenB),
+      payload: { name: 'Not yours', type: 'breakfast', items: [{ foodId: foodB.id }] },
+    });
+    const second = await app.inject({
+      method: 'POST',
+      url: FAVOURITES,
+      headers: browser(tokenA),
+      payload: { name: 'Second', type: 'breakfast', items: [{ foodId: foodA.id }] },
+    });
+
+    const response = await app.inject({ url: FAVOURITES, headers: browser(tokenA) });
+
+    const body = response.json<{ items: FavouriteResponse[] }>();
+    expect(body.items.map((item) => item.name)).toEqual(['Second', 'First']);
+    expect(body.items[0]?.id).toBe(second.json<FavouriteResponse>().id);
+  });
+
+  it('deletes one, and answers 404 for a caller that does not own it', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const food = fixtures.create.food();
+    const tokenA = fixtures.create.session(fixtures.userA);
+    const tokenB = fixtures.create.session(fixtures.userB);
+
+    const created = await app.inject({
+      method: 'POST',
+      url: FAVOURITES,
+      headers: browser(tokenA),
+      payload: { name: 'Mine', type: 'lunch', items: [{ foodId: food.id }] },
+    });
+    const id = created.json<FavouriteResponse>().id;
+
+    const foreignDelete = await app.inject({
+      method: 'DELETE',
+      url: favourite(id),
+      headers: browser(tokenB),
+    });
+    expect(foreignDelete.statusCode).toBe(404);
+
+    const ownDelete = await app.inject({
+      method: 'DELETE',
+      url: favourite(id),
+      headers: browser(tokenA),
+    });
+    expect(ownDelete.statusCode).toBe(204);
+
+    const list = await app.inject({ url: FAVOURITES, headers: browser(tokenA) });
+    expect(list.json<{ items: FavouriteResponse[] }>().items).toEqual([]);
   });
 });

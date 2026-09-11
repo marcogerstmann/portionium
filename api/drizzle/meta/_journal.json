@@ -50,6 +50,13 @@
       "when": 1789047296337,
       "tag": "0006_add_food_classification_withdrawal_table",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1789132564617,
+      "tag": "0007_add_meal_favourite_table",
+      "breakpoints": true
     }
   ]
 }

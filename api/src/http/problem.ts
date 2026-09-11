@@ -108,6 +108,16 @@ const DOMAIN_PROBLEMS: Record<
     title: 'A meal cannot be logged in the future',
     status: 422,
   },
+  meal_from_id_with_items: {
+    type: PROBLEM.mealFromIdWithItems,
+    title: 'fromMealId and items may not both be set',
+    status: 422,
+  },
+  favourite_has_no_items: {
+    type: PROBLEM.favouriteHasNoItems,
+    title: 'A favourite must contain at least one item',
+    status: 422,
+  },
   unknown_food_reference: {
     type: PROBLEM.unknownFoodReference,
     title: 'Unknown food reference',

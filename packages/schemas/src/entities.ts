@@ -117,6 +117,35 @@ export const mealItemSchema = z.object({
 
 export type MealItem = z.infer<typeof mealItemSchema>;
 
+/**
+ * What a caller supplies about one item, on a meal or a favourite alike: which food, how much.
+ * Extracted because three different requests take exactly this and nothing more, see
+ * createMealRequestSchema, updateMealRequestSchema and createFavouriteRequestSchema in api.ts.
+ */
+export const mealItemInputSchema = mealItemSchema.pick({ foodId: true, quantity: true });
+
+export type MealItemInput = z.infer<typeof mealItemInputSchema>;
+
+/**
+ * A meal composition a user has named and pinned on purpose, "Standard Frühstück", rather than
+ * one this API noticed from their history, see the suggestion schemas in api.ts. Favourites are
+ * private: `userId` is never null the way a shared catalog food's `createdBy` can be.
+ *
+ * `items` carries no `position`. The array's own order is the order, the same convention
+ * `mealItemSchema.position` encodes explicitly for a stored meal, and it is what lets a
+ * favourite's items go straight into createMeal to become a real one.
+ */
+export const mealFavouriteSchema = z.object({
+  id: idSchema,
+  userId: idSchema,
+  name: z.string().trim().min(1).max(100),
+  type: mealTypeSchema,
+  items: z.array(mealItemInputSchema),
+  createdAt: timestampSchema,
+});
+
+export type MealFavourite = z.infer<typeof mealFavouriteSchema>;
+
 export const weightEntrySchema = z.object({
   id: idSchema,
   userId: idSchema,

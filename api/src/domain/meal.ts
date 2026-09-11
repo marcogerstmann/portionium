@@ -87,6 +87,22 @@ export function createMeal(
   };
 }
 
+/**
+ * The one invariant a favourite's item list is held to, the same rule createMeal enforces for a
+ * meal and for the same reason: a favourite with nothing in it would show up wherever favourites
+ * are listed while saying nothing about what to log. Unlike a meal, a favourite has no
+ * `loggedAt` to be too far in the future and no position to assign, its items become a meal's
+ * verbatim, so this is the whole of what pinning one has to check.
+ */
+export function validateFavouriteItems(items: readonly NewMealItem[]): void {
+  if (items.length === 0) {
+    throw new DomainError(
+      'favourite_has_no_items',
+      'A favourite must contain at least one item. Delete it instead of clearing its items.',
+    );
+  }
+}
+
 /** What an edit may change. A field left out is a field nobody touched. */
 export type MealChanges = Partial<Pick<NewMeal, 'type' | 'loggedAt' | 'notes' | 'items'>>;
 

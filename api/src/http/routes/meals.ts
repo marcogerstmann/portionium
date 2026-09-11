@@ -1,9 +1,14 @@
 import {
+  createFavouriteRequestSchema,
   createMealRequestSchema,
   dayResponseSchema,
+  favouriteListQuerySchema,
+  favouriteResponseSchema,
   localDateSchema,
   mealListQuerySchema,
   mealResponseSchema,
+  mealSuggestionResponseSchema,
+  mealSuggestionsQuerySchema,
   pageSchema,
   PROBLEM_CONTENT_TYPE,
   problemDetailsSchema,
@@ -11,6 +16,7 @@ import {
   updateMealRequestSchema,
   type Category,
   type ColourCounts,
+  type MealCompositionItemResponse,
   type MealItemResponse,
   type MealResponse,
 } from '@portionium/schemas';
@@ -24,6 +30,12 @@ import {
   type FoodClassificationRecord,
 } from '../../db/classification.js';
 import { findExistingFoodIds } from '../../db/food.js';
+import {
+  insertMealFavourite,
+  listMealFavourites,
+  softDeleteMealFavourite,
+  type MealFavouriteRecord,
+} from '../../db/meal-favourite.js';
 import {
   findItemsForMeals,
   findMealById,
@@ -41,10 +53,11 @@ import { DomainError, ResourceNotFoundError, UnauthenticatedError } from '../../
 import {
   applyMealChanges,
   createMeal,
+  validateFavouriteItems,
   type MealChanges,
   type NewMeal,
-  type ValidatedMealItem,
 } from '../../domain/meal.js';
+import { rankMealSuggestions, type SuggestionHistoryMeal } from '../../domain/meal-suggestions.js';
 import {
   authenticatedProblemResponses,
   idempotencyProblemResponses,
@@ -92,7 +105,8 @@ const mealWriteConflictResponses = {
   422: {
     description:
       'The meal has no items, an item names a food id with no live catalog entry, loggedAt is ' +
-      'too far in the future, or the Idempotency-Key was already used for a different request',
+      'too far in the future, fromMealId was supplied together with items, or the ' +
+      'Idempotency-Key was already used for a different request',
     content: { [PROBLEM_CONTENT_TYPE]: { schema: problemDetailsSchema } },
   },
 } as const;
@@ -104,6 +118,16 @@ const mealUpdateProblemResponses = {
       'The edit would leave the meal with no items, an item names a food id with no live ' +
       'catalog entry, loggedAt is too far in the future, or the Idempotency-Key was already ' +
       'used for a different request',
+    content: { [PROBLEM_CONTENT_TYPE]: { schema: problemDetailsSchema } },
+  },
+} as const;
+
+/** The 422 half of pinning a favourite: no id involved, so no 409 the way a meal create has. */
+const favouriteWriteProblemResponses = {
+  422: {
+    description:
+      'The favourite has no items, an item names a food id with no live catalog entry, or the ' +
+      'Idempotency-Key was already used for a different request',
     content: { [PROBLEM_CONTENT_TYPE]: { schema: problemDetailsSchema } },
   },
 } as const;
@@ -158,6 +182,33 @@ function groupItemsByMeal(items: readonly MealItemRecord[]): Map<string, MealIte
   return byMeal;
 }
 
+/** One item of a suggestion or a favourite, with the colour resolved the way a meal item's is. */
+function toCompositionItemResponse(
+  item: { foodId: string; quantity?: number | undefined },
+  category: Category | undefined,
+): MealCompositionItemResponse {
+  return {
+    foodId: item.foodId,
+    ...(item.quantity === undefined ? {} : { quantity: item.quantity }),
+    category: category ?? null,
+  };
+}
+
+/** A favourite on its way out, with every item's colour resolved for whoever pinned it. */
+function toFavouriteResponse(
+  favourite: MealFavouriteRecord,
+  resolved: ReadonlyMap<string, FoodClassificationRecord>,
+) {
+  return {
+    id: favourite.id,
+    name: favourite.name,
+    type: favourite.type,
+    items: favourite.items.map((item) =>
+      toCompositionItemResponse(item, resolved.get(item.foodId)?.category),
+    ),
+  };
+}
+
 /** How many of these items landed in each colour, unresolved ones included. */
 function countColours(
   items: readonly MealItemRecord[],
@@ -200,11 +251,13 @@ export const mealRoutes: FastifyPluginCallbackZod<MealRouteOptions> = (app, opti
   }
 
   /**
-   * Every food an item list names has to be a live catalog entry, on a create and on an edit
-   * alike, so this is shared rather than repeated. Returns the ids it checked, which both
-   * callers already need for resolving colours.
+   * Every food an item list names has to be a live catalog entry: on a meal create, a meal
+   * edit, and a favourite pin alike, so this is shared rather than repeated three times. Takes
+   * anything with a `foodId`, which a favourite's items are too even though they carry no
+   * `position`. Returns the ids it checked, which every caller already needs for resolving
+   * colours.
    */
-  function requireExistingFoods(items: readonly ValidatedMealItem[]): string[] {
+  function requireExistingFoods(items: readonly { foodId: string }[]): string[] {
     const foodIds = [...new Set(items.map((item) => item.foodId))];
     const existingFoodIds = findExistingFoodIds(db, foodIds);
     const missingFoodIds = foodIds.filter((id) => !existingFoodIds.has(id));
@@ -239,11 +292,12 @@ export const mealRoutes: FastifyPluginCallbackZod<MealRouteOptions> = (app, opti
     {
       config: { auth: 'write' },
       schema: {
-        summary: 'Log a meal',
+        summary: 'Log a meal, or repeat one already logged by naming it as fromMealId',
         body: createMealRequestSchema,
         response: {
           201: mealResponseSchema,
           ...authenticatedProblemResponses,
+          ...notFoundResponse,
           ...idempotencyProblemResponses,
           ...mealWriteConflictResponses,
           ...problemResponses,
@@ -254,12 +308,28 @@ export const mealRoutes: FastifyPluginCallbackZod<MealRouteOptions> = (app, opti
       const { userId } = request.auth;
       const user = requireUser(userId);
 
+      if (request.body.fromMealId !== undefined && request.body.items !== undefined) {
+        throw new DomainError('meal_from_id_with_items', 'Provide items or fromMealId, not both.');
+      }
+
+      // Absent items and absent fromMealId both mean "nothing supplied", which falls through
+      // to createMeal's own meal_has_no_items check below rather than needing one here too.
+      const items =
+        request.body.fromMealId === undefined
+          ? (request.body.items ?? [])
+          : findItemsForMeals(db, [requireMeal(userId, request.body.fromMealId).id]).map(
+              (item) => ({
+                foodId: item.foodId,
+                ...(item.quantity === null ? {} : { quantity: item.quantity }),
+              }),
+            );
+
       const newMeal: NewMeal = {
         userId,
         type: request.body.type,
         loggedAt: request.body.loggedAt ?? new Date(),
         ...(request.body.notes === undefined ? {} : { notes: request.body.notes }),
-        items: request.body.items,
+        items,
       };
 
       // Throws meal_has_no_items for an empty list and meal_logged_in_future for a loggedAt
@@ -459,6 +529,171 @@ export const mealRoutes: FastifyPluginCallbackZod<MealRouteOptions> = (app, opti
         weightEntry: weightEntry === undefined ? null : toWeightEntryResponse(weightEntry),
         colourCounts: countColours(items, resolved),
       };
+    },
+  );
+
+  /**
+   * How many of a caller's own meals of one type are read to rank suggestions. A composition's
+   * weight in domain/meal-suggestions.ts halves every fourteen days, so anything beyond a few
+   * months of history is worth a fraction of a percent of the newest occurrence either way.
+   *
+   * ponytail: a flat cap, newest first, rather than a window on loggedAt. It can in principle
+   * miss an old occurrence of a composition that would have nudged its score, which nudges
+   * nothing anybody would notice at this weight. If suggestions ever look wrong for an account
+   * with an unusually large history, the fix is a `from` bound derived from the half life, not a
+   * bigger cap.
+   */
+  const SUGGESTION_HISTORY_LIMIT = 200;
+
+  app.get(
+    '/meals/suggestions',
+    {
+      config: { auth: 'read' },
+      schema: {
+        summary:
+          "The caller's most frequent compositions for one meal type, ranked by frequency " +
+          'with a recency weighting',
+        querystring: mealSuggestionsQuerySchema,
+        response: {
+          200: z.array(mealSuggestionResponseSchema),
+          ...authenticatedProblemResponses,
+          ...problemResponses,
+        },
+      },
+    },
+    (request) => {
+      const { userId } = request.auth;
+      const { type, limit } = request.query;
+
+      // No history is not an error, see rankMealSuggestions: an empty page falls straight out
+      // of an empty history rather than needing a check here.
+      const history = listMeals(db, { userId, type, limit: SUGGESTION_HISTORY_LIMIT });
+      const { resolved, byMeal } = itemsAndColours(
+        userId,
+        history.map((meal) => meal.id),
+      );
+
+      const historyMeals: SuggestionHistoryMeal[] = history.map((meal) => ({
+        id: meal.id,
+        loggedAt: meal.loggedAt,
+        items: (byMeal.get(meal.id) ?? []).map((item) => ({
+          foodId: item.foodId,
+          ...(item.quantity === null ? {} : { quantity: item.quantity }),
+        })),
+      }));
+
+      return rankMealSuggestions(historyMeals, limit).map((suggestion) => ({
+        mealId: suggestion.mealId,
+        items: suggestion.items.map((item) =>
+          toCompositionItemResponse(item, resolved.get(item.foodId)?.category),
+        ),
+      }));
+    },
+  );
+
+  app.post(
+    '/meals/favourites',
+    {
+      config: { auth: 'write' },
+      schema: {
+        summary: 'Pin a meal composition as a named favourite, private to the caller',
+        body: createFavouriteRequestSchema,
+        response: {
+          201: favouriteResponseSchema,
+          ...authenticatedProblemResponses,
+          ...idempotencyProblemResponses,
+          ...favouriteWriteProblemResponses,
+          ...problemResponses,
+        },
+      },
+    },
+    (request, reply) => {
+      const { userId } = request.auth;
+
+      // Throws favourite_has_no_items for an empty list, the one invariant a favourite is held
+      // to, see domain/meal.ts. Runs before the food lookup, the same ordering createMeal uses.
+      validateFavouriteItems(request.body.items);
+      const foodIds = requireExistingFoods(request.body.items);
+
+      const stored = insertMealFavourite(db, {
+        userId,
+        name: request.body.name,
+        type: request.body.type,
+        items: request.body.items,
+      });
+
+      const resolved = resolveClassifications(
+        findClassificationsForFoods(db, foodIds, userId),
+        userId,
+      );
+
+      request.log.info({ userId, favouriteId: stored.id }, 'favourite created');
+
+      reply.code(201);
+      return toFavouriteResponse(stored, resolved);
+    },
+  );
+
+  app.get(
+    '/meals/favourites',
+    {
+      config: { auth: 'read' },
+      schema: {
+        summary: "Browse the caller's own favourites, newest first",
+        querystring: favouriteListQuerySchema,
+        response: {
+          200: pageSchema(favouriteResponseSchema),
+          ...authenticatedProblemResponses,
+          ...problemResponses,
+        },
+      },
+    },
+    (request) => {
+      const { userId } = request.auth;
+      const { limit, cursor, type } = request.query;
+
+      const page = listMealFavourites(db, { userId, limit: limit + 1, cursor, type });
+      const favourites = page.slice(0, limit);
+
+      const foodIds = [...new Set(favourites.flatMap((f) => f.items.map((item) => item.foodId)))];
+      const resolved = resolveClassifications(
+        findClassificationsForFoods(db, foodIds, userId),
+        userId,
+      );
+
+      return {
+        items: favourites.map((favourite) => toFavouriteResponse(favourite, resolved)),
+        nextCursor: page.length > limit ? (favourites.at(-1)?.id ?? null) : null,
+      };
+    },
+  );
+
+  app.delete(
+    '/meals/favourites/:id',
+    {
+      config: { auth: 'write' },
+      schema: {
+        summary: 'Remove a pinned favourite',
+        params: idParamsSchema,
+        response: {
+          ...noContentResponse,
+          ...authenticatedProblemResponses,
+          ...notFoundResponse,
+          ...idempotencyProblemResponses,
+          ...problemResponses,
+        },
+      },
+    },
+    (request, reply) => {
+      const { userId } = request.auth;
+
+      if (!softDeleteMealFavourite(db, userId, request.params.id)) {
+        throw new ResourceNotFoundError();
+      }
+
+      request.log.info({ userId, favouriteId: request.params.id }, 'favourite deleted');
+
+      reply.code(204).send(null);
     },
   );
 

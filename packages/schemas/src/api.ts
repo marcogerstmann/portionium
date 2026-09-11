@@ -3,6 +3,8 @@ import { z } from 'zod';
 import {
   foodClassificationSchema,
   foodSchema,
+  mealFavouriteSchema,
+  mealItemInputSchema,
   mealItemSchema,
   mealSchema,
   userSchema,
@@ -151,9 +153,17 @@ export const createMealRequestSchema = z.strictObject({
   /**
    * Order is meaning: the position stored on each item is this array's index. There is no
    * `.min(1)` here on purpose, an empty meal is a domain invariant rather than a shape error,
-   * and it is rejected with a typed error by createMeal in api/src/domain/meal.ts.
+   * and it is rejected with a typed error by createMeal in api/src/domain/meal.ts. Absent has
+   * the same meaning as empty, which is what lets a request name `fromMealId` instead.
    */
-  items: z.array(mealItemSchema.pick({ foodId: true, quantity: true })),
+  items: z.array(mealItemInputSchema).optional(),
+  /**
+   * Copies another meal's items into this one instead of listing them again: the "repeat this"
+   * and "log this suggestion" flows both end up here rather than each inventing its own way to
+   * resend an item list the server already has. Mutually exclusive with `items`, see POST
+   * /meals in api/src/http/routes/meals.ts, which is where that is enforced.
+   */
+  fromMealId: idSchema.optional(),
 });
 
 export type CreateMealRequest = z.infer<typeof createMealRequestSchema>;
@@ -209,10 +219,76 @@ export const updateMealRequestSchema = z.strictObject({
   type: mealTypeSchema.optional(),
   loggedAt: timestampSchema.optional(),
   notes: mealSchema.shape.notes,
-  items: z.array(mealItemSchema.pick({ foodId: true, quantity: true })).optional(),
+  items: z.array(mealItemInputSchema).optional(),
 });
 
 export type UpdateMealRequest = z.infer<typeof updateMealRequestSchema>;
+
+/** One item of a suggestion or a favourite, with the colour resolved the way a meal item's is. */
+export const mealCompositionItemResponseSchema = mealItemInputSchema.extend({
+  category: categorySchema.nullable(),
+});
+
+export type MealCompositionItemResponse = z.infer<typeof mealCompositionItemResponseSchema>;
+
+/**
+ * Asking what to log again. `type` narrows to one meal type because a suggestion only makes
+ * sense in the context a client is logging in, breakfast suggestions while logging breakfast.
+ * `limit` is small and capped low: a caller's distinct compositions for one meal type are a
+ * handful, this is a shortlist to tap from and not a page to browse, see foodSearchQuerySchema
+ * for the same reasoning applied to a search box instead of a shortlist.
+ */
+export const mealSuggestionsQuerySchema = z.strictObject({
+  type: mealTypeSchema,
+  limit: z.coerce.number().int().min(1).max(20).default(5),
+});
+
+export type MealSuggestionsQuery = z.infer<typeof mealSuggestionsQuerySchema>;
+
+/**
+ * One frequently logged composition, ranked ahead of the response: the array order is the
+ * suggestion order, there is no score on the wire to sort by because there is nothing correct a
+ * client could do with one beyond what the order already says.
+ *
+ * `mealId` is the most recent meal this composition came from, and is what a client hands back
+ * as `fromMealId` on POST /meals to log it in the one tap POR-33 asks for, rather than resending
+ * the item list it was just given.
+ */
+export const mealSuggestionResponseSchema = z.object({
+  mealId: idSchema,
+  items: z.array(mealCompositionItemResponseSchema),
+});
+
+export type MealSuggestionResponse = z.infer<typeof mealSuggestionResponseSchema>;
+
+/**
+ * Pinning one. `items` is held to the same shape createMealRequestSchema's is and to the same
+ * domain invariant, no empty list, enforced by validateFavouriteItems in
+ * api/src/domain/meal.ts rather than here for the reason that comment gives.
+ */
+export const createFavouriteRequestSchema = mealFavouriteSchema
+  .pick({ name: true, type: true, items: true })
+  .strict();
+
+export type CreateFavouriteRequest = z.infer<typeof createFavouriteRequestSchema>;
+
+/**
+ * A favourite on its way out. `userId` is dropped, favourites are private so it is always the
+ * caller's own, and `items` carries the resolved colour the same reason a suggestion's does: so
+ * a preview renders from this response alone.
+ */
+export const favouriteResponseSchema = mealFavouriteSchema
+  .omit({ userId: true, createdAt: true, items: true })
+  .extend({ items: z.array(mealCompositionItemResponseSchema) });
+
+export type FavouriteResponse = z.infer<typeof favouriteResponseSchema>;
+
+/** Browsing a caller's own favourites, newest first, the same convention every other list follows. */
+export const favouriteListQuerySchema = paginationQuerySchema.extend({
+  type: mealTypeSchema.optional(),
+});
+
+export type FavouriteListQuery = z.infer<typeof favouriteListQuerySchema>;
 
 /**
  * How many of a day's items landed in each colour, including the ones nobody has judged yet.

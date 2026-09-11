@@ -92,6 +92,10 @@ export const PROBLEM = {
   mealLoggedInFuture: `${PROBLEM_NAMESPACE}/meal-logged-in-future`,
   /** An item named a food id the catalog has no live entry for. */
   unknownFoodReference: `${PROBLEM_NAMESPACE}/unknown-food-reference`,
+  /** POST /meals was asked to copy another meal's items and given its own item list too. */
+  mealFromIdWithItems: `${PROBLEM_NAMESPACE}/meal-from-id-with-items`,
+  /** A favourite with nothing in it. The way out is the same as a meal's: delete it instead. */
+  favouriteHasNoItems: `${PROBLEM_NAMESPACE}/favourite-has-no-items`,
   implausibleWeight: `${PROBLEM_NAMESPACE}/implausible-weight`,
   internalError: `${PROBLEM_NAMESPACE}/internal-error`,
 } as const;
