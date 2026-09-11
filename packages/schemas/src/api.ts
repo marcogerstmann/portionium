@@ -360,6 +360,83 @@ export const foodDetailResponseSchema = foodResponseSchema.extend({
 export type FoodDetailResponse = z.infer<typeof foodDetailResponseSchema>;
 
 /**
+ * The human-in-the-loop queue, see POR-30 and docs/adr/007-append-only-classification-log.md.
+ * Not a page: like foodSearchQuerySchema, this is ranked rather than sorted by id, by how often
+ * the caller eats each entry, and a ranking is only meaningful from the top.
+ *
+ * `minConfidence` widens the queue past "no colour at all" to include a food the AI already
+ * guessed at but not confidently enough to stand on its own, so a user can review a shaky
+ * suggestion instead of only ever seeing a blank.
+ */
+export const unclassifiedFoodsQuerySchema = z.strictObject({
+  minConfidence: z.coerce.number().min(0).max(1).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+
+export type UnclassifiedFoodsQuery = z.infer<typeof unclassifiedFoodsQuerySchema>;
+
+/** The badge count is the same query, minus the limit nobody asked a counter for. */
+export const unclassifiedCountQuerySchema = unclassifiedFoodsQuerySchema.pick({
+  minConfidence: true,
+});
+
+export type UnclassifiedCountQuery = z.infer<typeof unclassifiedCountQuerySchema>;
+
+/**
+ * One queue entry. There is no `category` here, unlike foodResponseSchema's: nothing in this
+ * list resolves to a confirmed colour by definition, so there is no field a client could
+ * mistake for one. `suggestion` is the AI's pending opinion where one exists, null for a food
+ * nobody, human or model, has said anything about yet.
+ */
+export const unclassifiedFoodResponseSchema = foodResponseSchema
+  .omit({ category: true })
+  .extend({ suggestion: foodClassificationResponseSchema.nullable() });
+
+export type UnclassifiedFoodResponse = z.infer<typeof unclassifiedFoodResponseSchema>;
+
+export const unclassifiedCountResponseSchema = z.object({ count: z.int().nonnegative() });
+
+export type UnclassifiedCountResponse = z.infer<typeof unclassifiedCountResponseSchema>;
+
+/**
+ * Confirming several at once, so reviewing ten items is one round trip rather than ten PUTs.
+ * Capped well below SQLite's parameter limit; a queue nobody works through fifty rows of at a
+ * time.
+ */
+export const bulkClassifyItemSchema = z.strictObject({
+  foodId: idSchema,
+  category: categorySchema,
+  reasoning: foodClassificationSchema.shape.reasoning,
+});
+
+export type BulkClassifyItem = z.infer<typeof bulkClassifyItemSchema>;
+
+export const bulkClassifyRequestSchema = z.strictObject({
+  items: z.array(bulkClassifyItemSchema).min(1).max(50),
+});
+
+export type BulkClassifyRequest = z.infer<typeof bulkClassifyRequestSchema>;
+
+/**
+ * One item's outcome. `status` is `not_found` rather than the whole request failing when one
+ * food in the batch was deleted between the queue being fetched and being confirmed, which is
+ * what "partially fault tolerant" means here: the other nine still go through.
+ */
+export const bulkClassifyResultSchema = z.object({
+  foodId: idSchema,
+  status: z.enum(['confirmed', 'not_found']),
+  classification: foodClassificationResponseSchema.optional(),
+});
+
+export type BulkClassifyResult = z.infer<typeof bulkClassifyResultSchema>;
+
+export const bulkClassifyResponseSchema = z.object({
+  results: z.array(bulkClassifyResultSchema),
+});
+
+export type BulkClassifyResponse = z.infer<typeof bulkClassifyResponseSchema>;
+
+/**
  * Kilograms on the wire, grams in the database. Nobody types their weight in grams, and no
  * arithmetic should be done in a unit a user typed, so the conversion happens here, once, at
  * the point where the number stops being input and starts being data.

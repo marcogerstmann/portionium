@@ -1,9 +1,11 @@
 import {
   PROBLEM,
+  type BulkClassifyResponse,
   type FoodClassificationResponse,
   type FoodDetailResponse,
   type FoodResponse,
   type ProblemDetails,
+  type UnclassifiedFoodResponse,
 } from '@portionium/schemas';
 import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
@@ -1015,5 +1017,317 @@ describe('searching the catalog', () => {
 
     expect(response.statusCode).toBe(401);
     expect(problem(response.payload).type).toBe(PROBLEM.unauthenticated);
+  });
+});
+
+/**
+ * The human-in-the-loop queue, POR-30. A food lands here for the caller for one of two reasons:
+ * nothing visible to them resolves to a colour, or `minConfidence` asks to see a shaky AI guess
+ * too. Logging a meal is never gated on any of this, see meals.test.ts.
+ */
+describe('the review queue', () => {
+  const UNCLASSIFIED = `${FOODS}/unclassified`;
+
+  it('lists what has no colour for this caller, and nothing that does', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const judged = fixtures.create.food({ name: 'Apfel' });
+    fixtures.create.classification(judged, { category: 'green' });
+    fixtures.create.food({ name: 'Kohlrabi' });
+
+    const response = await app.inject({
+      url: UNCLASSIFIED,
+      headers: browser(fixtures.create.session(fixtures.userA)),
+    });
+
+    expect(response.statusCode).toBe(200);
+    const items = response.json<UnclassifiedFoodResponse[]>();
+    expect(items.map((item) => item.name)).toEqual(['Kohlrabi']);
+    expect(items[0]).not.toHaveProperty('category');
+    expect(items[0]?.suggestion).toBeNull();
+  });
+
+  it('is not the same pile for both callers, the same as GET /foods?unclassified=true', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const mine = fixtures.create.food({ name: 'Erdnussbutter' });
+    fixtures.create.classification(mine, {
+      category: 'orange',
+      source: 'user',
+      userId: fixtures.userB.id,
+    });
+    fixtures.create.food({ name: 'Kohlrabi' });
+
+    const forA = await app.inject({
+      url: UNCLASSIFIED,
+      headers: browser(fixtures.create.session(fixtures.userA)),
+    });
+    const forB = await app.inject({
+      url: UNCLASSIFIED,
+      headers: browser(fixtures.create.session(fixtures.userB)),
+    });
+
+    expect(forA.json<UnclassifiedFoodResponse[]>().map((item) => item.name)).toEqual([
+      'Erdnussbutter',
+      'Kohlrabi',
+    ]);
+    expect(forB.json<UnclassifiedFoodResponse[]>().map((item) => item.name)).toEqual(['Kohlrabi']);
+  });
+
+  it('orders by how often the caller has eaten each one, most first', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const rare = fixtures.create.food({ name: 'Rare' });
+    const popular = fixtures.create.food({ name: 'Popular' });
+    fixtures.create.food({ name: 'Never' });
+    fixtures.create.meal(fixtures.userA, { items: [{ foodId: rare.id }] });
+    fixtures.create.meal(fixtures.userA, { items: [{ foodId: popular.id }] });
+    fixtures.create.meal(fixtures.userA, { items: [{ foodId: popular.id }] });
+
+    const response = await app.inject({
+      url: UNCLASSIFIED,
+      headers: browser(fixtures.create.session(fixtures.userA)),
+    });
+
+    expect(response.json<UnclassifiedFoodResponse[]>().map((item) => item.name)).toEqual([
+      'Popular',
+      'Rare',
+      'Never',
+    ]);
+  });
+
+  it('leaves out a food with only a confident AI verdict', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const food = fixtures.create.food({ name: 'Skyr' });
+    fixtures.create.classification(food, {
+      category: 'green',
+      source: 'ai_text',
+      confidence: 0.95,
+    });
+
+    const response = await app.inject({
+      url: UNCLASSIFIED,
+      headers: browser(fixtures.create.session(fixtures.userA)),
+    });
+
+    expect(response.json<UnclassifiedFoodResponse[]>()).toEqual([]);
+  });
+
+  it('includes a shaky AI guess once minConfidence asks for it, with the suggestion attached', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const food = fixtures.create.food({ name: 'Erdnussbutter' });
+    fixtures.create.classification(food, {
+      category: 'orange',
+      source: 'ai_text',
+      model: 'claude-test',
+      confidence: 0.4,
+      reasoning: 'Energy dense as eaten.',
+    });
+
+    const withoutThreshold = await app.inject({
+      url: UNCLASSIFIED,
+      headers: browser(fixtures.create.session(fixtures.userA)),
+    });
+    const withThreshold = await app.inject({
+      url: `${UNCLASSIFIED}?minConfidence=0.6`,
+      headers: browser(fixtures.create.session(fixtures.userA)),
+    });
+
+    expect(withoutThreshold.json<UnclassifiedFoodResponse[]>()).toEqual([]);
+    const [item] = withThreshold.json<UnclassifiedFoodResponse[]>();
+    expect(item?.name).toBe('Erdnussbutter');
+    expect(item?.suggestion).toMatchObject({
+      category: 'orange',
+      source: 'ai_text',
+      confidence: 0.4,
+      reasoning: 'Energy dense as eaten.',
+    });
+  });
+
+  it('takes a food back out of the queue once the caller has overridden the shaky guess', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const food = fixtures.create.food({ name: 'Erdnussbutter' });
+    fixtures.create.classification(food, {
+      category: 'orange',
+      source: 'ai_text',
+      confidence: 0.3,
+    });
+    fixtures.create.classification(food, {
+      category: 'yellow',
+      source: 'user',
+      userId: fixtures.userA.id,
+    });
+
+    const response = await app.inject({
+      url: `${UNCLASSIFIED}?minConfidence=0.9`,
+      headers: browser(fixtures.create.session(fixtures.userA)),
+    });
+
+    expect(response.json<UnclassifiedFoodResponse[]>()).toEqual([]);
+  });
+
+  it('needs a credential like everything else in the catalog', async () => {
+    const { app } = await buildTestApp();
+
+    const response = await app.inject({ url: UNCLASSIFIED });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  describe('the badge count', () => {
+    const COUNT = `${UNCLASSIFIED}/count`;
+
+    it('matches the length of the list, without fetching it', async () => {
+      const { app, fixtures } = await buildTestApp();
+      fixtures.create.food({ name: 'Kohlrabi' });
+      const judged = fixtures.create.food({ name: 'Apfel' });
+      fixtures.create.classification(judged, { category: 'green' });
+      const headers = browser(fixtures.create.session(fixtures.userA));
+
+      const response = await app.inject({ url: COUNT, headers });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json<{ count: number }>()).toEqual({ count: 1 });
+    });
+
+    it('honours minConfidence the same way the list does', async () => {
+      const { app, fixtures } = await buildTestApp();
+      const food = fixtures.create.food({ name: 'Erdnussbutter' });
+      fixtures.create.classification(food, {
+        category: 'orange',
+        source: 'ai_text',
+        confidence: 0.4,
+      });
+      const headers = browser(fixtures.create.session(fixtures.userA));
+
+      const plain = await app.inject({ url: COUNT, headers });
+      const withThreshold = await app.inject({ url: `${COUNT}?minConfidence=0.6`, headers });
+
+      expect(plain.json<{ count: number }>()).toEqual({ count: 0 });
+      expect(withThreshold.json<{ count: number }>()).toEqual({ count: 1 });
+    });
+  });
+
+  describe('confirming several at once', () => {
+    const CONFIRM = `${UNCLASSIFIED}/confirm`;
+
+    it('inserts a user verdict for each item and answers with what it stored', async () => {
+      const { app, fixtures } = await buildTestApp();
+      const a = fixtures.create.food({ name: 'A' });
+      const b = fixtures.create.food({ name: 'B' });
+
+      const response = await app.inject({
+        method: 'POST',
+        url: CONFIRM,
+        headers: browser(fixtures.create.session(fixtures.userA)),
+        payload: {
+          items: [
+            { foodId: a.id, category: 'green' },
+            { foodId: b.id, category: 'orange', reasoning: 'By the spoon.' },
+          ],
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const { results } = response.json<BulkClassifyResponse>();
+      expect(results.map((result) => result.foodId)).toEqual([a.id, b.id]);
+      expect(results[0]).toMatchObject({
+        status: 'confirmed',
+        classification: { category: 'green', source: 'user' },
+      });
+      expect(results[1]).toMatchObject({
+        status: 'confirmed',
+        classification: { category: 'orange', reasoning: 'By the spoon.' },
+      });
+
+      const detail = await app.inject({
+        url: `${FOODS}/${a.id}`,
+        headers: browser(fixtures.create.session(fixtures.userA)),
+      });
+      expect(detail.json<FoodDetailResponse>().category).toBe('green');
+    });
+
+    it('reports a missing food without failing the foods that do exist', async () => {
+      const { app, fixtures } = await buildTestApp();
+      const real = fixtures.create.food({ name: 'Real' });
+
+      const response = await app.inject({
+        method: 'POST',
+        url: CONFIRM,
+        headers: browser(fixtures.create.session(fixtures.userA)),
+        payload: {
+          items: [
+            { foodId: '0199e0e9-1c4b-7000-8f2c-6e4c1c2a9b31', category: 'green' },
+            { foodId: real.id, category: 'yellow' },
+          ],
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const { results } = response.json<BulkClassifyResponse>();
+      expect(results[0]).toEqual({
+        foodId: '0199e0e9-1c4b-7000-8f2c-6e4c1c2a9b31',
+        status: 'not_found',
+      });
+      expect(results[1]).toMatchObject({ foodId: real.id, status: 'confirmed' });
+    });
+
+    it('refuses an empty batch and one over the cap', async () => {
+      const { app, fixtures } = await buildTestApp();
+      const headers = browser(fixtures.create.session(fixtures.userA));
+
+      const empty = await app.inject({
+        method: 'POST',
+        url: CONFIRM,
+        headers,
+        payload: { items: [] },
+      });
+      expect(empty.statusCode).toBe(400);
+
+      const tooMany = await app.inject({
+        method: 'POST',
+        url: CONFIRM,
+        headers,
+        payload: {
+          items: Array.from({ length: 51 }, () => ({
+            foodId: '0199e0e9-1c4b-7000-8f2c-6e4c1c2a9b31',
+            category: 'green',
+          })),
+        },
+      });
+      expect(tooMany.statusCode).toBe(400);
+    });
+
+    it('answers a retry carrying the same Idempotency-Key without inserting a second verdict', async () => {
+      const { app, fixtures } = await buildTestApp();
+      const food = fixtures.create.food({ name: 'Skyr' });
+      const headers = {
+        ...browser(fixtures.create.session(fixtures.userA)),
+        'idempotency-key': 'k1',
+      };
+      const payload = { items: [{ foodId: food.id, category: 'green' }] };
+
+      const first = await app.inject({ method: 'POST', url: CONFIRM, headers, payload });
+      const retry = await app.inject({ method: 'POST', url: CONFIRM, headers, payload });
+
+      expect(first.statusCode).toBe(200);
+      expect(retry.statusCode).toBe(200);
+      expect(retry.headers['idempotent-replayed']).toBe('true');
+
+      const history = (await historyOf(app, food.id, fixtures.create.session(fixtures.userA))).json<
+        FoodClassificationResponse[]
+      >();
+      expect(history).toHaveLength(1);
+    });
+
+    it('needs a credential like every write in the catalog', async () => {
+      const { app, fixtures } = await buildTestApp();
+      const food = fixtures.create.food();
+
+      const response = await app.inject({
+        method: 'POST',
+        url: CONFIRM,
+        payload: { items: [{ foodId: food.id, category: 'green' }] },
+      });
+
+      expect(response.statusCode).toBe(401);
+    });
   });
 });

@@ -1,4 +1,6 @@
 import {
+  bulkClassifyRequestSchema,
+  bulkClassifyResponseSchema,
   createClassificationRequestSchema,
   createFoodRequestSchema,
   foodClassificationResponseSchema,
@@ -9,10 +11,15 @@ import {
   pageSchema,
   PROBLEM_CONTENT_TYPE,
   problemDetailsSchema,
+  unclassifiedCountQuerySchema,
+  unclassifiedCountResponseSchema,
+  unclassifiedFoodResponseSchema,
+  unclassifiedFoodsQuerySchema,
   updateFoodRequestSchema,
   type FoodClassificationResponse,
   type FoodResponse,
   type Scope,
+  type UnclassifiedFoodResponse,
 } from '@portionium/schemas';
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -23,6 +30,7 @@ import {
   findClassificationsForFoods,
   insertClassifications,
   type FoodClassificationRecord,
+  type NewClassification,
 } from '../../db/classification.js';
 import type { Db } from '../../db/client.js';
 import { searchFoods } from '../../db/food-search.js';
@@ -36,6 +44,11 @@ import {
   updateFood,
   type FoodRecord,
 } from '../../db/food.js';
+import {
+  countUnclassifiedFoods,
+  listUnclassifiedFoods,
+  type UnclassifiedFood,
+} from '../../db/unclassified.js';
 import { resolveClassification, resolveClassifications } from '../../domain/classification.js';
 import {
   FoodInUseError,
@@ -133,6 +146,24 @@ function toClassificationResponse(row: FoodClassificationRecord): FoodClassifica
     ...(row.reasoning === null ? {} : { reasoning: row.reasoning }),
     ...(row.assumptions === null ? {} : { assumptions: row.assumptions }),
     createdAt: row.createdAt.toISOString(),
+  };
+}
+
+/**
+ * One entry in the review queue. The same fields toFoodResponse writes, minus the `category` it
+ * always sets: nothing here has one to report, see unclassifiedFoodResponseSchema.
+ */
+function toUnclassifiedFoodResponse({
+  food,
+  suggestion,
+}: UnclassifiedFood): UnclassifiedFoodResponse {
+  return {
+    id: food.id,
+    name: food.name,
+    kind: food.kind,
+    ...(food.energyDensity === null ? {} : { energyDensity: food.energyDensity }),
+    ...(food.createdBy === null ? {} : { createdBy: food.createdBy }),
+    suggestion: suggestion === undefined ? null : toClassificationResponse(suggestion),
   };
 }
 
@@ -259,6 +290,129 @@ export const foodRoutes: FastifyPluginCallbackZod<FoodRouteOptions> = (app, opti
       );
 
       return results.map((food) => toFoodResponse(food, resolved.get(food.id)));
+    },
+  );
+
+  /**
+   * The human-in-the-loop queue: what nothing has judged yet for this caller, plus, with
+   * `minConfidence`, what the AI judged too shakily to stand on its own. Registered before
+   * /foods/:id for the same cosmetic reason /foods/search is, see the comment there.
+   */
+  app.get(
+    '/foods/unclassified',
+    {
+      config: { auth: 'read' },
+      schema: {
+        summary: 'The review queue: what has no colour yet, ranked by how often it is eaten',
+        querystring: unclassifiedFoodsQuerySchema,
+        response: {
+          200: z.array(unclassifiedFoodResponseSchema),
+          ...authenticatedProblemResponses,
+          ...problemResponses,
+        },
+      },
+    },
+    (request) => {
+      const { userId } = request.auth;
+      const { minConfidence, limit } = request.query;
+
+      return listUnclassifiedFoods(db, { userId, minConfidence, limit }).map(
+        toUnclassifiedFoodResponse,
+      );
+    },
+  );
+
+  /**
+   * The badge. Deliberately its own endpoint rather than a header on the list above: a client
+   * that only wants to know whether to show a dot should not pay for the ranking query to find
+   * out, see countUnclassifiedFoods.
+   */
+  app.get(
+    '/foods/unclassified/count',
+    {
+      config: { auth: 'read' },
+      schema: {
+        summary: 'How many entries are in the review queue, cheaply enough to poll',
+        querystring: unclassifiedCountQuerySchema,
+        response: {
+          200: unclassifiedCountResponseSchema,
+          ...authenticatedProblemResponses,
+          ...problemResponses,
+        },
+      },
+    },
+    (request) => {
+      const { userId } = request.auth;
+
+      return {
+        count: countUnclassifiedFoods(db, { userId, minConfidence: request.query.minConfidence }),
+      };
+    },
+  );
+
+  app.post(
+    '/foods/unclassified/confirm',
+    {
+      config: { auth: 'write' },
+      schema: {
+        summary: 'Confirm the colour of several queued foods in one request',
+        body: bulkClassifyRequestSchema,
+        response: {
+          200: bulkClassifyResponseSchema,
+          ...authenticatedProblemResponses,
+          ...idempotencyProblemResponses,
+          ...problemResponses,
+        },
+      },
+    },
+    (request) => {
+      const { userId } = request.auth;
+
+      // Missing or deleted foods do not fail the batch, they are reported and skipped: the
+      // point of one round trip for ten items is that nine confirmations do not wait on the
+      // caller retrying the tenth with a corrected list. See bulkClassifyResultSchema.
+      //
+      // Outcomes are tracked positionally rather than by foodId, so two items in one batch
+      // naming the same food each get their own inserted row back rather than one clobbering
+      // the other's result.
+      const outcomes = request.body.items.map((item) => ({
+        foodId: item.foodId,
+        food: findFoodById(db, item.foodId),
+        category: item.category,
+        reasoning: item.reasoning,
+      }));
+
+      const verdicts: NewClassification[] = outcomes
+        .filter((outcome) => outcome.food !== undefined)
+        .map((outcome) => ({
+          foodId: (outcome.food as FoodRecord).id,
+          category: outcome.category,
+          source: 'user',
+          userId,
+          ...(outcome.reasoning === undefined ? {} : { reasoning: outcome.reasoning }),
+        }));
+      const inserted = insertClassifications(db, verdicts);
+
+      let cursor = 0;
+      const results = outcomes.map((outcome) => {
+        if (outcome.food === undefined) {
+          return { foodId: outcome.foodId, status: 'not_found' as const };
+        }
+
+        const classification = inserted[cursor++] as FoodClassificationRecord;
+        return {
+          foodId: outcome.foodId,
+          status: 'confirmed' as const,
+          classification: toClassificationResponse(classification),
+        };
+      });
+
+      request.log.info(
+        { userId, confirmed: cursor, notFound: outcomes.length - cursor },
+        'food classifications bulk confirmed',
+      );
+
+      return { results };
     },
   );
 

@@ -40,8 +40,11 @@ export interface NewClassification {
  * Correlated on the caller in SQL rather than filtered afterwards, so a household member's
  * opinion never leaves the database, and one query rather than one per food, so a page of
  * fifty entries stays two queries. Resolution happens over the result.
+ *
+ * Exported for db/unclassified.ts, which filters the classification log by this same rule
+ * before it has a food id to correlate on.
  */
-function visibleTo(userId: string) {
+export function visibleTo(userId: string) {
   return or(isNull(foodClassificationTable.userId), eq(foodClassificationTable.userId, userId));
 }
 

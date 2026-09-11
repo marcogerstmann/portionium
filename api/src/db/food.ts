@@ -51,8 +51,11 @@ export interface FoodListFilters {
  * The verdicts on one food that this user is allowed to see: the shared ones and their own.
  * Correlated with the outer query, so it can be asked as an existence test without a join that
  * would multiply rows.
+ *
+ * Exported for db/unclassified.ts, which asks the same existence question over the whole
+ * catalog rather than one page of it.
  */
-function visibleClassifications(db: Db, userId: string) {
+export function visibleClassifications(db: Db, userId: string) {
   return db
     .select({ present: sql`1` })
     .from(foodClassificationTable)
