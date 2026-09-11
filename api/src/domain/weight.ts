@@ -25,10 +25,22 @@ export const WEIGHT_PLAUSIBILITY = {
   /**
    * How far a reading may sit from the nearest known one, as a fraction of that one, per day
    * between them. Two percent covers a day of water and food swing, and a week of it covers
-   * any real loss or gain over that week.
+   * any real loss or gain over that week. The default a caller gets when it does not pass its
+   * own, see WEIGHT_MAX_DRIFT_PER_DAY in config.ts for where an operator overrides it.
    */
   maxDriftPerDay: 0.02,
 };
+
+export interface WeightEntryResult {
+  entry: NewWeightEntry;
+  /**
+   * Set when the reading is a believable jump further than the nearest known one allows for the
+   * gap between them. Never blocks: scales and travel produce genuine outliers, and rejecting
+   * them would cost a real reading to catch a typo, which is what the absolute range above is
+   * for. Null when the reading was unremarkable, or there was no history to judge it against.
+   */
+  warning: string | null;
+}
 
 /** Whole days between two calendar dates. Both are plain dates, so no zone is involved. */
 function daysBetween(a: LocalDate, b: LocalDate): number {
@@ -37,6 +49,13 @@ function daysBetween(a: LocalDate, b: LocalDate): number {
 
 /**
  * Validates a reading against the user's own history.
+ *
+ * Two different judgements, both from the same comparison, and deliberately not the same
+ * consequence. Outside the absolute human range is rejected: nothing that far out is a real
+ * body weight, it is a decimal point or a unit typed wrong, and there is no reading worth
+ * keeping. A believable range but a jump too fast is only flagged, in `warning`, because a
+ * scale a user has never used before or a week of travel produce a genuine outlier that a block
+ * would refuse for no reason beyond bad timing. See docs on WEIGHT_PLAUSIBILITY for the numbers.
  *
  * The comparison is against the nearest entry by date rather than the latest one, so that
  * backfilling last month's readings is judged against last month and not against today.
@@ -49,7 +68,8 @@ function daysBetween(a: LocalDate, b: LocalDate): number {
 export function createWeightEntry(
   entry: NewWeightEntry,
   history: readonly WeightEntry[],
-): NewWeightEntry {
+  maxDriftPerDay: number = WEIGHT_PLAUSIBILITY.maxDriftPerDay,
+): WeightEntryResult {
   const { weightGrams, localDate, userId } = entry;
 
   if (weightGrams < WEIGHT_PLAUSIBILITY.minGrams || weightGrams > WEIGHT_PLAUSIBILITY.maxGrams) {
@@ -63,7 +83,7 @@ export function createWeightEntry(
   // against somebody else's history would be rejected or accepted for no visible reason.
   const own = history.filter((candidate) => candidate.userId === userId);
   if (own.length === 0) {
-    return entry;
+    return { entry, warning: null };
   }
 
   const nearest = own.reduce((best, candidate) =>
@@ -76,13 +96,15 @@ export function createWeightEntry(
   const days = Math.max(daysBetween(nearest.localDate, localDate), 1);
   const drift = Math.abs(weightGrams - nearest.weightGrams) / nearest.weightGrams;
 
-  if (drift > WEIGHT_PLAUSIBILITY.maxDriftPerDay * days) {
-    throw new DomainError(
-      'implausible_weight',
-      `${(weightGrams / 1000).toFixed(1)} kg is too far from the ` +
-        `${(nearest.weightGrams / 1000).toFixed(1)} kg recorded on ${nearest.localDate}.`,
-    );
+  if (drift > maxDriftPerDay * days) {
+    return {
+      entry,
+      warning:
+        `${(weightGrams / 1000).toFixed(1)} kg is a big jump from the ` +
+        `${(nearest.weightGrams / 1000).toFixed(1)} kg recorded on ${nearest.localDate}. ` +
+        'Recorded anyway, scales and travel produce real outliers too.',
+    };
   }
 
-  return entry;
+  return { entry, warning: null };
 }

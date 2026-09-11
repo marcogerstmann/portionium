@@ -316,6 +316,31 @@ export function toWeightEntryResponse(entry: WeightEntry): WeightEntryResponse {
 }
 
 /**
+ * Browsing a caller's own weight, newest first, the same convention mealListQuerySchema
+ * follows: see listWeightEntries in api/src/db/weight.ts. `from` and `to` are local dates for
+ * the same reason meals filters by them, a day is what somebody filters by and it is the
+ * column weight is already grouped by.
+ */
+export const weightListQuerySchema = paginationQuerySchema.extend({
+  from: localDateSchema.optional(),
+  to: localDateSchema.optional(),
+});
+
+export type WeightListQuery = z.infer<typeof weightListQuerySchema>;
+
+/**
+ * What POST /weight answers with, weightEntryResponseSchema plus the one field a plain read
+ * never carries: whether this reading looked like an implausible jump from the nearest one on
+ * record. Null when it was unremarkable. Never blocks the write, see createWeightEntry in
+ * api/src/domain/weight.ts.
+ */
+export const weightEntryCreateResponseSchema = weightEntryResponseSchema.extend({
+  warning: z.string().nullable(),
+});
+
+export type WeightEntryCreateResponse = z.infer<typeof weightEntryCreateResponseSchema>;
+
+/**
  * Everything the app needs the moment it opens: the day's meals with their items and colours,
  * today's weight if there is one, and the counts a summary bar draws without re-deriving them
  * from the meal list. See the performance note on GET /days/{date} for why this is assembled

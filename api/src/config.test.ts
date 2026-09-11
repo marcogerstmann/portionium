@@ -18,6 +18,7 @@ describe('parseConfig', () => {
       RATE_LIMIT_AUTH_PER_MINUTE: 20,
       MAX_BODY_BYTES: 1_048_576,
       CORS_ORIGINS: [],
+      WEIGHT_MAX_DRIFT_PER_DAY: 0.02,
     });
   });
 

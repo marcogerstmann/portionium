@@ -63,6 +63,13 @@ const configSchema = z.object({
   RATE_LIMIT_WRITE_PER_MINUTE: z.coerce.number().int().min(1).default(30),
   RATE_LIMIT_AUTH_PER_MINUTE: z.coerce.number().int().min(1).default(20),
   /**
+   * How far a weight reading may sit from the nearest one on record, as a fraction of that one
+   * per day between them, before POST /weight flags it as a warning. Never blocks the write,
+   * see createWeightEntry in api/src/domain/weight.ts. The general adult population default is
+   * two percent; a clinical deployment tracking faster real change wants this wider.
+   */
+  WEIGHT_MAX_DRIFT_PER_DAY: z.coerce.number().min(0).max(1).default(0.02),
+  /**
    * Largest request body accepted, in bytes. Anything above it is refused with 413 before the
    * body is read into memory, which is what makes it a limit rather than a check.
    *

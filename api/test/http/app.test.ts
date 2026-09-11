@@ -150,6 +150,8 @@ describe('openapi document', () => {
       `${API_PREFIX}/me/password`,
       `${API_PREFIX}/meals`,
       `${API_PREFIX}/meals/{id}`,
+      `${API_PREFIX}/weight`,
+      `${API_PREFIX}/weight/{date}`,
       '/health',
     ]);
   });
