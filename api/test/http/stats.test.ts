@@ -1,4 +1,8 @@
-import type { StatsDaysResponse, StatsWeightResponse } from '@portionium/schemas';
+import type {
+  StatsDaysResponse,
+  StatsWeeklyResponse,
+  StatsWeightResponse,
+} from '@portionium/schemas';
 import type { FastifyInstance } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -6,6 +10,7 @@ import { parseConfig } from '../../src/config.js';
 import { API_PREFIX, buildApp } from '../../src/http/app.js';
 import { SESSION_COOKIE_NAME } from '../../src/http/plugins/auth.js';
 import { createTestFixtures, type TestFixtures } from '../helpers/fixtures.js';
+import { freezeTime } from '../helpers/time.js';
 
 /**
  * GET /stats/days, POR-36. userA is Europe/Berlin, the same reasoning as meals.test.ts: a
@@ -15,6 +20,7 @@ import { createTestFixtures, type TestFixtures } from '../helpers/fixtures.js';
 const WEB_ORIGIN = 'http://localhost:5173';
 const STATS = `${API_PREFIX}/stats/days`;
 const WEIGHT_STATS = `${API_PREFIX}/stats/weight`;
+const WEEKLY_STATS = `${API_PREFIX}/stats/weekly`;
 
 let open: { app: FastifyInstance; fixtures: TestFixtures } | undefined;
 
@@ -37,6 +43,20 @@ async function buildTestApp() {
 
 function browser(token: string) {
   return { cookie: `${SESSION_COOKIE_NAME}=${token}`, origin: WEB_ORIGIN };
+}
+
+/** A reading a day from `start`, at 05:00 UTC, which is past userA's 04:00 Berlin boundary.
+ * Shared by the weight and weekly describe blocks, POR-37 and POR-38 alike. */
+function weighDaily(
+  fixtures: TestFixtures,
+  user: Parameters<TestFixtures['create']['weightEntry']>[0],
+  start: string,
+  grams: readonly number[],
+): void {
+  for (const [index, weightGrams] of grams.entries()) {
+    const date = new Date(Date.parse(`${start}T05:00:00.000Z`) + index * 86_400_000);
+    fixtures.create.weightEntry(user, { weightGrams, recordedAt: date });
+  }
 }
 
 describe('GET /stats/days', () => {
@@ -198,19 +218,6 @@ describe('GET /stats/days', () => {
  * never appearing in another's.
  */
 describe('GET /stats/weight', () => {
-  /** A reading a day from `start`, at 05:00 UTC, which is past userA's 04:00 Berlin boundary. */
-  function weighDaily(
-    fixtures: TestFixtures,
-    user: Parameters<TestFixtures['create']['weightEntry']>[0],
-    start: string,
-    grams: readonly number[],
-  ): void {
-    for (const [index, weightGrams] of grams.entries()) {
-      const date = new Date(Date.parse(`${start}T05:00:00.000Z`) + index * 86_400_000);
-      fixtures.create.weightEntry(user, { weightGrams, recordedAt: date });
-    }
-  }
-
   it('answers in kilograms, one entry per day, with the raw reading beside the trend', async () => {
     const { app, fixtures } = await buildTestApp();
     weighDaily(fixtures, fixtures.userA, '2026-03-01', [80_000, 80_400, 79_800]);
@@ -346,5 +353,166 @@ describe('GET /stats/weight', () => {
     });
 
     expect(response.statusCode).toBe(400);
+  });
+});
+
+/**
+ * GET /stats/weekly, POR-38. The grouping arithmetic, ISO week boundaries, the sparse
+ * threshold, the signed comparison, is covered against array literals in
+ * src/domain/weekly-summary.test.ts. What is left for here is the wiring: today resolved in the
+ * caller's own timezone, the two signals reaching this endpoint the same way they reach
+ * /stats/days and /stats/weight, and one account's week never showing another's data.
+ *
+ * 2026-03-11T10:00:00.000Z is 11:00 in Berlin, a Wednesday past the 04:00 boundary, so "today"
+ * for userA is 2026-03-11: ISO week 11, Monday 2026-03-09 to Sunday 2026-03-15.
+ */
+describe('GET /stats/weekly', () => {
+  const TODAY = '2026-03-11T10:00:00.000Z';
+
+  it('returns one entry per ISO week, oldest first, ending with the week today falls in', async () => {
+    freezeTime(TODAY);
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+
+    const response = await app.inject({
+      url: `${WEEKLY_STATS}?weeks=2`,
+      headers: browser(token),
+    });
+
+    expect(response.statusCode).toBe(200);
+    const { weeks } = response.json<StatsWeeklyResponse>();
+    expect(weeks).toHaveLength(2);
+    expect(weeks[0]).toMatchObject({
+      isoYear: 2026,
+      isoWeek: 10,
+      startDate: '2026-03-02',
+      endDate: '2026-03-08',
+    });
+    expect(weeks[1]).toMatchObject({
+      isoYear: 2026,
+      isoWeek: 11,
+      startDate: '2026-03-09',
+      endDate: '2026-03-15',
+    });
+  });
+
+  it("sums a week's colour counts and counts the days with any logging", async () => {
+    freezeTime(TODAY);
+    const { app, fixtures } = await buildTestApp();
+    const green = fixtures.create.food();
+    fixtures.create.classification(green, { category: 'green' });
+    const orange = fixtures.create.food();
+    fixtures.create.classification(orange, { category: 'orange' });
+
+    // Monday and Tuesday of the current week, past the Berlin boundary.
+    fixtures.create.meal(fixtures.userA, {
+      loggedAt: new Date('2026-03-09T05:00:00.000Z'),
+      items: [{ foodId: green.id }, { foodId: green.id }],
+    });
+    fixtures.create.meal(fixtures.userA, {
+      loggedAt: new Date('2026-03-10T05:00:00.000Z'),
+      items: [{ foodId: orange.id }],
+    });
+    const token = fixtures.create.session(fixtures.userA);
+
+    const response = await app.inject({ url: `${WEEKLY_STATS}?weeks=1`, headers: browser(token) });
+
+    const [week] = response.json<StatsWeeklyResponse>().weeks;
+    expect(week?.counts).toEqual({ green: 2, yellow: 0, orange: 1, unclassified: 0 });
+    expect(week?.daysLogged).toBe(2);
+  });
+
+  it('flags a week sparse below the threshold, and the previous week is what it is compared against', async () => {
+    freezeTime(TODAY);
+    const { app, fixtures } = await buildTestApp();
+    const green = fixtures.create.food();
+    fixtures.create.classification(green, { category: 'green' });
+
+    // The previous week, four days logged: not sparse, and what the current week is diffed
+    // against. The current week, one day logged: sparse.
+    for (const day of ['2026-03-02', '2026-03-03', '2026-03-04', '2026-03-05']) {
+      fixtures.create.meal(fixtures.userA, {
+        loggedAt: new Date(`${day}T05:00:00.000Z`),
+        items: [{ foodId: green.id }],
+      });
+    }
+    fixtures.create.meal(fixtures.userA, {
+      loggedAt: new Date('2026-03-09T05:00:00.000Z'),
+      items: [{ foodId: green.id }],
+    });
+    const token = fixtures.create.session(fixtures.userA);
+
+    const response = await app.inject({ url: `${WEEKLY_STATS}?weeks=2`, headers: browser(token) });
+
+    const { weeks } = response.json<StatsWeeklyResponse>();
+    expect(weeks[0]).toMatchObject({ daysLogged: 4, sparse: false });
+    expect(weeks[1]).toMatchObject({ daysLogged: 1, sparse: true });
+    // One green item this week against four the week before: an absolute difference of -3,
+    // never a percentage of counts this small.
+    expect(weeks[1]?.versusPreviousWeek).toEqual({
+      green: -3,
+      yellow: 0,
+      orange: 0,
+      unclassified: 0,
+    });
+  });
+
+  it("carries the weight trend's value at the week's first and last day, and its weekly rate", async () => {
+    freezeTime(TODAY);
+    const { app, fixtures } = await buildTestApp();
+    weighDaily(
+      fixtures,
+      fixtures.userA,
+      '2026-03-09',
+      Array.from({ length: 7 }, (_, index) => 80_000 - index * 100),
+    );
+    const token = fixtures.create.session(fixtures.userA);
+
+    const response = await app.inject({ url: `${WEEKLY_STATS}?weeks=1`, headers: browser(token) });
+
+    const [week] = response.json<StatsWeeklyResponse>().weeks;
+    expect(week?.weight.startKg).toBe(80);
+    expect(week?.weight.endKg).toBeLessThan(80);
+    expect(week?.weight.changeKg).toBeLessThan(0);
+    expect(week?.weight.changePerWeekKg).not.toBeNull();
+  });
+
+  it("never shows one account another's logging or weight", async () => {
+    freezeTime(TODAY);
+    const { app, fixtures } = await buildTestApp();
+    const food = fixtures.create.food();
+    fixtures.create.classification(food, { category: 'green' });
+    fixtures.create.meal(fixtures.userB, {
+      loggedAt: new Date('2026-03-09T12:00:00.000Z'),
+      items: [{ foodId: food.id }],
+    });
+    weighDaily(fixtures, fixtures.userB, '2026-03-09', [80_000]);
+    const token = fixtures.create.session(fixtures.userA);
+
+    const response = await app.inject({ url: `${WEEKLY_STATS}?weeks=1`, headers: browser(token) });
+
+    const [week] = response.json<StatsWeeklyResponse>().weeks;
+    expect(week?.counts).toEqual({ green: 0, yellow: 0, orange: 0, unclassified: 0 });
+    expect(week?.weight).toEqual({
+      startKg: null,
+      endKg: null,
+      changeKg: null,
+      changePerWeekKg: null,
+    });
+  });
+
+  it('defaults to 8 weeks and rejects a count outside 1 to 52', async () => {
+    freezeTime(TODAY);
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+
+    const defaulted = await app.inject({ url: WEEKLY_STATS, headers: browser(token) });
+    expect(defaulted.json<StatsWeeklyResponse>().weeks).toHaveLength(8);
+
+    const tooFew = await app.inject({ url: `${WEEKLY_STATS}?weeks=0`, headers: browser(token) });
+    expect(tooFew.statusCode).toBe(400);
+
+    const tooMany = await app.inject({ url: `${WEEKLY_STATS}?weeks=53`, headers: browser(token) });
+    expect(tooMany.statusCode).toBe(400);
   });
 });

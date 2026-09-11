@@ -1,19 +1,26 @@
 import {
   statsDaysResponseSchema,
   statsRangeQuerySchema,
+  statsWeeklyQuerySchema,
+  statsWeeklyResponseSchema,
   statsWeightResponseSchema,
+  type StatsWeeklyResponse,
   type StatsWeightResponse,
   type WeightTrendChange,
   type WeightTrendComparison,
 } from '@portionium/schemas';
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
 
+import { findUserById, type UserRecord } from '../../db/auth.js';
 import { findClassificationsForFoods } from '../../db/classification.js';
 import type { Db } from '../../db/client.js';
 import { findItemsForDateRange } from '../../db/meal.js';
 import { listWeightHistoryForUser } from '../../db/weight.js';
 import { resolveClassifications } from '../../domain/classification.js';
+import { UnauthenticatedError } from '../../domain/errors.js';
+import { resolveLocalDate } from '../../domain/local-date.js';
 import { computeDailyColourStats } from '../../domain/stats.js';
+import { computeWeeklySummary, isoWeeksEnding } from '../../domain/weekly-summary.js';
 import {
   computeWeightTrend,
   type WeightTrendChange as TrendChange,
@@ -22,10 +29,10 @@ import {
 import { authenticatedProblemResponses, problemResponses } from '../problem.js';
 
 /**
- * POR-36 and POR-37: the basic feedback loop, how a range of days looked next to a normal day,
- * and what the scale is saying underneath its own noise. Everything is resolved, grouped and
- * smoothed at read time, see domain/stats.ts for why that stays cheap enough not to need a
- * materialised table yet.
+ * POR-36, POR-37 and POR-38: the basic feedback loop, how a range of days looked next to a
+ * normal day, what the scale is saying underneath its own noise, and the two side by side one
+ * ISO week at a time. Everything is resolved, grouped and smoothed at read time, see
+ * domain/stats.ts for why that stays cheap enough not to need a materialised table yet.
  */
 
 export interface StatsRouteOptions {
@@ -61,6 +68,17 @@ function toComparisonResponse(comparison: TrendComparison): WeightTrendCompariso
 
 export const statsRoutes: FastifyPluginCallbackZod<StatsRouteOptions> = (app, options, done) => {
   const { db, trendHalfLifeDays } = options;
+
+  /** The row behind request.auth, the same reasoning as meals.ts's requireUser: POR-38 needs
+   * the account's timezone and day boundary to know which ISO week today falls in. */
+  function requireUser(userId: string): UserRecord {
+    const user = findUserById(db, userId);
+    if (user === undefined) {
+      throw new UnauthenticatedError();
+    }
+
+    return user;
+  }
 
   app.get(
     '/stats/days',
@@ -136,6 +154,80 @@ export const statsRoutes: FastifyPluginCallbackZod<StatsRouteOptions> = (app, op
         change: toChangeResponse(trend.change),
         previous: toChangeResponse(trend.previous),
         versusPrevious: toComparisonResponse(trend.versusPrevious),
+      };
+
+      return response;
+    },
+  );
+
+  app.get(
+    '/stats/weekly',
+    {
+      config: { auth: 'read' },
+      schema: {
+        summary:
+          'The colour distribution and weight trend for the last `weeks` ISO weeks, oldest first',
+        querystring: statsWeeklyQuerySchema,
+        response: {
+          200: statsWeeklyResponseSchema,
+          ...authenticatedProblemResponses,
+          ...problemResponses,
+        },
+      },
+    },
+    (request) => {
+      const { userId } = request.auth;
+      const user = requireUser(userId);
+      const { weeks: weeksRequested } = request.query;
+
+      const today = resolveLocalDate(new Date(), user.timezone, user.dayBoundaryHour);
+      // One extra week before the first one the caller asked for, purely so that week also has
+      // something to compare against; computeWeeklySummary consumes it rather than returning it.
+      const windows = isoWeeksEnding(today, weeksRequested + 1);
+      const first = windows[0];
+      const last = windows.at(-1);
+      // Unreachable: weeksRequested is at least 1 by schema, so windows always has at least two
+      // entries. A guard rather than an assertion, same reasoning as computeDailyColourStats.
+      const from = first?.startDate ?? today;
+      const to = last?.endDate ?? today;
+
+      // The same two queries GET /stats/days makes, over the whole span rather than per week.
+      const items = findItemsForDateRange(db, userId, from, to);
+      const foodIds = [...new Set(items.map((item) => item.foodId))];
+      const resolved = resolveClassifications(
+        findClassificationsForFoods(db, foodIds, userId),
+        userId,
+      );
+      const dailyColours = computeDailyColourStats(items, resolved, from, to);
+
+      // The same trend calculation GET /stats/weight makes, once over the whole span; each
+      // week below is a slice of its days rather than a trend computed from scratch.
+      const trend = computeWeightTrend(listWeightHistoryForUser(db, userId), {
+        from,
+        to,
+        halfLifeDays: trendHalfLifeDays,
+      });
+
+      const weeks = computeWeeklySummary(dailyColours, trend.days, windows);
+
+      const response: StatsWeeklyResponse = {
+        weeks: weeks.map((week) => ({
+          isoYear: week.isoYear,
+          isoWeek: week.isoWeek,
+          startDate: week.startDate,
+          endDate: week.endDate,
+          counts: week.counts,
+          share: week.share,
+          daysLogged: week.daysLogged,
+          sparse: week.sparse,
+          weight: {
+            startKg: toKg(week.weight.startGrams),
+            endKg: toKg(week.weight.endGrams),
+            changeKg: toKg(week.weight.changeGrams),
+            changePerWeekKg: toKg(week.weight.changePerWeekGrams),
+          },
+          versusPreviousWeek: week.versusPreviousWeek,
+        })),
       };
 
       return response;

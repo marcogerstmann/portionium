@@ -635,6 +635,84 @@ export const statsWeightResponseSchema = z.object({
 export type StatsWeightResponse = z.infer<typeof statsWeightResponseSchema>;
 
 /**
+ * How many ISO weeks to summarise, POR-38, oldest first and ending with the week containing
+ * today. Weeks are Monday to Sunday. Capped at a year: a year of weekly rows is 52 small
+ * entries, not a query that grows with the request.
+ */
+export const statsWeeklyQuerySchema = z.strictObject({
+  weeks: z.coerce.number().int().min(1).max(52).default(8),
+});
+
+export type StatsWeeklyQuery = z.infer<typeof statsWeeklyQuerySchema>;
+
+/**
+ * A colour breakdown that can go either way, the difference against the previous week. Signed
+ * rather than a share or a percentage: a week going from zero orange items to one is an
+ * infinite percentage change, and a percentage of a count this small is misleading either way.
+ */
+export const colourDifferenceSchema = z.object({
+  green: z.int(),
+  yellow: z.int(),
+  orange: z.int(),
+  unclassified: z.int(),
+});
+
+export type ColourDifference = z.infer<typeof colourDifferenceSchema>;
+
+/**
+ * The weight side of one week, POR-38: the smoothed trend, never the raw reading, on the
+ * week's first and last day, and the same weekly rate weightTrendChangeSchema carries for any
+ * stretch. Null wherever the account has no trend yet to report, the same reasoning as there.
+ */
+export const weeklyWeightSummarySchema = z.object({
+  startKg: z.number().positive().nullable(),
+  endKg: z.number().positive().nullable(),
+  changeKg: z.number().nullable(),
+  changePerWeekKg: z.number().nullable(),
+});
+
+export type WeeklyWeightSummary = z.infer<typeof weeklyWeightSummarySchema>;
+
+/**
+ * One ISO week, POR-38: the colour distribution and the weight trend side by side, which is the
+ * entire thesis of the product. Monday to Sunday, in the caller's own local dates; `isoYear` and
+ * `isoWeek` are the ISO 8601 week number a calendar would show for it, see isoWeeksEnding in
+ * api/src/domain/weekly-summary.ts.
+ *
+ * `sparse` flags a week with too little logging behind it to be read next to a full one, so a
+ * week with two logged days is not silently compared as if it were complete. It is a fact about
+ * coverage, never a verdict on the week: this API returns numbers, not judgements.
+ */
+export const weeklySummaryWeekSchema = z.object({
+  isoYear: z.int(),
+  isoWeek: z.int().min(1).max(53),
+  startDate: localDateSchema,
+  endDate: localDateSchema,
+  counts: colourCountsSchema,
+  share: z.object({
+    green: z.number().min(0).max(1),
+    yellow: z.number().min(0).max(1),
+    orange: z.number().min(0).max(1),
+    unclassified: z.number().min(0).max(1),
+  }),
+  daysLogged: z.int().min(0).max(7),
+  sparse: z.boolean(),
+  weight: weeklyWeightSummarySchema,
+  versusPreviousWeek: colourDifferenceSchema,
+});
+
+export type WeeklySummaryWeek = z.infer<typeof weeklySummaryWeekSchema>;
+
+/**
+ * `GET /stats/weekly`, POR-38. One entry per requested week, oldest first. Answered from a
+ * single query over the whole span plus one trend calculation over it, the same two POR-36 and
+ * POR-37 already make, not one of either per week, see computeWeeklySummary.
+ */
+export const statsWeeklyResponseSchema = z.object({ weeks: z.array(weeklySummaryWeekSchema) });
+
+export type StatsWeeklyResponse = z.infer<typeof statsWeeklyResponseSchema>;
+
+/**
  * Credentials on their way in. The email is normalised by its own schema, so `Foo@Example.com`
  * and `foo@example.com` are the same account before the lookup happens rather than after it.
  *

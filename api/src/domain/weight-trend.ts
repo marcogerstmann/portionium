@@ -179,8 +179,12 @@ function difference(current: number | null, previous: number | null): number | n
   return current === null || previous === null ? null : current - previous;
 }
 
-/** Trend first and last, over the days that have one. See WeightTrendChange for why not the edges. */
-function changeOver(days: readonly WeightTrendDay[]): WeightTrendChange {
+/**
+ * Trend first and last, over the days that have one. See WeightTrendChange for why not the
+ * edges. Exported for POR-38's weekly summary, which calls this once per week over a slice of
+ * the same days computeWeightTrend already produced, rather than a second trend calculation.
+ */
+export function changeOver(days: readonly WeightTrendDay[]): WeightTrendChange {
   const trended = days.filter(
     (day): day is WeightTrendDay & { trendGrams: number } => day.trendGrams !== null,
   );

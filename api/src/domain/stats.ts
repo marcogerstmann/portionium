@@ -33,9 +33,10 @@ export function everyLocalDate(from: LocalDate, to: LocalDate): LocalDate[] {
 
 const ZERO_COUNTS: ColourCounts = { green: 0, yellow: 0, orange: 0, unclassified: 0 };
 
-/** Each count as a fraction of the day's total, 0 across the board on a day nothing was logged
- * rather than a division by zero. */
-function shareOf(counts: ColourCounts): ColourCounts {
+/** Each count as a fraction of the total, 0 across the board when nothing was logged rather than
+ * a division by zero. Exported for POR-38's weekly summary, which sums a week's days into the
+ * same shape and wants the same share math over the total rather than a second copy of it. */
+export function shareOf(counts: ColourCounts): ColourCounts {
   const total = counts.green + counts.yellow + counts.orange + counts.unclassified;
   if (total === 0) {
     return ZERO_COUNTS;
