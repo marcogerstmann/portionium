@@ -1,0 +1,23 @@
+# The reverse proxy for the caddy profile in docker-compose.yml. Used only there.
+#
+# Caddy asks Let's Encrypt for a certificate on the first request to the domain below and
+# renews it on its own, so there is nothing here to run on a timer and nothing to remember in
+# eleven weeks. The domain is set by Compose from PORTIONIUM_DOMAIN.
+#
+# There is deliberately no global options block. The one thing worth putting in it is an ACME
+# contact address, and an `email` directive whose variable expanded to nothing is a parse error
+# rather than a default, which would turn an unset variable into a proxy that will not start.
+# Caddy issues certificates without one.
+
+# An unset domain falls back to localhost, where Caddy issues a certificate from its own local
+# CA and the profile still works. It cannot be a required variable in the Compose file: every
+# service there is interpolated before profiles are applied, so insisting on it there would
+# break the plain `docker compose up -d` that never wanted this container.
+{$PORTIONIUM_DOMAIN:localhost} {
+	encode zstd gzip
+
+	# The app container, by its service name on the Compose network. Reached over the internal
+	# network rather than through a published port, so PORTIONIUM_BIND=127.0.0.1 keeps the app
+	# off the public interface without anything here changing.
+	reverse_proxy app:3000
+}

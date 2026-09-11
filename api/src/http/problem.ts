@@ -10,6 +10,7 @@ import type { FastifyError, FastifyInstance, FastifyReply, FastifyRequest } from
 import { hasZodFastifySchemaValidationErrors } from 'fastify-type-provider-zod';
 
 import { isDomainError, ThrottledError, type DomainErrorCode } from '../domain/errors.js';
+import type { ServeWebApp } from './plugins/static.js';
 
 /**
  * The one place an error becomes an HTTP response.
@@ -231,19 +232,29 @@ function sendProblem(
 /**
  * Installs the two handlers on the root instance, so every route registered anywhere under it
  * answers errors the same way. Called once, from buildApp.
+ *
+ * `serveWebApp` is how the built client gets served without a second server or a wildcard
+ * route, see http/plugins/static.ts. It is consulted for a URL the router did not match and
+ * declines anything that is not a page or an asset, so an unknown path under the API prefix
+ * still leaves as a problem document. Absent on an instance serving no client, which is every
+ * test and every development run.
  */
-export function registerProblemHandlers(app: FastifyInstance): void {
+export function registerProblemHandlers(app: FastifyInstance, serveWebApp?: ServeWebApp): void {
   // A route that does not exist never reaches the error handler, Fastify answers it on a
   // separate path. Without this it would be the one response in the API that is not a problem
   // document, which is exactly the special case a client forgets to handle.
-  app.setNotFoundHandler((request, reply) =>
-    sendProblem(request, reply, {
+  app.setNotFoundHandler((request, reply) => {
+    if (serveWebApp?.(request, reply) === true) {
+      return reply;
+    }
+
+    return sendProblem(request, reply, {
       type: PROBLEM.unclassified,
       title: 'Not Found',
       status: 404,
       detail: `No route for ${request.method} ${request.url}.`,
-    }),
-  );
+    });
+  });
 
   app.setErrorHandler((error: FastifyError, request, reply) => {
     // Validation, first, because it is the only failure that can say something more useful

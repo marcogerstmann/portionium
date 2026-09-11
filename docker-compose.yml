@@ -1,0 +1,86 @@
+# Everything needed to run this: one container, one volume, one command.
+#
+#   docker compose up -d        the application on http://localhost:8080
+#   docker compose --profile caddy up -d    the same, behind https on a real domain
+#
+# Nothing here has to be edited first. Settings go in .env.docker, which mirrors .env.example
+# and is optional, and the two knobs Compose itself needs are read from the environment or from
+# .env with the defaults below.
+
+name: portionium
+
+services:
+  app:
+    build: .
+    # A tagged release is published here, so a deployment can pull rather than build. Compose
+    # builds from the Dockerfile above when this tag is not already present locally.
+    image: ghcr.io/marcogerstmann/portionium:latest
+    restart: unless-stopped
+
+    # Optional, and read only if it is there, so a first run needs no file at all. It is where
+    # a secret goes once there is one: environment variables are readable by anything that can
+    # run `docker inspect`, and a file with 600 on it is not.
+    env_file:
+      - path: .env.docker
+        required: false
+
+    # The container always listens on 3000. What that is published as is a host decision, and
+    # so is the address it is published on: a Raspberry Pi on a home network wants the default,
+    # a VPS running the caddy profile below wants PORTIONIUM_BIND=127.0.0.1, which leaves the
+    # app reachable from the proxy over the Compose network and from nowhere else.
+    ports:
+      - '${PORTIONIUM_BIND:-0.0.0.0}:${PORTIONIUM_PORT:-8080}:3000'
+
+    # The SQLite file, its -wal and its -shm. A named volume rather than a bind mount, so it
+    # belongs to Docker and survives `docker compose down` and a rebuild of the image.
+    volumes:
+      - data:/data
+
+    # No healthcheck here. The image declares its own, see the Dockerfile, so a plain
+    # `docker run` gets it too and there is one definition of what healthy means.
+
+  # Automatic TLS, for the deployment case where this is on a domain. Off unless asked for:
+  #
+  #   PORTIONIUM_DOMAIN=food.example.com PORTIONIUM_BIND=127.0.0.1 \
+  #     docker compose --profile caddy up -d
+  #
+  # A PWA is not installable over plain http. A browser will not register a service worker on
+  # an insecure origin, so without this the app on a VPS is a website rather than something
+  # that goes on a home screen. Caddy gets a certificate from Let's Encrypt on first request
+  # and renews it, which is why this is a container and not a page of nginx configuration.
+  #
+  # Set WEB_ORIGIN=https://your.domain in .env.docker alongside it. The cookie's Secure flag and
+  # the CSRF check both follow that value, see config.ts, and leaving it on http means every
+  # write is refused.
+  caddy:
+    profiles: [caddy]
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+      # HTTP/3. Caddy serves it by default and a browser falls back without it.
+      - '443:443/udp'
+    environment:
+      # Plain `${VAR:-}` and not `${VAR:?message}`, which would be the obvious way to insist on
+      # it. Compose interpolates every service in the file before it filters by profile, so a
+      # required variable here makes `docker compose up -d` fail for somebody who never asked
+      # for this container. The Caddyfile carries the default instead, and an unset domain gets
+      # https on localhost rather than an error.
+      PORTIONIUM_DOMAIN: ${PORTIONIUM_DOMAIN:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # The certificates and the account key. Losing these means asking for a new certificate,
+      # and Let's Encrypt rate limits that, so they are a volume rather than a layer.
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      app:
+        # Waits for the healthcheck the image declares, not merely for the container to exist,
+        # so the first request after a deploy does not arrive during a migration.
+        condition: service_healthy
+
+volumes:
+  data:
+  caddy-data:
+  caddy-config:

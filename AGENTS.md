@@ -23,6 +23,12 @@ pnpm --filter @portionium/api user create --email you@example.com \
   --name "Your Name" --timezone Europe/Berlin   # the first account, see Authentication
 ```
 
+Or the whole thing in a container, which is what a deployment runs, see Containers:
+
+```sh
+docker compose up -d          # http://localhost:8080, migrations and seed included
+```
+
 ## Layout
 
 Three pnpm workspaces, `api`, `web` and `packages/*`.
@@ -47,8 +53,14 @@ docs/evals/         prompt golden sets and eval results, committed
 ```
 
 `@portionium/schemas` is consumed over the `workspace:` protocol and its `exports` point at
-TypeScript source, not at build output. Vite compiles it for the browser, Node strips the types
-for the API, so there is no build step between editing a schema and both sides seeing it.
+TypeScript source, not at build output. Vite compiles it for the browser and `tsx` and Vitest
+compile it for the API, so there is no build step between editing a schema and both sides
+seeing it.
+
+Plain `node` is the exception and cannot load it: type stripping does not remap the explicit
+`.js` specifiers NodeNext requires onto the `.ts` files they name, so a compiled `api/dist`
+run against this source tree fails on the first relative import. Nothing in development does
+that. The container does, and ships the package's `dist/` build instead, see Containers.
 
 Layering inside `api`: `domain` imports nothing from `db`, `http`, `mcp` and no framework or
 database library. `db` may import `domain` and is the only place Drizzle appears. `http`, `mcp`
@@ -267,6 +279,52 @@ serializes with, so the two cannot drift and a contract change breaks the typech
 sides in one commit. A generated client would be a third copy of shapes that already exist
 twice, regenerated on a schedule somebody forgets. The spec is here for documentation, for the
 snapshot above, and for a consumer that is not this repository.
+
+### Serving the web client
+
+When `WEB_ROOT` names a directory, this process serves the built client from it on the origin it
+already answers on. Empty by default, so development and every test serve the API alone: there
+the client runs on the Vite dev server and proxies `/api` here.
+
+One origin rather than a second server in front is the point. The session cookie is
+`SameSite=Lax` and every write is checked against `WEB_ORIGIN`, so a client served from anywhere
+else is a client whose writes are refused until CORS and a second origin are configured. Serving
+both halves from one process makes that configuration unnecessary rather than merely easy, and
+is what lets the application ship as one container.
+
+It is served from the **not found handler**, in
+[`api/src/http/plugins/static.ts`](./api/src/http/plugins/static.ts), and that is the whole
+design rather than a detail. `@fastify/static` left to itself registers a wildcard `GET`, and a
+wildcard at the root claims every URL no route matched, `/api/v1/mistyped` included, which would
+then be answered with the app shell and a 200 where this API owes a problem document. It also
+cannot declare `config.auth`, which every route here must. So it is registered with
+`serve: false`, which decorates `reply.sendFile` and registers nothing, and the handler runs only
+once the router has confirmed nobody else wanted the URL. The public surface in
+`test/http/authorization.test.ts` and the generated OpenAPI document are both unchanged by it.
+
+Four answers, in order: a path under `/api/v1` is declined and stays a problem document; a path
+naming a file that exists is that file; a path that looks like a file and is not one is a 404,
+because answering a missing bundle with HTML is a syntax error in somebody's console instead of a
+plain message; anything else is the app shell, which is what makes a client route survive a
+reload.
+
+The list of files is read once at startup. The directory is baked into the image and cannot
+change while the process runs, so this is a lookup rather than a `stat` per request, and it is
+also the safety property: a path not literally in that set is never handed to the sender.
+
+Cache headers are two answers and no more. Anything under `assets/` is `immutable` for a year,
+which is safe only because Vite puts a hash of the contents in those names, so a changed file is
+a different URL. Everything else, the shell and the service worker included, is `no-cache`,
+meaning revalidate rather than do not store. Those two decide which version of the app somebody
+is running: a cached `index.html` points at bundles that may be gone, and a cached service worker
+is an old app that never learns there is a new one.
+
+The Content Security Policy gains a third case in
+[`security.ts`](./api/src/http/plugins/security.ts). The API's own `default-src 'none'` would stop
+the client loading its own bundle, so a request the router did not match gets a policy a page can
+run under: `'self'` for scripts, and inline styles allowed because a policy that breaks the app is
+a policy somebody switches off entirely. Script stays strict, which is the half the `HttpOnly`
+cookie depends on.
 
 ### Shutdown
 
@@ -640,6 +698,52 @@ something to satisfy, and the tests written to satisfy a gate are the ones that 
 report is there to be read: the useful line is a module showing up as a row of zeroes, not the
 percentage at the bottom. Schema files and the process entry point are excluded, there is nothing
 in them to cover.
+
+## Containers
+
+One image holds the compiled API, its production dependencies and `web/dist`, and the API serves
+all three. [`Dockerfile`](./Dockerfile) is three stages: `deps` resolves the production tree from
+the manifests alone so editing a source file does not reinstall `better-sqlite3`, `build` has the
+compiler and the dev dependencies and keeps neither, and `runtime` is assembled from the two with
+no package manager in it. It runs as `node`, uid 1000.
+
+Migrations and the food catalog are applied by `openDatabase()` and `seedFoodCatalog()` at
+startup, before the listener opens, so starting the container is the whole deployment step. The
+database is at `/data`, which is a volume in both the Dockerfile and the Compose file: the
+`VOLUME` is there for the `docker run` case, where without it the only copy of somebody's data
+goes into a writable layer that disappears with the container.
+
+The image declares its own `HEALTHCHECK` rather than the Compose file, so a plain `docker run`
+gets it too and there is one definition of healthy. It is written in Node against `/health`
+because the base image has no curl, and `/health` is liveness only and never rate limited.
+
+One thing in the image is spelled differently from a checkout. `@portionium/schemas` points its
+`exports` at `src/index.ts`, which is what keeps both apps reading one definition with no build
+step in between, and which **Node cannot load**: type stripping does not remap the explicit `.js`
+specifiers NodeNext requires onto the `.ts` files they name, so `node api/dist/index.js` against
+the source tree fails on the first relative import. `tsc` already emits the package to `dist/`,
+so the runtime stage ships a manifest naming that instead. Nothing but starting the container
+would notice if the two ever disagreed, which is why CI starts it.
+
+[`docker-compose.yml`](./docker-compose.yml) needs no editing for a first run: settings go in an
+optional `.env.docker` mirroring `.env.example`, and the two knobs that belong to Compose rather
+than the app, `PORTIONIUM_PORT` and `PORTIONIUM_BIND`, are read from the environment. A `caddy`
+profile adds a reverse proxy with automatic TLS for a deployment on a domain, which is not
+optional for a PWA: a browser will not register a service worker on an insecure origin.
+
+The image unpacks to about 209 MiB and is about 75 MiB to pull. Node's own binary is 121 MiB of
+that and the production dependency tree is 63, so the CI limit is 215 MiB rather than the 200 the
+story asked for: stripping type declarations, source maps and documentation out of `node_modules`
+is worth roughly 8 MiB and there is nothing after it. The limit sits just above where the image
+is, so it catches a regression instead of describing something unreachable. It is measured by
+reading the unpacked filesystem, because `docker image inspect .Size` reports the uncompressed
+size on the classic image store and the compressed size on the containerd one.
+
+The `image` job in CI builds for this machine on every push, asserts the size, starts the
+container, waits for its own healthcheck and then checks what it serves. That job is the only
+thing that proves any of the above, so a change here is not done until it is green. On a `v*`
+tag it also builds amd64 and arm64 and pushes to GHCR, because a home deployment may be a
+Raspberry Pi or a Mac.
 
 ## Writing changes
 

@@ -1,0 +1,41 @@
+# Everything the build makes for itself, or must not carry into an image.
+#
+# node_modules first and twice: the host's is built for the host's platform and its native
+# modules would be the wrong architecture inside the container, which fails at load time
+# rather than at build time. The build stage installs its own.
+node_modules
+**/node_modules
+
+# Build output. The image builds from source, so anything here is stale by definition.
+dist
+**/dist
+**/dev-dist
+*.tsbuildinfo
+coverage
+**/test-results
+**/playwright-report
+
+# Somebody's data and somebody's secrets, neither of which belongs in a layer anyone can pull.
+.env
+.env.*
+!.env.example
+data
+backups
+*.db
+*.db-wal
+*.db-shm
+*.pem
+*.key
+
+# History and tooling. .git alone is most of the build context in a repository this size.
+.git
+.github
+.idea
+.vscode
+docs
+
+# The image's own files. Changing the Compose file must not invalidate the build cache.
+Dockerfile
+.dockerignore
+docker-compose.yml
+Caddyfile

@@ -17,6 +17,7 @@ import { registerAuth } from './plugins/auth.js';
 import { registerIdempotency } from './plugins/idempotency.js';
 import { registerRateLimit } from './plugins/rate-limit.js';
 import { registerSecurity } from './plugins/security.js';
+import { registerWebApp } from './plugins/static.js';
 import { registerProblemHandlers } from './problem.js';
 import { authRoutes } from './routes/auth.js';
 import { foodRoutes } from './routes/foods.js';
@@ -103,9 +104,18 @@ export async function buildApp({ config, database }: AppDependencies): Promise<F
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
+  // The built web client, when this process was given one to serve. Registered before the
+  // problem handlers rather than after, because the not found handler is where it is served
+  // from and therefore has to be built knowing about it. It registers no routes of its own, so
+  // the rule that nothing answers an error in its own shape still holds. See plugins/static.ts.
+  const serveWebApp =
+    config.WEB_ROOT === ''
+      ? undefined
+      : await registerWebApp(app, { root: config.WEB_ROOT, apiPathPrefix: API_PREFIX });
+
   // Registered on the root instance, before any route, so nothing can be registered later that
   // answers an error in its own shape.
-  registerProblemHandlers(app);
+  registerProblemHandlers(app, serveWebApp);
 
   // Closing the app closes the database. Registered before anything else so it runs last:
   // Fastify calls onClose hooks in reverse order, so the file is released after the routes
@@ -130,6 +140,7 @@ export async function buildApp({ config, database }: AppDependencies): Promise<F
     // Same derivation as the session cookie's Secure flag, from the same variable.
     secure: config.WEB_ORIGIN.startsWith('https://'),
     docsPathPrefix: `${API_PREFIX}${DOCS_PATH}`,
+    servesWebApp: serveWebApp !== undefined,
     corsOrigins: config.CORS_ORIGINS,
   });
 

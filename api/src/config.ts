@@ -17,6 +17,16 @@ const configSchema = z.object({
    */
   API_DOCS_ENABLED: z.stringbool().default(true),
   /**
+   * Directory holding the built web client, which this process then serves on its own origin
+   * with a fallback to the app shell for the client's own routes. See http/plugins/static.ts.
+   *
+   * Empty by default and therefore off, which is right for every test and for development,
+   * where the client runs on the Vite dev server and proxies /api here. The container sets it,
+   * because one process serving both halves is what lets the application ship as one image and
+   * is what makes the same origin true rather than merely configured.
+   */
+  WEB_ROOT: z.string().default(''),
+  /**
    * The single origin the web client is served from, scheme and host and port, no trailing
    * slash. Two things read it.
    *

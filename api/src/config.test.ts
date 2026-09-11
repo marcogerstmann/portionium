@@ -10,6 +10,7 @@ describe('parseConfig', () => {
       LOG_LEVEL: 'info',
       DATABASE_PATH: './data/portionium.db',
       WEB_ORIGIN: 'http://localhost:5173',
+      WEB_ROOT: '',
       SESSION_TTL_DAYS: 30,
       API_DOCS_ENABLED: true,
       IDEMPOTENCY_RETENTION_HOURS: 24,

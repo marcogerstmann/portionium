@@ -3,6 +3,8 @@ name: CI
 on:
   push:
     branches: [main]
+    # A release. The image job below publishes on these and only on these.
+    tags: ['v*']
   pull_request:
 
 concurrency:
@@ -40,3 +42,123 @@ jobs:
             'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).summary.totalCruised))')
           echo "modules cruised: $modules"
           test "$modules" -gt 0
+
+  # The image, built the way a deployment builds it and then actually started. A Dockerfile that
+  # compiles is not a Dockerfile that runs: the runtime stage ships @portionium/schemas compiled
+  # rather than as the source the rest of the repository reads, and nothing but booting the thing
+  # would notice if those two drifted apart.
+  image:
+    runs-on: ubuntu-latest
+    needs: verify
+    permissions:
+      contents: read
+      # Only used on a tag, see the publish step.
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+
+      # QEMU, for whichever half of a release this runner is not. A home deployment may be a
+      # Raspberry Pi or a Mac, so amd64 alone is half an answer.
+      #
+      # Emulation is the obvious thing to be afraid of here and it measured cheap: both
+      # architectures together took under two minutes locally, because better-sqlite3 is the
+      # only thing that compiles and it takes under a minute even emulated. Native runners per
+      # architecture and a manifest merge would be three times the workflow for that, so this
+      # stays one job until a release build is actually something you wait on.
+      - uses: docker/setup-qemu-action@v3
+        if: startsWith(github.ref, 'refs/tags/v')
+
+      - uses: docker/setup-buildx-action@v3
+
+      # One architecture, loaded into the local daemon, so the steps below can run it. Every
+      # push and every pull request, because this is the only thing that proves the image works.
+      - name: Build for this machine
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: portionium:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # The story asks for well under 200 MB and this is where that stops being an aspiration.
+      # Raising the number is allowed; doing it without noticing is not.
+      #
+      # 215 rather than 200, deliberately. The image unpacks to 209 MiB, of which Node's own
+      # binary is 121 and the production dependency tree is 63. Stripping the type declarations,
+      # the source maps and the documentation out of node_modules is worth about 8 MiB and there
+      # is nothing after that, so 200 is not reachable on the official Node 24 image at all. It
+      # is 75 MiB to pull, which is the number a deployment actually pays. This limit sits just
+      # above where the image is today, so it catches a regression rather than describing an
+      # ambition nobody can meet.
+      #
+      # Measured by reading the filesystem the image unpacks to, rather than by asking the
+      # daemon. `docker image inspect .Size` answers two different questions depending on how
+      # the daemon stores images: the uncompressed size on the classic overlay2 store that a
+      # runner uses, and the compressed size on the containerd store that Docker Desktop now
+      # enables by default. Asserting on that is a check that passes on a laptop and fails here
+      # for no reason anybody can see from the diff.
+      - name: Assert the image is small enough
+        run: |
+          limit=$(( LIMIT_MIB * 1024 * 1024 ))
+          size=$(( $(docker run --rm portionium:ci sh -c 'du -sk / 2>/dev/null | cut -f1') * 1024 ))
+          echo "image unpacks to $(( size / 1024 / 1024 )) MiB, limit ${LIMIT_MIB} MiB"
+          test "$size" -lt "$limit"
+        env:
+          LIMIT_MIB: 215
+
+      # The single command a stranger runs, minus the terminal. Started with no environment at
+      # all, so the defaults baked into the image are what is being tested.
+      - name: Start it the way a first run does
+        run: |
+          docker run -d --name portionium -p 8080:3000 -v portionium-data:/data portionium:ci
+          for _ in $(seq 1 30); do
+            [ "$(docker inspect -f '{{.State.Health.Status}}' portionium)" = healthy ] && break
+            sleep 2
+          done
+          docker inspect -f '{{.State.Health.Status}}' portionium | grep -qx healthy \
+            || { docker logs portionium; exit 1; }
+
+      - name: Check what it serves
+        run: |
+          set -euo pipefail
+          # The API, and the migrations and seed catalog that had to run before it answered.
+          curl -fsS http://localhost:8080/health | grep -q '"status":"ok"'
+          # The client, on the same origin, including a route only the client knows about.
+          curl -fsS http://localhost:8080/ | grep -qi '<html'
+          curl -fsS http://localhost:8080/settings | grep -qi '<html'
+          # And a mistyped endpoint is still a problem document rather than that page.
+          curl -sS -o /dev/null -w '%{http_code} %{content_type}\n' \
+            http://localhost:8080/api/v1/nope | grep -q '^404 application/problem+json'
+
+      # The database is on the volume and not in the container's writable layer, which is the
+      # difference between a restart and a data loss.
+      - name: Check the database landed on the volume
+        run: docker run --rm -v portionium-data:/data alpine ls /data/portionium.db
+
+      - name: The process is not root
+        run: test "$(docker exec portionium id -u)" != 0
+
+      - name: Logs
+        if: always()
+        run: docker logs portionium || true
+
+      - name: Sign in to the registry
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push both architectures
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+            ghcr.io/${{ github.repository }}:latest
+          cache-from: type=gha
