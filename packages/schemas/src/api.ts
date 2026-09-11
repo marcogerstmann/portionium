@@ -196,6 +196,25 @@ export const mealListQuerySchema = paginationQuerySchema.extend({
 export type MealListQuery = z.infer<typeof mealListQuerySchema>;
 
 /**
+ * Editing one. Every field optional, the same convention updateProfileRequestSchema follows: a
+ * client sends what it is changing and an absent field is a field nobody touched.
+ *
+ * `items` is the exception to that reading. Left out, the meal's current items stand; sent, it
+ * replaces the whole list, position and all, which is what lets one PATCH add, remove and
+ * reorder items instead of three separate verbs. An empty array is let through here for the same
+ * reason createMealRequestSchema lets one through: leaving a meal with no items is a domain
+ * invariant, not a shape error, see applyMealChanges in api/src/domain/meal.ts.
+ */
+export const updateMealRequestSchema = z.strictObject({
+  type: mealTypeSchema.optional(),
+  loggedAt: timestampSchema.optional(),
+  notes: mealSchema.shape.notes,
+  items: z.array(mealItemSchema.pick({ foodId: true, quantity: true })).optional(),
+});
+
+export type UpdateMealRequest = z.infer<typeof updateMealRequestSchema>;
+
+/**
  * How many of a day's items landed in each colour, including the ones nobody has judged yet.
  * Counted over items rather than meals, since a colour is a property of what was eaten and one
  * meal usually carries more than one.

@@ -149,6 +149,7 @@ describe('openapi document', () => {
       `${API_PREFIX}/me`,
       `${API_PREFIX}/me/password`,
       `${API_PREFIX}/meals`,
+      `${API_PREFIX}/meals/{id}`,
       '/health',
     ]);
   });

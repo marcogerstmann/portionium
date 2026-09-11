@@ -61,6 +61,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -142,6 +143,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -223,6 +225,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -402,6 +405,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -483,6 +487,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -564,6 +569,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -645,6 +651,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -736,6 +743,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -817,6 +825,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -898,6 +907,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -979,6 +989,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -1060,6 +1071,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -1141,6 +1153,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -1222,6 +1235,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -1356,6 +1370,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -1437,6 +1452,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -1518,6 +1534,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -1599,6 +1616,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -1680,6 +1698,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -1783,6 +1802,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -1864,6 +1884,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -1945,6 +1966,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -2026,6 +2048,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -2107,6 +2130,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -2188,6 +2212,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -2269,6 +2294,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -2350,6 +2376,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -2552,6 +2579,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -2633,6 +2661,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -2714,6 +2743,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -2795,6 +2825,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -2876,6 +2907,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -2957,6 +2989,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -3038,6 +3071,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -3198,6 +3232,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -3279,6 +3314,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -3360,6 +3396,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -3441,6 +3478,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -3522,6 +3560,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -3625,6 +3664,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -3706,6 +3746,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -3787,6 +3828,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -3868,6 +3910,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -3949,6 +3992,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -4030,6 +4074,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -4111,6 +4156,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -4192,6 +4238,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -4404,6 +4451,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -4485,6 +4533,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -4566,6 +4615,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -4647,6 +4697,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -4728,6 +4779,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -4975,6 +5027,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -5056,6 +5109,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -5137,6 +5191,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -5218,6 +5273,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -5299,6 +5355,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -5380,6 +5437,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -5461,6 +5519,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -5637,6 +5696,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -5718,6 +5778,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -5799,6 +5860,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -5880,6 +5942,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -5961,6 +6024,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -6197,6 +6261,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -6278,6 +6343,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -6359,6 +6425,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -6440,6 +6507,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -6521,6 +6589,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -6602,6 +6671,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -6788,6 +6858,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -6869,6 +6940,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -6950,6 +7022,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -7031,6 +7104,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -7112,6 +7186,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -7193,6 +7268,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -7274,6 +7350,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -7355,6 +7432,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -7456,6 +7534,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -7537,6 +7616,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -7618,6 +7698,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -7699,6 +7780,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -7780,6 +7862,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -7861,6 +7944,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -7942,6 +8026,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -8023,6 +8108,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -8199,6 +8285,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -8280,6 +8367,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -8361,6 +8449,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -8442,6 +8531,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -8523,6 +8613,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -8604,6 +8695,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -8805,6 +8897,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -8886,6 +8979,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -8967,6 +9061,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -9048,6 +9143,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -9129,6 +9225,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -9210,6 +9307,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -9291,6 +9389,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -9372,6 +9471,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -9473,6 +9573,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -9554,6 +9655,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -9635,6 +9737,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -9716,6 +9819,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -9797,6 +9901,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -9878,6 +9983,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -9959,6 +10065,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -10040,6 +10147,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -10295,6 +10403,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -10376,6 +10485,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -10457,6 +10567,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -10538,6 +10649,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -10594,7 +10706,7 @@
             }
           },
           "422": {
-            "description": "The meal has no items, an item names a food id with no live catalog entry, or the Idempotency-Key was already used for a different request",
+            "description": "The meal has no items, an item names a food id with no live catalog entry, loggedAt is too far in the future, or the Idempotency-Key was already used for a different request",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -10619,6 +10731,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -10700,6 +10813,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -10781,6 +10895,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -11045,6 +11160,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -11126,6 +11242,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -11207,6 +11324,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -11288,6 +11406,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -11369,6 +11488,1516 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
+                        "https://portionium.dev/problems/unknown-food-reference",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/meals/{id}": {
+      "patch": {
+        "summary": "Change a meal already logged: its type, notes, loggedAt or item list",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "breakfast",
+                      "lunch",
+                      "dinner",
+                      "snack"
+                    ]
+                  },
+                  "loggedAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      }
+                    ]
+                  },
+                  "notes": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "foodId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+                        },
+                        "quantity": {
+                          "type": "number",
+                          "exclusiveMinimum": 0
+                        }
+                      },
+                      "required": [
+                        "foodId"
+                      ]
+                    }
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+                    },
+                    "userId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "breakfast",
+                        "lunch",
+                        "dinner",
+                        "snack"
+                      ]
+                    },
+                    "localDate": {
+                      "type": "string",
+                      "format": "date",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                    },
+                    "notes": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "loggedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+                          },
+                          "foodId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+                          },
+                          "quantity": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          },
+                          "position": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "category": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "green",
+                                  "yellow",
+                                  "orange"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "foodId",
+                          "position",
+                          "category"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "userId",
+                    "type",
+                    "localDate",
+                    "loggedAt",
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request does not match the schema",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
+                        "https://portionium.dev/problems/unknown-food-reference",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one that no longer resolves to anybody",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
+                        "https://portionium.dev/problems/unknown-food-reference",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential may not do this, or the request failed the origin check",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
+                        "https://portionium.dev/problems/unknown-food-reference",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such meal, or it has been deleted, or it belongs to somebody else",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
+                        "https://portionium.dev/problems/unknown-food-reference",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The first request carrying this Idempotency-Key has not finished",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
+                        "https://portionium.dev/problems/unknown-food-reference",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The edit would leave the meal with no items, an item names a food id with no live catalog entry, loggedAt is too far in the future, or the Idempotency-Key was already used for a different request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
+                        "https://portionium.dev/problems/unknown-food-reference",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The caller is over the rate limit for this kind of request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
+                        "https://portionium.dev/problems/unknown-food-reference",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
+                        "https://portionium.dev/problems/unknown-food-reference",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Soft delete a meal. Recreating it with the same id undoes it, see POST /meals",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "The request does not match the schema",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
+                        "https://portionium.dev/problems/unknown-food-reference",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one that no longer resolves to anybody",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
+                        "https://portionium.dev/problems/unknown-food-reference",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential may not do this, or the request failed the origin check",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
+                        "https://portionium.dev/problems/unknown-food-reference",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such meal, or it has been deleted, or it belongs to somebody else",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
+                        "https://portionium.dev/problems/unknown-food-reference",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The first request carrying this Idempotency-Key has not finished",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
+                        "https://portionium.dev/problems/unknown-food-reference",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The Idempotency-Key was already used for a different request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
+                        "https://portionium.dev/problems/unknown-food-reference",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The caller is over the rate limit for this kind of request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
+                        "https://portionium.dev/problems/unknown-food-reference",
+                        "https://portionium.dev/problems/implausible-weight",
+                        "https://portionium.dev/problems/internal-error"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "instance": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "requestId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "about:blank",
+                        "https://portionium.dev/problems/validation-failed",
+                        "https://portionium.dev/problems/invalid-credentials",
+                        "https://portionium.dev/problems/invalid-current-password",
+                        "https://portionium.dev/problems/too-many-login-attempts",
+                        "https://portionium.dev/problems/rate-limited",
+                        "https://portionium.dev/problems/unauthenticated",
+                        "https://portionium.dev/problems/insufficient-scope",
+                        "https://portionium.dev/problems/csrf-origin-rejected",
+                        "https://portionium.dev/problems/session-required",
+                        "https://portionium.dev/problems/not-found",
+                        "https://portionium.dev/problems/idempotency-key-mismatch",
+                        "https://portionium.dev/problems/idempotency-request-in-progress",
+                        "https://portionium.dev/problems/food-in-use",
+                        "https://portionium.dev/problems/meal-has-no-items",
+                        "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -11668,6 +13297,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -11749,6 +13379,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -11830,6 +13461,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -11911,6 +13543,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -11992,6 +13625,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -12131,6 +13765,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -12212,6 +13847,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -12293,6 +13929,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -12374,6 +14011,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -12455,6 +14093,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -12618,6 +14257,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -12699,6 +14339,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -12780,6 +14421,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -12861,6 +14503,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -12942,6 +14585,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -13023,6 +14667,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -13104,6 +14749,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -13222,6 +14868,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -13303,6 +14950,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -13384,6 +15032,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -13465,6 +15114,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -13546,6 +15196,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -13627,6 +15278,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"
@@ -13708,6 +15360,7 @@
                         "https://portionium.dev/problems/food-in-use",
                         "https://portionium.dev/problems/meal-has-no-items",
                         "https://portionium.dev/problems/meal-id-conflict",
+                        "https://portionium.dev/problems/meal-logged-in-future",
                         "https://portionium.dev/problems/unknown-food-reference",
                         "https://portionium.dev/problems/implausible-weight",
                         "https://portionium.dev/problems/internal-error"

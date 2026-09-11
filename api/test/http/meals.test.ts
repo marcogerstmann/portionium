@@ -16,6 +16,7 @@ import { freezeTime } from '../helpers/time.js';
 
 const WEB_ORIGIN = 'http://localhost:5173';
 const MEALS = `${API_PREFIX}/meals`;
+const meal = (id: string) => `${MEALS}/${id}`;
 const days = (date: string) => `${API_PREFIX}/days/${date}`;
 
 let open: { app: FastifyInstance; fixtures: TestFixtures } | undefined;
@@ -202,6 +203,242 @@ describe('logging a meal', () => {
 
     expect(second.statusCode).toBe(409);
     expect(problem(second.payload).type).toBe('https://portionium.dev/problems/meal-id-conflict');
+  });
+});
+
+describe('editing a meal', () => {
+  it('moves a meal across a local day boundary and reports the new date explicitly', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const food = fixtures.create.food();
+    const token = fixtures.create.session(fixtures.userA);
+    // 05:00 UTC is 06:00 in Berlin, on 2026-03-02.
+    const { meal: stored } = fixtures.create.meal(fixtures.userA, {
+      loggedAt: new Date('2026-03-02T05:00:00.000Z'),
+      items: [{ foodId: food.id }],
+    });
+    expect(stored.localDate).toBe('2026-03-02');
+
+    // 03:00 UTC is 04:00 in Berlin, exactly the day boundary, so it lands on the next day.
+    const response = await app.inject({
+      method: 'PATCH',
+      url: meal(stored.id),
+      headers: browser(token),
+      payload: { loggedAt: '2026-03-03T03:00:00.000Z' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json<MealResponse>().localDate).toBe('2026-03-03');
+
+    // The day it left shows nothing, the day it landed on shows it, with no cache to catch up.
+    const oldDay = await app.inject({ url: days('2026-03-02'), headers: browser(token) });
+    const newDay = await app.inject({ url: days('2026-03-03'), headers: browser(token) });
+    expect(oldDay.json<DayResponse>().meals).toHaveLength(0);
+    expect(newDay.json<DayResponse>().meals).toHaveLength(1);
+  });
+
+  it('updates type, notes and the item list', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const original = fixtures.create.food();
+    const added = fixtures.create.food();
+    const token = fixtures.create.session(fixtures.userA);
+    const { meal: stored } = fixtures.create.meal(fixtures.userA, {
+      type: 'breakfast',
+      items: [{ foodId: original.id }],
+    });
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: meal(stored.id),
+      headers: browser(token),
+      payload: {
+        type: 'dinner',
+        notes: 'ate later than planned',
+        items: [{ foodId: added.id }, { foodId: original.id }],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json<MealResponse>();
+    expect(body).toMatchObject({ type: 'dinner', notes: 'ate later than planned' });
+    // Reordered: the newly added item now leads, and positions are dense from zero.
+    expect(body.items.map((item) => [item.foodId, item.position])).toEqual([
+      [added.id, 0],
+      [original.id, 1],
+    ]);
+  });
+
+  it('leaves fields an edit does not mention untouched', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+    const { meal: stored } = fixtures.create.meal(fixtures.userA, {
+      type: 'lunch',
+      notes: 'original note',
+    });
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: meal(stored.id),
+      headers: browser(token),
+      payload: { notes: 'updated note' },
+    });
+
+    const body = response.json<MealResponse>();
+    expect(body.type).toBe('lunch');
+    expect(body.notes).toBe('updated note');
+    expect(body.items).toHaveLength(1);
+  });
+
+  it('refuses to remove the last item, suggesting deletion instead', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+    const { meal: stored } = fixtures.create.meal(fixtures.userA);
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: meal(stored.id),
+      headers: browser(token),
+      payload: { items: [] },
+    });
+
+    expect(response.statusCode).toBe(422);
+    const body = problem(response.payload);
+    expect(body.type).toBe('https://portionium.dev/problems/meal-has-no-items');
+    expect(body.detail).toMatch(/delete the meal/i);
+  });
+
+  it('refuses to move a meal further into the future than clock skew excuses', async () => {
+    freezeTime('2026-05-01T12:00:00.000Z');
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+    const { meal: stored } = fixtures.create.meal(fixtures.userA, {
+      loggedAt: new Date('2026-05-01T12:00:00.000Z'),
+    });
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: meal(stored.id),
+      headers: browser(token),
+      payload: { loggedAt: '2026-05-02T00:00:00.000Z' },
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(problem(response.payload).type).toBe(
+      'https://portionium.dev/problems/meal-logged-in-future',
+    );
+  });
+
+  it('answers 404 for a meal id nothing serves, and never touches a foreign meal', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const tokenA = fixtures.create.session(fixtures.userA);
+    const { meal: stored } = fixtures.create.meal(fixtures.userB);
+
+    const ghost = await app.inject({
+      method: 'PATCH',
+      url: meal('0199e0e9-1c4b-7000-8f2c-6e4c1c2a9b31'),
+      headers: browser(tokenA),
+      payload: { notes: 'x' },
+    });
+    const foreign = await app.inject({
+      method: 'PATCH',
+      url: meal(stored.id),
+      headers: browser(tokenA),
+      payload: { notes: 'x' },
+    });
+
+    expect(ghost.statusCode).toBe(404);
+    expect(foreign.statusCode).toBe(404);
+  });
+});
+
+describe('deleting a meal', () => {
+  it('soft deletes, so the meal disappears from the feed and the day it was on', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+    const loggedAt = new Date('2026-04-10T08:00:00.000Z');
+    const { meal: stored } = fixtures.create.meal(fixtures.userA, { loggedAt });
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: meal(stored.id),
+      headers: browser(token),
+    });
+    expect(response.statusCode).toBe(204);
+
+    const day = await app.inject({ url: days('2026-04-10'), headers: browser(token) });
+    expect(day.json<DayResponse>().meals).toHaveLength(0);
+
+    // Already gone counts as nothing to delete, so a second delete is 404 rather than 204 again.
+    const second = await app.inject({
+      method: 'DELETE',
+      url: meal(stored.id),
+      headers: browser(token),
+    });
+    expect(second.statusCode).toBe(404);
+  });
+
+  it('lets a client undo a delete by recreating the meal with the same id', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const food = fixtures.create.food();
+    const token = fixtures.create.session(fixtures.userA);
+    const clientId = '0199e0e9-1c4b-7000-8f2c-6e4c1c2a9b31';
+    const payload = { id: clientId, type: 'lunch', items: [{ foodId: food.id }] };
+
+    const created = await app.inject({
+      method: 'POST',
+      url: MEALS,
+      headers: browser(token),
+      payload,
+    });
+    expect(created.statusCode).toBe(201);
+
+    const deleted = await app.inject({
+      method: 'DELETE',
+      url: meal(clientId),
+      headers: browser(token),
+    });
+    expect(deleted.statusCode).toBe(204);
+
+    // The same request the client would replay to undo its own delete: same id, same payload.
+    const recreated = await app.inject({
+      method: 'POST',
+      url: MEALS,
+      headers: browser(token),
+      payload,
+    });
+
+    expect(recreated.statusCode).toBe(201);
+    expect(recreated.json<MealResponse>().id).toBe(clientId);
+
+    // Live again: a normal read finds it, and a second delete has something to act on.
+    const list = await app.inject({ url: MEALS, headers: browser(token) });
+    expect(list.json<{ items: MealResponse[] }>().items.map((item) => item.id)).toContain(clientId);
+  });
+
+  it('never revives a soft deleted meal for anybody but the account that owned it', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const food = fixtures.create.food();
+    const tokenA = fixtures.create.session(fixtures.userA);
+    const tokenB = fixtures.create.session(fixtures.userB);
+    const { meal: stored } = fixtures.create.meal(fixtures.userA, {
+      items: [{ foodId: food.id }],
+    });
+
+    const deleted = await app.inject({
+      method: 'DELETE',
+      url: meal(stored.id),
+      headers: browser(tokenA),
+    });
+    expect(deleted.statusCode).toBe(204);
+
+    // userB tries to claim userA's now-deleted id as their own new meal.
+    const claimed = await app.inject({
+      method: 'POST',
+      url: MEALS,
+      headers: browser(tokenB),
+      payload: { id: stored.id, type: 'dinner', items: [{ foodId: food.id }] },
+    });
+
+    expect(claimed.statusCode).toBe(409);
   });
 });
 

@@ -103,6 +103,11 @@ const DOMAIN_PROBLEMS: Record<
     title: 'A meal with this id already exists',
     status: 409,
   },
+  meal_logged_in_future: {
+    type: PROBLEM.mealLoggedInFuture,
+    title: 'A meal cannot be logged in the future',
+    status: 422,
+  },
   unknown_food_reference: {
     type: PROBLEM.unknownFoodReference,
     title: 'Unknown food reference',

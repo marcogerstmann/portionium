@@ -8,6 +8,7 @@ import {
   PROBLEM_CONTENT_TYPE,
   problemDetailsSchema,
   toWeightEntryResponse,
+  updateMealRequestSchema,
   type Category,
   type ColourCounts,
   type MealItemResponse,
@@ -25,16 +26,25 @@ import {
 import { findExistingFoodIds } from '../../db/food.js';
 import {
   findItemsForMeals,
+  findMealById,
   findMealsForDay,
   insertMeal,
   listMeals,
+  softDeleteMeal,
+  updateMeal,
   type MealItemRecord,
   type MealRecord,
 } from '../../db/meal.js';
 import { findLatestWeightEntryForDay } from '../../db/weight.js';
 import { resolveClassifications } from '../../domain/classification.js';
-import { DomainError, UnauthenticatedError } from '../../domain/errors.js';
-import { createMeal, type NewMeal } from '../../domain/meal.js';
+import { DomainError, ResourceNotFoundError, UnauthenticatedError } from '../../domain/errors.js';
+import {
+  applyMealChanges,
+  createMeal,
+  type MealChanges,
+  type NewMeal,
+  type ValidatedMealItem,
+} from '../../domain/meal.js';
 import {
   authenticatedProblemResponses,
   idempotencyProblemResponses,
@@ -55,6 +65,16 @@ export interface MealRouteOptions {
 }
 
 const dayParamsSchema = z.strictObject({ date: localDateSchema });
+const idParamsSchema = z.strictObject({ id: z.uuidv7() });
+
+const notFoundResponse = {
+  404: {
+    description: 'No such meal, or it has been deleted, or it belongs to somebody else',
+    content: { [PROBLEM_CONTENT_TYPE]: { schema: problemDetailsSchema } },
+  },
+} as const;
+
+const noContentResponse = { 204: z.null().describe('Deleted') } as const;
 
 /**
  * Spread after the idempotency responses, which already declare a 409 and a 422 of their own.
@@ -71,8 +91,19 @@ const mealWriteConflictResponses = {
   },
   422: {
     description:
-      'The meal has no items, an item names a food id with no live catalog entry, or the ' +
-      'Idempotency-Key was already used for a different request',
+      'The meal has no items, an item names a food id with no live catalog entry, loggedAt is ' +
+      'too far in the future, or the Idempotency-Key was already used for a different request',
+    content: { [PROBLEM_CONTENT_TYPE]: { schema: problemDetailsSchema } },
+  },
+} as const;
+
+/** The 422 half of the same story, for PATCH: there is no id to conflict on, so no 409 here. */
+const mealUpdateProblemResponses = {
+  422: {
+    description:
+      'The edit would leave the meal with no items, an item names a food id with no live ' +
+      'catalog entry, loggedAt is too far in the future, or the Idempotency-Key was already ' +
+      'used for a different request',
     content: { [PROBLEM_CONTENT_TYPE]: { schema: problemDetailsSchema } },
   },
 } as const;
@@ -158,6 +189,35 @@ export const mealRoutes: FastifyPluginCallbackZod<MealRouteOptions> = (app, opti
     return user;
   }
 
+  /** The row, or the one answer a missing, deleted, or foreign meal all get. See requireFood. */
+  function requireMeal(userId: string, id: string): MealRecord {
+    const meal = findMealById(db, userId, id);
+    if (meal === undefined) {
+      throw new ResourceNotFoundError();
+    }
+
+    return meal;
+  }
+
+  /**
+   * Every food an item list names has to be a live catalog entry, on a create and on an edit
+   * alike, so this is shared rather than repeated. Returns the ids it checked, which both
+   * callers already need for resolving colours.
+   */
+  function requireExistingFoods(items: readonly ValidatedMealItem[]): string[] {
+    const foodIds = [...new Set(items.map((item) => item.foodId))];
+    const existingFoodIds = findExistingFoodIds(db, foodIds);
+    const missingFoodIds = foodIds.filter((id) => !existingFoodIds.has(id));
+    if (missingFoodIds.length > 0) {
+      throw new DomainError(
+        'unknown_food_reference',
+        `Unknown food id${missingFoodIds.length > 1 ? 's' : ''}: ${missingFoodIds.join(', ')}.`,
+      );
+    }
+
+    return foodIds;
+  }
+
   /**
    * Two things a page or a day of meals both need: every item across them in one query, and
    * every colour those items resolve to in another, whatever the count of either turns out to
@@ -202,20 +262,11 @@ export const mealRoutes: FastifyPluginCallbackZod<MealRouteOptions> = (app, opti
         items: request.body.items,
       };
 
-      // Throws meal_has_no_items for an empty list and assigns each item's position, see
-      // domain/meal.ts. Runs before anything touches the database, an empty meal is not worth
-      // a food lookup.
+      // Throws meal_has_no_items for an empty list and meal_logged_in_future for a loggedAt
+      // clock skew cannot excuse, and assigns each item's position, see domain/meal.ts. Runs
+      // before anything touches the database, an invalid meal is not worth a food lookup.
       const validated = createMeal(newMeal, user);
-
-      const foodIds = [...new Set(validated.items.map((item) => item.foodId))];
-      const existingFoodIds = findExistingFoodIds(db, foodIds);
-      const missingFoodIds = foodIds.filter((id) => !existingFoodIds.has(id));
-      if (missingFoodIds.length > 0) {
-        throw new DomainError(
-          'unknown_food_reference',
-          `Unknown food id${missingFoodIds.length > 1 ? 's' : ''}: ${missingFoodIds.join(', ')}.`,
-        );
-      }
+      const foodIds = requireExistingFoods(validated.items);
 
       const stored = insertMeal(
         db,
@@ -235,6 +286,107 @@ export const mealRoutes: FastifyPluginCallbackZod<MealRouteOptions> = (app, opti
 
       reply.code(201);
       return toMealResponse(stored.meal, stored.items, resolved);
+    },
+  );
+
+  app.patch(
+    '/meals/:id',
+    {
+      config: { auth: 'write' },
+      schema: {
+        summary: 'Change a meal already logged: its type, notes, loggedAt or item list',
+        params: idParamsSchema,
+        body: updateMealRequestSchema,
+        response: {
+          200: mealResponseSchema,
+          ...authenticatedProblemResponses,
+          ...notFoundResponse,
+          ...idempotencyProblemResponses,
+          ...mealUpdateProblemResponses,
+          ...problemResponses,
+        },
+      },
+    },
+    (request) => {
+      const { userId } = request.auth;
+      const user = requireUser(userId);
+      const meal = requireMeal(userId, request.params.id);
+
+      const changes: MealChanges = {
+        ...(request.body.type === undefined ? {} : { type: request.body.type }),
+        ...(request.body.loggedAt === undefined ? {} : { loggedAt: request.body.loggedAt }),
+        ...(request.body.notes === undefined ? {} : { notes: request.body.notes }),
+        ...(request.body.items === undefined ? {} : { items: request.body.items }),
+      };
+
+      const current: NewMeal = {
+        userId: meal.userId,
+        type: meal.type,
+        loggedAt: meal.loggedAt,
+        ...(meal.notes === null ? {} : { notes: meal.notes }),
+        items: findItemsForMeals(db, [meal.id]).map((item) => ({
+          foodId: item.foodId,
+          ...(item.quantity === null ? {} : { quantity: item.quantity }),
+        })),
+      };
+
+      // Merges the edit into the meal as it stands, then runs the same invariants a create
+      // gets: no empty item list, no loggedAt further into the future than clock skew excuses.
+      // A changed loggedAt lands on a freshly derived localDate, which is what can move the
+      // meal to a different day, and the response below reports it: there is nothing cached
+      // anywhere else that a read of this meal, or of the day it now belongs to, has to catch
+      // up with, every aggregate is computed at read time from this row.
+      const validated = applyMealChanges(current, changes, user);
+      const foodIds = requireExistingFoods(validated.items);
+
+      const updated = updateMeal(db, userId, meal.id, validated.meal, validated.items);
+      if (updated === undefined) {
+        throw new ResourceNotFoundError();
+      }
+
+      const resolved = resolveClassifications(
+        findClassificationsForFoods(db, foodIds, userId),
+        userId,
+      );
+
+      request.log.info(
+        { userId, mealId: meal.id, fields: Object.keys(request.body) },
+        'meal updated',
+      );
+
+      return toMealResponse(updated.meal, updated.items, resolved);
+    },
+  );
+
+  app.delete(
+    '/meals/:id',
+    {
+      config: { auth: 'write' },
+      schema: {
+        summary: 'Soft delete a meal. Recreating it with the same id undoes it, see POST /meals',
+        params: idParamsSchema,
+        response: {
+          ...noContentResponse,
+          ...authenticatedProblemResponses,
+          ...notFoundResponse,
+          ...idempotencyProblemResponses,
+          ...problemResponses,
+        },
+      },
+    },
+    (request, reply) => {
+      const { userId } = request.auth;
+      requireMeal(userId, request.params.id);
+
+      // Already deleted counts as nothing to do, so deleting twice is a 404 rather than a
+      // second success, the same rule softDeleteFood follows.
+      if (!softDeleteMeal(db, userId, request.params.id)) {
+        throw new ResourceNotFoundError();
+      }
+
+      request.log.info({ userId, mealId: request.params.id }, 'meal deleted');
+
+      reply.code(204).send(null);
     },
   );
 

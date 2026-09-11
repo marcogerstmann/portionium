@@ -85,6 +85,11 @@ export const PROBLEM = {
   mealHasNoItems: `${PROBLEM_NAMESPACE}/meal-has-no-items`,
   /** A client supplied a meal id that already belongs to a row. Retry with a new one. */
   mealIdConflict: `${PROBLEM_NAMESPACE}/meal-id-conflict`,
+  /**
+   * `loggedAt` sits further into the future than clock skew accounts for. Backdating is always
+   * allowed, this is the one direction a meal cannot move.
+   */
+  mealLoggedInFuture: `${PROBLEM_NAMESPACE}/meal-logged-in-future`,
   /** An item named a food id the catalog has no live entry for. */
   unknownFoodReference: `${PROBLEM_NAMESPACE}/unknown-food-reference`,
   implausibleWeight: `${PROBLEM_NAMESPACE}/implausible-weight`,

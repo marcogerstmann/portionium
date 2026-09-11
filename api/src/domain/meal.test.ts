@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { DomainError } from './errors.js';
-import { createMeal, type MealDayContext, type NewMeal } from './meal.js';
+import { applyMealChanges, createMeal, type MealDayContext, type NewMeal } from './meal.js';
 
 const USER_ID = '0199e0e9-1c4b-7000-8f2c-6e4c1c2a9b31';
 const PORRIDGE = '0199e0e9-1c4b-7000-8f2c-6e4c1c2a9b32';
@@ -101,5 +101,89 @@ describe('createMeal', () => {
     expect(meal).not.toHaveProperty('items');
     expect(meal.localDate).toBe('2026-09-06');
     expect(meal.userId).toBe(USER_ID);
+  });
+
+  describe('the future', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('lets a loggedAt a moment ahead of now through, for a clock a few minutes fast', () => {
+      vi.useFakeTimers({ now: new Date('2026-09-06T06:30:00.000Z') });
+
+      expect(() =>
+        createMeal({ ...base, loggedAt: new Date('2026-09-06T06:34:00.000Z') }, berliner),
+      ).not.toThrow();
+    });
+
+    it('rejects a loggedAt further into the future than clock skew excuses', () => {
+      vi.useFakeTimers({ now: new Date('2026-09-06T06:30:00.000Z') });
+
+      try {
+        createMeal({ ...base, loggedAt: new Date('2026-09-06T07:00:00.000Z') }, berliner);
+        expect.unreachable('a meal half an hour in the future must not be accepted');
+      } catch (error) {
+        expect(error).toBeInstanceOf(DomainError);
+        expect((error as DomainError).code).toBe('meal_logged_in_future');
+      }
+    });
+
+    it('backdates without limit, only the future direction is guarded', () => {
+      vi.useFakeTimers({ now: new Date('2026-09-06T06:30:00.000Z') });
+
+      expect(() =>
+        createMeal({ ...base, loggedAt: new Date('2020-01-01T00:00:00.000Z') }, berliner),
+      ).not.toThrow();
+    });
+  });
+});
+
+describe('applyMealChanges', () => {
+  const currentItems = [{ foodId: PORRIDGE }, { foodId: BERRIES }];
+  const current: NewMeal = { ...base, items: currentItems };
+
+  it('leaves a field untouched when the edit does not mention it', () => {
+    const { meal, items } = applyMealChanges(current, {}, berliner);
+
+    expect(meal.type).toBe('breakfast');
+    expect(meal.loggedAt).toEqual(base.loggedAt);
+    expect(items.map((item) => item.foodId)).toEqual([PORRIDGE, BERRIES]);
+  });
+
+  it('moves the meal to a different local date when loggedAt crosses the day boundary', () => {
+    // 08:30 UTC in Berlin's summer offset, past the 04:00 boundary on the next calendar day.
+    const { meal } = applyMealChanges(
+      current,
+      { loggedAt: new Date('2026-09-07T06:30:00.000Z') },
+      berliner,
+    );
+
+    expect(meal.localDate).toBe('2026-09-07');
+  });
+
+  it('replaces the whole item list, so add, remove and reorder are one edit', () => {
+    const CHEESE = '0199e0e9-1c4b-7000-8f2c-6e4c1c2a9b34';
+
+    const { items } = applyMealChanges(
+      current,
+      { items: [{ foodId: BERRIES }, { foodId: CHEESE }] },
+      berliner,
+    );
+
+    expect(items.map((item) => [item.foodId, item.position])).toEqual([
+      [BERRIES, 0],
+      [CHEESE, 1],
+    ]);
+  });
+
+  it('rejects removing the last item, with a message that says to delete the meal instead', () => {
+    try {
+      applyMealChanges(current, { items: [] }, berliner);
+      expect.unreachable('removing the last item must not leave an empty meal');
+    } catch (error) {
+      expect(error).toBeInstanceOf(DomainError);
+      expect((error as DomainError).code).toBe('meal_has_no_items');
+      expect((error as DomainError).message).toMatch(/delete the meal/i);
+    }
   });
 });

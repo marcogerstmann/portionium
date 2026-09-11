@@ -1,5 +1,5 @@
 import type { MealType } from '@portionium/schemas';
-import { and, desc, eq, gte, inArray, isNull, lt, lte } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, isNotNull, isNull, lt, lte } from 'drizzle-orm';
 
 import type { ValidatedMeal, ValidatedMealItem } from '../domain/meal.js';
 import type { Db } from './client.js';
@@ -27,10 +27,17 @@ export interface MealListFilters {
  * the items it was created with.
  *
  * `id` is the client's own, for a meal logged offline and synced later, or absent to let the
- * column default mint one. Either way this is the one place an id reaches the table, through
- * `onConflictDoNothing`: a supplied id that already belongs to a row makes the insert affect
- * nothing rather than throw, so the caller reads back undefined and answers a clear conflict
- * instead of silently overwriting somebody's meal.
+ * column default mint one. A supplied id that already belongs to a live row resolves to nothing
+ * rather than throwing, so the caller reads back undefined and answers a clear conflict instead
+ * of silently overwriting somebody's meal.
+ *
+ * A supplied id that belongs to the caller's own soft deleted row is the exception: `set` below
+ * revives it with this call's fields, which is the whole of how a delete is undone. A client
+ * that resends the payload it just deleted, with the id it was given, gets the meal back rather
+ * than a conflict. The `where` on the conflict clause is what keeps that narrow: a live row, or
+ * a soft deleted row belonging to somebody else, is left untouched and resolves to nothing, the
+ * same as `onConflictDoNothing` would, per SQLite's own semantics for a DO UPDATE whose WHERE
+ * does not match.
  */
 export function insertMeal(
   db: Db,
@@ -38,10 +45,25 @@ export function insertMeal(
   items: readonly ValidatedMealItem[],
 ): { meal: MealRecord; items: MealItemRecord[] } | undefined {
   return db.transaction((tx) => {
-    const stored = tx.insert(mealTable).values(meal).onConflictDoNothing().returning().get();
+    const stored = tx
+      .insert(mealTable)
+      .values(meal)
+      .onConflictDoUpdate({
+        target: mealTable.id,
+        set: { ...meal, deletedAt: null },
+        // Two literal conditions, never undefined; the assertion is for exactOptionalPropertyTypes,
+        // which onConflictDoUpdate's config type does not itself account for.
+        where: and(eq(mealTable.userId, meal.userId), isNotNull(mealTable.deletedAt))!,
+      })
+      .returning()
+      .get();
     if (stored === undefined) {
       return undefined;
     }
+
+    // Whatever this id pointed at before is gone either way: nothing for a fresh id, the old
+    // item list for a revived one. A meal is never left holding a mix of the two.
+    tx.delete(mealItemTable).where(eq(mealItemTable.mealId, stored.id)).run();
 
     const storedItems = tx
       .insert(mealItemTable)
@@ -51,6 +73,62 @@ export function insertMeal(
 
     return { meal: stored, items: storedItems };
   });
+}
+
+/** One meal the caller owns and has not deleted, or undefined for a missing or foreign one. */
+export function findMealById(db: Db, userId: string, id: string): MealRecord | undefined {
+  return db
+    .select()
+    .from(mealTable)
+    .where(and(eq(mealTable.id, id), eq(mealTable.userId, userId), isNull(mealTable.deletedAt)))
+    .get();
+}
+
+/**
+ * Replaces a meal's fields and its whole item list in one transaction, the same all-or-nothing
+ * guarantee insertMeal gives a create. Items are deleted and reinserted rather than diffed
+ * against what is already there, which is what lets a caller add, remove and reorder in one
+ * call: the array it sent is the array that ends up stored, position and all.
+ */
+export function updateMeal(
+  db: Db,
+  userId: string,
+  id: string,
+  meal: ValidatedMeal['meal'],
+  items: readonly ValidatedMealItem[],
+): { meal: MealRecord; items: MealItemRecord[] } | undefined {
+  return db.transaction((tx) => {
+    const stored = tx
+      .update(mealTable)
+      .set(meal)
+      .where(and(eq(mealTable.id, id), eq(mealTable.userId, userId), isNull(mealTable.deletedAt)))
+      .returning()
+      .get();
+    if (stored === undefined) {
+      return undefined;
+    }
+
+    tx.delete(mealItemTable).where(eq(mealItemTable.mealId, id)).run();
+    const storedItems = tx
+      .insert(mealItemTable)
+      .values(items.map((item) => ({ ...item, mealId: id })))
+      .returning()
+      .all();
+
+    return { meal: stored, items: storedItems };
+  });
+}
+
+/** False when there was nothing live to delete, so deleting twice is a 404 rather than a 204. */
+export function softDeleteMeal(db: Db, userId: string, id: string): boolean {
+  return (
+    db
+      .update(mealTable)
+      .set({ deletedAt: new Date() })
+      .where(and(eq(mealTable.id, id), eq(mealTable.userId, userId), isNull(mealTable.deletedAt)))
+      .returning({ id: mealTable.id })
+      .get() !== undefined
+  );
 }
 
 /**

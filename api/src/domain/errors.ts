@@ -9,6 +9,7 @@
 export type DomainErrorCode =
   | 'meal_has_no_items'
   | 'meal_id_conflict'
+  | 'meal_logged_in_future'
   | 'unknown_food_reference'
   | 'implausible_weight'
   | 'invalid_credentials'
