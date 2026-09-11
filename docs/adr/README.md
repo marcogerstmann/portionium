@@ -17,3 +17,4 @@ A story with an ADR acceptance criterion is not done until its ADR exists.
 | [005](./005-no-redis-no-metrics-stack.md)      | No Redis, no metrics stack, structured logs only                                           | Accepted |
 | [006](./006-single-foods-table.md)             | Single foods table for ingredients and dishes, no composition                              | Accepted |
 | [007](./007-append-only-classification-log.md) | Append-only classification log with a resolution rule instead of a mutable category column | Accepted |
+| [008](./008-weight-trend-smoothing.md)         | Weight trend smoothing algorithm                                                           | Accepted |

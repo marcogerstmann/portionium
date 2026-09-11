@@ -509,22 +509,23 @@ export const dayResponseSchema = z.object({
 export type DayResponse = z.infer<typeof dayResponseSchema>;
 
 /**
- * Asking how a range of days looked, POR-36. `from` and `to` are both required, unlike a feed's
- * optional bounds: gap filling only means something against an explicit range, there is no
- * "everything" for a chart of days to default to.
+ * Asking about a range of days, which is what every statistic here is asked for. `from` and `to`
+ * are both required, unlike a feed's optional bounds: gap filling and a previous period of equal
+ * length only mean something against an explicit range, and there is no "everything" for a chart
+ * of days to default to.
  *
- * ponytail: no cap on the range beyond `to` not preceding `from`. A day's aggregate is four
- * integers, so even a multi-year request is a few thousand small rows, not a query that widens
+ * ponytail: no cap on the range beyond `to` not preceding `from`. A day's aggregate is a handful
+ * of numbers, so even a multi-year request is a few thousand small rows, not a query that widens
  * with the range. Add a cap if a client ever asks for one nobody meant to send.
  */
-export const statsDaysQuerySchema = z
+export const statsRangeQuerySchema = z
   .strictObject({ from: localDateSchema, to: localDateSchema })
   .refine((query) => query.to >= query.from, {
     message: '`to` must not be before `from`',
     path: ['to'],
   });
 
-export type StatsDaysQuery = z.infer<typeof statsDaysQuerySchema>;
+export type StatsRangeQuery = z.infer<typeof statsRangeQuerySchema>;
 
 /**
  * One day's worth of colour, whether or not anything was logged on it. `counts` is the same
@@ -553,6 +554,85 @@ export type DayColourStats = z.infer<typeof dayColourStatsSchema>;
 export const statsDaysResponseSchema = z.object({ days: z.array(dayColourStatsSchema) });
 
 export type StatsDaysResponse = z.infer<typeof statsDaysResponseSchema>;
+
+/**
+ * One day of the weight line, POR-37.
+ *
+ * `trendKg` is the field a client draws and the one a headline reads from. That ordering is the
+ * product: a daily weight is mostly water, salt and timing, and putting the raw number first is
+ * what makes a good fortnight look like a failure. `rawKg` is carried because somebody wants to
+ * see the dot they stood on the scale for, and it comes last because it is the least useful
+ * number here.
+ *
+ * `trendKg` is null only before the first reading anybody made, never because of a gap: a day
+ * nobody weighed carries the trend forward, see computeWeightTrend in
+ * api/src/domain/weight-trend.ts. `movingAverageKg` has no such memory and is null whenever the
+ * trailing week holds no readings at all.
+ */
+export const weightTrendDaySchema = z.object({
+  date: localDateSchema,
+  trendKg: z.number().positive().nullable(),
+  /** Too few readings behind the value, or too old ones. It is still the best answer available. */
+  lowConfidence: z.boolean(),
+  movingAverageKg: z.number().positive().nullable(),
+  rawKg: z.number().positive().nullable(),
+});
+
+export type WeightTrendDay = z.infer<typeof weightTrendDaySchema>;
+
+/**
+ * Movement across a stretch of days, measured on the trend rather than on the raw readings, so
+ * the answer does not depend on whether the last day of the range happened to be a salty one.
+ *
+ * `from` and `to` are the days actually measured between, the first and last in the stretch that
+ * carry a trend at all, which are not necessarily its edges: a range beginning before anybody
+ * weighed still reports the change over the part that has data, and says which part that was.
+ * All four are null when no day in the stretch had a trend.
+ */
+export const weightTrendChangeSchema = z.object({
+  from: localDateSchema.nullable(),
+  to: localDateSchema.nullable(),
+  changeKg: z.number().nullable(),
+  /** Null when the stretch measured is a single day, where a rate would divide by zero. */
+  changePerWeekKg: z.number().nullable(),
+});
+
+export type WeightTrendChange = z.infer<typeof weightTrendChangeSchema>;
+
+/**
+ * The range measured against the stretch of days before it, already subtracted. A client draws
+ * this, it does not work it out: the comparison is the product's actual claim, and arithmetic
+ * done once on the server cannot be got wrong differently by each client that shows it.
+ *
+ * Both are this period's figure minus the previous period's, so the sign says which way the
+ * movement itself moved. Negative is downward against the period before, a loss that got faster
+ * or a gain that slowed; positive is the reverse; zero is the same rate as before. Null when
+ * either period has no trend behind it, or when either spans a single day and so has no rate.
+ */
+export const weightTrendComparisonSchema = z.object({
+  differenceKg: z.number().nullable(),
+  differencePerWeekKg: z.number().nullable(),
+});
+
+export type WeightTrendComparison = z.infer<typeof weightTrendComparisonSchema>;
+
+/**
+ * One entry per local date in the requested range, oldest first, how the range moved, how the
+ * equally long stretch immediately before it moved, and the difference between the two. That
+ * last one is there because a number of kilos is not an answer on its own: half a kilo down is
+ * good news or bad news depending entirely on what the fortnight before it did.
+ *
+ * Why the smoothing is an exponentially weighted moving average, where the half life comes from,
+ * how gaps are treated and what lag it costs: docs/adr/008-weight-trend-smoothing.md.
+ */
+export const statsWeightResponseSchema = z.object({
+  days: z.array(weightTrendDaySchema),
+  change: weightTrendChangeSchema,
+  previous: weightTrendChangeSchema,
+  versusPrevious: weightTrendComparisonSchema,
+});
+
+export type StatsWeightResponse = z.infer<typeof statsWeightResponseSchema>;
 
 /**
  * Credentials on their way in. The email is normalised by its own schema, so `Foo@Example.com`

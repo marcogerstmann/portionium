@@ -70,6 +70,14 @@ const configSchema = z.object({
    */
   WEIGHT_MAX_DRIFT_PER_DAY: z.coerce.number().min(0).max(1).default(0.02),
   /**
+   * How long it takes a weight reading to lose half its influence on the smoothed trend, in
+   * days. Ten keeps a fortnight of real change visible while a single heavy dinner moves the
+   * line by grams. Lower tracks the scale more closely and reports more noise as progress;
+   * higher is calmer and lags further behind. Why ten, and what it costs, is
+   * docs/adr/008-weight-trend-smoothing.md.
+   */
+  WEIGHT_TREND_HALF_LIFE_DAYS: z.coerce.number().min(1).max(60).default(10),
+  /**
    * Largest request body accepted, in bytes. Anything above it is refused with 413 before the
    * body is read into memory, which is what makes it a limit rather than a check.
    *

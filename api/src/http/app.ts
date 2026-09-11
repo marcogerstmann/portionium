@@ -207,7 +207,10 @@ export async function buildApp({ config, database }: AppDependencies): Promise<F
 
       void v1.register(mealRoutes, { db: database.db });
 
-      void v1.register(statsRoutes, { db: database.db });
+      void v1.register(statsRoutes, {
+        db: database.db,
+        trendHalfLifeDays: config.WEIGHT_TREND_HALF_LIFE_DAYS,
+      });
 
       void v1.register(weightRoutes, {
         db: database.db,

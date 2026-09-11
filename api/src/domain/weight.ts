@@ -42,8 +42,11 @@ export interface WeightEntryResult {
   warning: string | null;
 }
 
-/** Whole days between two calendar dates. Both are plain dates, so no zone is involved. */
-function daysBetween(a: LocalDate, b: LocalDate): number {
+/**
+ * Whole days between two calendar dates. Both are plain dates, so no zone is involved.
+ * Exported for the trend in weight-trend.ts, which derives its smoothing from the same gap.
+ */
+export function daysBetween(a: LocalDate, b: LocalDate): number {
   return Math.abs(Date.parse(a) - Date.parse(b)) / 86_400_000;
 }
 

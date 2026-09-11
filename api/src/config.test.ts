@@ -19,6 +19,7 @@ describe('parseConfig', () => {
       MAX_BODY_BYTES: 1_048_576,
       CORS_ORIGINS: [],
       WEIGHT_MAX_DRIFT_PER_DAY: 0.02,
+      WEIGHT_TREND_HALF_LIFE_DAYS: 10,
     });
   });
 
