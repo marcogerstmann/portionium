@@ -95,6 +95,15 @@ declare module 'fastify' {
      * the API means changing a line in that test on the same commit.
      */
     publicRoutes: ReadonlySet<string>;
+
+    /**
+     * Every route the router knows, as `METHOD /path`, mapped to what it declared about who
+     * may call it. The same collection publicRoutes is drawn from, kept whole rather than
+     * filtered, because the cross-user audit in test/http/isolation.test.ts has to account for
+     * the authenticated routes too: a new endpoint that nobody classified as owned, shared or
+     * personal fails that test on the commit that adds it.
+     */
+    routeAuth: ReadonlyMap<string, RouteAuth>;
   }
 
   interface FastifyRequest {
@@ -211,6 +220,9 @@ export function registerAuth(
   const publicRoutes = new Set<string>();
   app.decorate('publicRoutes', publicRoutes as ReadonlySet<string>);
 
+  const routeAuth = new Map<string, RouteAuth>();
+  app.decorate('routeAuth', routeAuth as ReadonlyMap<string, RouteAuth>);
+
   app.decorateRequest('auth', {
     getter(this: FastifyRequest): AuthContext {
       const context = contexts.get(this);
@@ -236,6 +248,7 @@ export function registerAuth(
 
       if (declared === 'public' || unannotated) {
         publicRoutes.add(key);
+        routeAuth.set(key, 'public');
         continue;
       }
 
@@ -245,6 +258,8 @@ export function registerAuth(
             'is genuinely reachable without a credential.',
         );
       }
+
+      routeAuth.set(key, declared);
     }
   });
 
