@@ -15,12 +15,12 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # Reads the pnpm version from the packageManager field, so it is pinned in one place.
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -68,9 +68,9 @@ jobs:
   restore:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -95,7 +95,7 @@ jobs:
   secrets:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           # Every commit, and every branch tip, which is what the scan below reads.
           fetch-depth: 0
@@ -123,7 +123,7 @@ jobs:
       # Only used on a tag, see the publish step.
       packages: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # QEMU, for whichever half of a release this runner is not. A home deployment may be a
       # Raspberry Pi or a Mac, so amd64 alone is half an answer.
@@ -133,15 +133,15 @@ jobs:
       # only thing that compiles and it takes under a minute even emulated. Native runners per
       # architecture and a manifest merge would be three times the workflow for that, so this
       # stays one job until a release build is actually something you wait on.
-      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-qemu-action@v4
         if: startsWith(github.ref, 'refs/tags/v')
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       # One architecture, loaded into the local daemon, so the steps below can run it. Every
       # push and every pull request, because this is the only thing that proves the image works.
       - name: Build for this machine
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           load: true
@@ -225,7 +225,7 @@ jobs:
 
       - name: Sign in to the registry
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -233,7 +233,7 @@ jobs:
 
       - name: Build and push both architectures
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
