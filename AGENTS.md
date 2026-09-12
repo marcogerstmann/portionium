@@ -28,6 +28,7 @@ pnpm format                 # prettier --write
 pnpm --filter @portionium/api user create --email you@example.com \
   --name "Your Name" --timezone Europe/Berlin   # the first account, see Authentication
 pnpm --filter @portionium/api backup create     # and `backup restore`, see Backups
+pnpm --filter @portionium/web e2e               # builds the client, then Playwright, see Web client
 ```
 
 Or the whole thing in a container, which is what a deployment runs, see Containers:
@@ -54,6 +55,8 @@ api/                @portionium/api, Fastify server and MCP adapter
   seed/             the food catalog that ships with the app, committed
 web/                @portionium/web, the PWA, Vite and React
   src/              app code
+  e2e/              Playwright specs, run against a freshly seeded API instance
+  public/           the icons and anything else copied into the bundle as it stands
 packages/schemas/   @portionium/schemas, Zod schemas shared by both apps
 docs/adr/           architecture decision records
 docs/runbooks/      operational procedures, what to run when something has gone wrong
@@ -817,6 +820,111 @@ something to satisfy, and the tests written to satisfy a gate are the ones that 
 report is there to be read: the useful line is a module showing up as a row of zeroes, not the
 percentage at the bottom. Schema files and the process entry point are excluded, there is nothing
 in them to cover.
+
+## Web client
+
+React and Vite, in `web/`, installable as a PWA and served in production by the API process on
+the origin it already answers on, see Serving the web client above.
+
+There are no hand written request or response types here. Everything on the wire comes from
+`@portionium/schemas`, which is the same definition the server validates and serialises with,
+so a contract change breaks the typecheck on both sides in one commit.
+
+### Talking to the API
+
+One function, `request` in [`web/src/api.ts`](./web/src/api.ts), and every call goes through it.
+It takes the path, the schema the route declares, and optionally a method and a body. The
+response is parsed with that schema rather than cast to it: a server that answers with something
+the contract does not describe fails at the call site, with the field named, instead of handing
+a half shaped object to a component that renders `undefined`.
+
+A non 2xx is an `ApiError` carrying the RFC 9457 problem document whole, so a caller branches on
+`problem.type` from the same union the API is built from. `problem.detail` is written to be shown
+to a person and is the only part safe to put on screen; anything that is not an `ApiError` is a
+network failure or a contract mismatch and gets a generic sentence.
+
+Neither credential nor CSRF header appears in that file, and both are handled. The session
+cookie is `HttpOnly`, so nothing in this app can read it, set it or leak it, and the browser
+attaches it because the request goes to the origin the app was served from. That is also why
+`credentials` is `same-origin` rather than `include`: a cross origin request from this client is
+a bug and not a case to configure for. The API's `Origin` check needs nothing either, because a
+browser sets that header itself on every mutating request and a page cannot forge it.
+
+An unauthenticated response fires `UNAUTHENTICATED_EVENT` on the module's own `EventTarget`, and
+`App` listens for it and renders the login screen. An event rather than a callback threaded
+through the tree, because whatever notices is a fetch buried somewhere, what reacts is the root,
+and the outbox is a third party to the same fact. Reacting is deliberately only that: nothing
+stored is cleared, so a queue of meals written on a train survives signing back in.
+
+### One origin, in both directions
+
+In development the client runs on the Vite dev server and `server.proxy` in
+[`web/vite.config.ts`](./web/vite.config.ts) sends `/api` to the local Fastify instance, so the
+browser sees one origin. In production the API serves the built bundle itself. Development is
+therefore not a configuration the client knows about: the same fetch, the same cookie and the
+same CSRF check work in both, and there is no code path that exists on only one of them.
+
+`WEB_ORIGIN` has to name whatever the browser sees, which is `http://localhost:5173` in
+development and the deployed URL in production. Its scheme also decides whether the session
+cookie is marked `Secure`, see Sessions.
+
+### The service worker and the manifest
+
+`vite-plugin-pwa` in generate mode, configured in the same file. The manifest carries what a
+browser needs before it offers to install anything: a name, a start URL, `display: standalone`,
+a theme colour and icons at 192 and 512. Those two are the mark on nothing, a green disc, which
+is also the favicon. The `maskable` entry is a third file and is opaque on purpose: a launcher
+crops it to the platform's own shape, so the green runs to the edge and the crop is what supplies
+the circle, with the white disc inside the middle 80% the specification reserves. Workbox
+precaches the shell and everything it loads, with `navigateFallback` to `index.html` so a client
+route survives a cold launch, and a denylist for `/api` so a navigation to the API's own paths is
+never answered with this app.
+
+`registerType: 'autoUpdate'`, so a new version installs and takes over on its own. Prompting
+would be a dialog asking somebody to approve a decision they have no information about, on an
+app where every version is the one the API expects. What makes that safe is the cache headers
+the API serves the bundle with, see Serving the web client: hashed assets immutable, the shell
+and the worker revalidated every time.
+
+`navigator.storage.persist()` is requested once at startup, in
+[`web/src/main.tsx`](./web/src/main.tsx). Without it this origin's IndexedDB is best effort and a
+browser under storage pressure may evict it without asking, which for this app is a queue of
+meals somebody logged offline disappearing.
+
+Light and dark follow the system setting and nothing else is themed. `color-scheme: light dark`
+plus `light-dark()` in [`web/src/styles.css`](./web/src/styles.css) is the whole of it, which is
+also what makes form controls, scrollbars and the canvas follow the system without a rule each.
+There is no toggle and no stored preference: a design system invented around one login form is
+one the first real screen throws away.
+
+### Tests
+
+Unit tests are `*.test.ts` beside the code, run by Vitest, and `vite.config.ts` limits its
+`include` to `src/` because Playwright names its files the same way.
+
+The browser tests are in `web/e2e/`, configured by
+[`web/playwright.config.ts`](./web/playwright.config.ts), and the configuration is the harness:
+it deletes the temporary database, creates an account through the `user` CLI with the password
+piped in, and starts the API with `WEB_ROOT` pointing at the bundle just built, in one shell so
+there is no question of what ran first. Chromium, one origin, and a database that did not exist
+a moment earlier.
+
+One origin rather than the dev server with a proxy in front, because the two things worth
+testing end to end are exactly the two a second origin changes: the `SameSite=Lax` cookie and
+the `Origin` check. A harness that quietly ran on two origins would either fail for reasons that
+have nothing to do with the app or pass with those checks turned off.
+
+```sh
+pnpm --filter @portionium/web exec playwright install chromium   # once
+pnpm --filter @portionium/web e2e
+```
+
+The `e2e` job in CI runs the same command on every push. The account it creates lives for the
+length of one run in a database under the system temporary directory, which is why its password
+is written down in the config rather than injected: it is a fixture, not a credential.
+
+Installability is checked by hand against a deployed instance with Lighthouse, because the audit
+wants the real thing over https, see the PWA note in the README. Nothing about it is in CI.
 
 ## Containers
 

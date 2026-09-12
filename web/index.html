@@ -2,7 +2,17 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- viewport-fit=cover, so an installed app fills a notched screen rather than letterboxing. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="A food diary that answers in colours rather than numbers." />
+    <!-- The browser chrome around an installed app. The manifest carries the same value. -->
+    <meta name="theme-color" content="#2f9e44" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <!-- For a browser that has no SVG favicon, which is the only reason to ship a second one. -->
+    <link rel="alternate icon" href="/icon-192.png" type="image/png" />
+    <!-- iOS reads this one, ignores the manifest's icons entirely, and composites anything
+         transparent onto black, so it gets the opaque icon rather than the bare disc. -->
+    <link rel="apple-touch-icon" href="/icon-maskable-512.png" />
     <title>portionium</title>
   </head>
   <body>

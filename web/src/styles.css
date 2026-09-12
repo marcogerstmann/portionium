@@ -1,0 +1,89 @@
+/*
+ * Light and dark follow the system setting and nothing else is themed. There is no toggle, no
+ * stored preference and no palette beyond what is here: this story ships a login screen, and a
+ * design system invented around one form is a design system the first real screen throws away.
+ *
+ * `color-scheme` is what does the work. It tells the browser both schemes are supported, which
+ * makes form controls, scrollbars and the canvas itself follow the system on their own, and it
+ * is what `light-dark()` reads to pick between the two values below.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  --background: light-dark(#ffffff, #14161a);
+  --text: light-dark(#14161a, #eceef2);
+  --muted: light-dark(#5a616b, #a2a9b4);
+  --line: light-dark(#d5d9df, #333840);
+  --brand: light-dark(#2f7a37, #6bcf78);
+  --danger: light-dark(#b3261e, #ff8a80);
+
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--text);
+}
+
+main {
+  margin: 0 auto;
+  max-width: 30rem;
+  padding: 1.5rem;
+}
+
+.centred {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100dvh;
+}
+
+header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+h1 {
+  color: var(--brand);
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+label {
+  margin-top: 0.75rem;
+}
+
+input {
+  border: 1px solid var(--line);
+  border-radius: 0.375rem;
+  font: inherit;
+  padding: 0.625rem;
+}
+
+button {
+  border: 1px solid var(--line);
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font: inherit;
+  margin-top: 1rem;
+  padding: 0.625rem;
+}
+
+p {
+  color: var(--muted);
+}
+
+.error {
+  color: var(--danger);
+  /* Reserved whether or not there is a failure, so the form does not jump when one arrives. */
+  min-height: 1.5rem;
+}
