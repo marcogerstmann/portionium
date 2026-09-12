@@ -286,10 +286,13 @@ The resolved configuration, with anything secret masked, then one line per reque
 
 Then three things by hand, because no command above proves them:
 
-- **Install the app on a phone** from the deployed address and open it from the home screen, once
-  the web client ships a manifest and a service worker. That is the entire reason the deployment
-  needed a certificate, and until then a browser has nothing to offer an install for. Note that
-  no iPhone ever prompts: installing there is Share, then Add to Home Screen.
+- **Install the app on a phone** from the deployed address and open it from the home screen. That
+  is the entire reason the deployment needed a certificate: a browser refuses to register a
+  service worker on an insecure origin, and without one it has nothing to offer an install for.
+  Chrome puts an install icon in the address bar, and no iPhone ever prompts, so installing there
+  is Share, then Add to Home Screen. When no install is offered, DevTools, Application, Manifest
+  lists what is missing. Lighthouse does not answer this any more, its PWA category was removed
+  in version 12.
 - **Get a password wrong five times** and confirm you are refused with a `Retry-After`. That
   counter lives only in this process, so it is worth seeing once on the real machine.
 - **Restore a backup**, following [backup.md](./backup.md). CI proves the commands work; only you
@@ -339,6 +342,14 @@ When it removed something, the old build refuses to start against the newer data
 `/ready` doing its job rather than a bug. There are no down migrations by decision, so the path
 is restore, then downgrade, in that order. It is written out under "Rolling back a bad migration"
 in [backup.md](./backup.md).
+
+The tag does not roll back the service worker. A browser that has loaded the newer client already
+has one installed, and a server cannot take that away, only replace it: the shell is served
+`no-cache`, so the next load revalidates and an `autoUpdate` worker installs whatever that release
+ships. Rolling back to a release that still carries a client therefore corrects itself on a
+reload. Rolling back past the release that introduced one does not, because the older image has no
+worker to replace the newer one, and whoever installed the app keeps running it against an API
+that has moved back underneath them until they clear the site's data.
 
 ### Getting backups off the machine
 
