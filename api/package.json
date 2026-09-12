@@ -17,7 +17,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src test drizzle.config.ts",
     "db:generate": "drizzle-kit generate --name",
-    "user": "tsx src/cli/user.ts"
+    "user": "tsx src/cli/user.ts",
+    "backup": "tsx src/cli/backup.ts"
   },
   "dependencies": {
     "@fastify/static": "10.1.3",

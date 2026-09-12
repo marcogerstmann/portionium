@@ -28,16 +28,28 @@ The password is asked for at the prompt rather than taken as an argument, so it 
 your shell history. Then sign in at http://localhost:8080.
 
 The database is a single SQLite file on the `portionium_data` volume. It survives
-`docker compose down`, a rebuild and an upgrade. Copy it out with the process stopped, because
-the `-wal` sidecar is part of the database and a copy taken mid write is not:
+`docker compose down`, a rebuild and an upgrade.
+
+### Backups
+
+The container backs itself up. Daily, to `/data/backups` on the same volume, with `VACUUM INTO`
+rather than a file copy, keeping seven daily archives, four weekly and three monthly. Nothing to
+configure.
+
+**The restore path is exercised on every push.** The
+[`restore` job in CI](https://github.com/marcogerstmann/portionium/actions/workflows/ci.yml)
+seeds a database, backs it up through the documented command, deletes the file and both its
+sidecars, restores it through the documented command, and then asserts that the account, the
+meal, the row behind its foreign key, the shipped food catalog and the migration count all came
+back. A backup nobody has restored is a hope, not a strategy, and the only honest way to know is
+to destroy a database and bring it back.
+
+Restoring one, rolling back a bad migration and getting a copy off the machine are in
+[docs/runbooks/backup.md](./docs/runbooks/backup.md).
 
 ```sh
-docker compose stop app
-docker run --rm -v portionium_data:/data -v "$PWD:/backup" alpine cp -a /data/. /backup/
-docker compose start app
+docker compose exec app node dist/cli/backup.js list
 ```
-
-Doing that on a schedule, and proving the copy restores, is the backup story.
 
 ### Changing settings
 

@@ -1,4 +1,5 @@
 import { maskedConfig, parseConfig } from './config.js';
+import { createBackupIfDue } from './db/backup.js';
 import { openDatabase } from './db/client.js';
 import { seedFoodCatalog } from './db/seed.js';
 import { buildApp } from './http/app.js';
@@ -55,6 +56,58 @@ try {
   app.log.info(
     `seeded ${seeded.foodsInserted} foods, ${seeded.classificationsInserted} classifications`,
   );
+
+  // The scheduled backup, when this deployment was given somewhere to put one. Here rather than
+  // in a plugin because it is a lifecycle concern and not a request concern: nothing about it
+  // belongs to the HTTP surface, and a test that builds an app should not start writing files.
+  //
+  // Off when BACKUP_DIR is empty, said out loud for the same reason the AI key is: an instance
+  // with no backups is a decision somebody should be able to see in the log rather than discover
+  // after a bad migration. See db/backup.ts for what a backup is and why it is not a file copy.
+  if (config.BACKUP_DIR === '') {
+    app.log.warn('no BACKUP_DIR set, no backups will be taken');
+  } else {
+    const backupOptions = {
+      directory: config.BACKUP_DIR,
+      intervalMs: config.BACKUP_INTERVAL_HOURS * 60 * 60 * 1000,
+      policy: {
+        daily: config.BACKUP_KEEP_DAILY,
+        weekly: config.BACKUP_KEEP_WEEKLY,
+        monthly: config.BACKUP_KEEP_MONTHLY,
+      },
+    };
+
+    const backup = async () => {
+      try {
+        const result = await createBackupIfDue(database.db, backupOptions);
+        if (result !== undefined) {
+          app.log.info(
+            { path: result.backup.path, sizeBytes: result.sizeBytes, pruned: result.pruned },
+            'backup written',
+          );
+        }
+      } catch (error) {
+        // Loud, and at error rather than warn, because the failure mode this module exists to
+        // prevent is a directory of archives nobody checked. The process keeps serving: refusing
+        // to run a food diary because a backup failed would be the worse of the two outcomes.
+        app.log.error({ err: error, directory: config.BACKUP_DIR }, 'backup failed');
+      }
+    };
+
+    // Once now, then on a timer, and the due check in createBackupIfDue is what makes those two
+    // compose: a restart does not take a second backup and a crash loop does not take a hundred.
+    await backup();
+
+    // The interval is the retry as well as the schedule, so it ticks more often than a backup is
+    // due. An hour means a failure gets another go this afternoon instead of tomorrow.
+    const schedule = setInterval(() => void backup(), 60 * 60 * 1000);
+    // unref'd and cleared on close, the same two reasons as the idempotency purge: a process
+    // that is otherwise done should exit, and a shutdown should not wait for a timer.
+    schedule.unref();
+    app.addHook('onClose', () => {
+      clearInterval(schedule);
+    });
+  }
 
   // 0.0.0.0 rather than localhost, because the usual deployment is a container and a server
   // bound to the loopback interface inside one is unreachable from outside it.

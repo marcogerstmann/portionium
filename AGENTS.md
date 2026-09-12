@@ -27,6 +27,7 @@ pnpm format                 # prettier --write
 
 pnpm --filter @portionium/api user create --email you@example.com \
   --name "Your Name" --timezone Europe/Berlin   # the first account, see Authentication
+pnpm --filter @portionium/api backup create     # and `backup restore`, see Backups
 ```
 
 Or the whole thing in a container, which is what a deployment runs, see Containers:
@@ -45,7 +46,7 @@ api/                @portionium/api, Fastify server and MCP adapter
   src/db/           Drizzle schema, migrations, repositories
   src/http/         Fastify app, plugins, routes
   src/mcp/          MCP adapter over the domain services
-  src/cli/          account administration from a terminal
+  src/cli/          account administration and backups, from a terminal
   test/             integration tests that need a database
   test/helpers/     the test database, the factories and the frozen clock
   drizzle/          generated migration files, committed
@@ -55,6 +56,7 @@ web/                @portionium/web, the PWA, Vite and React
   src/              app code
 packages/schemas/   @portionium/schemas, Zod schemas shared by both apps
 docs/adr/           architecture decision records
+docs/runbooks/      operational procedures, what to run when something has gone wrong
 docs/evals/         prompt golden sets and eval results, committed
 ```
 
@@ -631,6 +633,70 @@ sidecars, start the old version.
 
 This is why a migration that drops or rewrites data is worth a second pair of eyes, and why
 `strict` is on in `drizzle.config.ts`, so drizzle-kit asks before generating one.
+
+### Backups
+
+[`api/src/db/backup.ts`](./api/src/db/backup.ts), and one rule decides everything in it: a
+running SQLite database in WAL mode is not its file. Committed data is split between
+`portionium.db` and `portionium.db-wal` until a checkpoint moves it, so `cp portionium.db
+elsewhere` copies a prefix of the truth, takes no lock, and can catch a page mid write. That copy
+usually opens, which is what makes it dangerous rather than merely wrong: it fails on the day it
+is needed. So a backup here is `VACUUM INTO`, which SQLite runs in a read transaction and writes
+as a complete, freshly packed database with no sidecars to remember.
+
+Archives are gzipped and named `portionium-<UTC timestamp>.db.gz`. The timestamp is in the name
+rather than left to the filesystem because an mtime does not survive a copy to object storage or
+an `rsync` somebody forgot the `-a` on, and the name is the one piece of metadata that travels
+with the bytes. It is also what the retention policy reads, so a directory of archives needs no
+index. A file in that directory whose name this module did not write is ignored and never
+deleted.
+
+Retention is grandfather-father-son, `selectExpiredBackups`, and an archive counts in every tier
+it is the newest of, so 7/4/3 keeps about eleven files rather than fourteen. `BACKUP_KEEP_DAILY`
+has a floor of one in the config, and that floor is load bearing: it is what keeps the archive
+just taken out of reach of the policy that runs right after it.
+
+The schedule is in [`api/src/index.ts`](./api/src/index.ts) rather than in a plugin, because it
+is a lifecycle concern and a test that builds an app should not start writing files. It runs at
+startup and hourly, and `createBackupIfDue` is what makes those two compose: it asks the
+directory how old the newest archive is, so a restart does not take a second backup and a crash
+loop does not take a hundred. A daily timer alone would mean an instance redeployed every morning
+never reaches its first tick. Off when `BACKUP_DIR` is empty, which is development and every
+test, and said out loud at warn, because no backups should be a decision somebody can see in the
+log rather than discover afterwards. A failure is logged at error and the process keeps serving:
+refusing to run a food diary because a backup failed is the worse of the two outcomes.
+
+`restoreBackup` does three things a `gunzip` does not, and each is a way this operation fails
+silently otherwise. It removes the target's `-wal` and `-shm`, which belong to the file that used
+to be there and whose pages SQLite would apply on top of the restore. It runs `integrity_check`,
+which reads every page rather than trusting that the file opens. And it opens the result the way
+the application does, so `databaseNotReadyReason` answers whether this build can serve what came
+back. An existing target is refused unless `--force`.
+
+Both halves are a command rather than an endpoint, [`api/src/cli/backup.ts`](./api/src/cli/backup.ts),
+for the same reason account administration is: being on the machine with the file is the
+authorisation, and a route that hands out a copy of the database hands out every account's data
+to whoever finds a way to call it.
+
+```sh
+pnpm --filter @portionium/api backup create
+pnpm --filter @portionium/api backup list
+pnpm --filter @portionium/api backup restore --from data/backups/portionium-...db.gz
+```
+
+The restore path is exercised on every push, by the `restore` job in CI, which runs
+[`api/test/backup.test.ts`](./api/test/backup.test.ts): it seeds a database, backs it up through
+the documented command as a separate process, deletes the file and both sidecars, restores it
+through the documented command, and asserts the account, the meal, the row behind its foreign key,
+the shipped catalog and the migration count. Its own job rather than a step in `verify` because
+the claim in the README has to be a named check a stranger can follow in one click. The commands
+it runs are the runbook's, so a broken command fails there rather than in an incident.
+
+An off-machine copy is documented in the runbook and deliberately not code. `BACKUP_DIR` on the
+volume survives the container, the image and a bad migration, which is what actually goes wrong
+here; the archives are plain files with timestamps in their names, so `rclone` or `restic` on a
+timer is the whole of it and a second implementation of that inside this process would be one
+more thing to page somebody about.
 
 ### Seed catalog
 

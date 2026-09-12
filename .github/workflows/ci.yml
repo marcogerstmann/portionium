@@ -53,6 +53,32 @@ jobs:
           echo "modules cruised: $modules"
           test "$modules" -gt 0
 
+  # The restore path, on every push. A backup that has never been restored is a hope, and this
+  # is the job the README points at when it claims otherwise.
+  #
+  # Its own job rather than a line in `verify`, for one reason: it is a named check somebody can
+  # look at and link to. "The restore is exercised on every push" is a sentence that has to be
+  # verifiable by a stranger in one click, and a step buried in a job called verify is not.
+  #
+  # What it runs is test/backup.test.ts, which seeds a database, backs it up through the
+  # documented command as a separate process, deletes the file along with its -wal and -shm,
+  # restores it through the documented command, and then checks the account, the meal, the
+  # foreign key behind it, the shipped catalog and the migration count. The commands are the
+  # runbook's, not a test harness of their own, so a broken command fails here.
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Back up a seeded database, destroy it, restore it, check the records
+        run: pnpm --filter @portionium/api exec vitest run test/backup.test.ts
+
   # Every commit that has ever been on this branch, scanned for credentials.
   #
   # The whole history rather than the diff, because a secret is in the repository from the
@@ -180,6 +206,15 @@ jobs:
       # difference between a restart and a data loss.
       - name: Check the database landed on the volume
         run: docker run --rm -v portionium-data:/data alpine ls /data/portionium.db
+
+      # And the image took its first backup on the way up, on the same volume. The `restore` job
+      # proves a backup restores; this proves an untouched container actually takes one, which is
+      # a different claim and is one ENV line in the Dockerfile away from being false.
+      - name: Check it backed itself up without being asked
+        run: |
+          set -euo pipefail
+          docker run --rm -v portionium-data:/data alpine \
+            sh -c 'ls /data/backups/portionium-*.db.gz' | grep -q '\.db\.gz$'
 
       - name: The process is not root
         run: test "$(docker exec portionium id -u)" != 0

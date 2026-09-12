@@ -66,6 +66,7 @@ WORKDIR /app
 ENV NODE_ENV=production \
     PORT=3000 \
     DATABASE_PATH=/data/portionium.db \
+    BACKUP_DIR=/data/backups \
     WEB_ROOT=/app/web/dist \
     WEB_ORIGIN=http://localhost:8080
 

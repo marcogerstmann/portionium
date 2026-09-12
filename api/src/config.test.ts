@@ -21,6 +21,11 @@ describe('parseConfig', () => {
       CORS_ORIGINS: [],
       WEIGHT_MAX_DRIFT_PER_DAY: 0.02,
       WEIGHT_TREND_HALF_LIFE_DAYS: 10,
+      BACKUP_DIR: '',
+      BACKUP_INTERVAL_HOURS: 24,
+      BACKUP_KEEP_DAILY: 7,
+      BACKUP_KEEP_WEEKLY: 4,
+      BACKUP_KEEP_MONTHLY: 3,
       AI_API_KEY: '',
     });
   });

@@ -121,6 +121,35 @@ const configSchema = z.object({
         .transform((origins) => origins.map((origin) => new URL(origin).origin)),
     ),
   /**
+   * Directory the scheduled backup writes to. Empty means no backups are taken, which is right
+   * for development and for every test, where the database is a scratch file.
+   *
+   * The container sets it, because a deployment without backups is the failure this whole module
+   * exists to prevent and a default of off in production would be a trap. On the same volume as
+   * the database by default: that survives the container, the image and a bad migration, which
+   * is what actually goes wrong, and not the disk. An off-machine copy is a few lines of cron
+   * next to it, see docs/runbooks/backup.md.
+   */
+  BACKUP_DIR: z.string().default(''),
+  /**
+   * How old the newest archive has to be before another is taken. Checked on a timer and at
+   * startup, against the directory rather than against anything this process remembers, so a
+   * daily instance that is redeployed every morning still gets a backup and one in a crash loop
+   * does not get a hundred. See createBackupIfDue in db/backup.ts.
+   */
+  BACKUP_INTERVAL_HOURS: z.coerce.number().int().min(1).max(168).default(24),
+  /**
+   * How many archives survive, per tier, grandfather-father-son. Seven, four and three is a
+   * fortnight of daily detail, a month of weeks and a quarter of months, for about twelve files.
+   *
+   * `daily` has a floor of one rather than zero, and that floor is load bearing: it is what
+   * keeps the archive that was just taken out of reach of the policy that runs right after it.
+   * The other two tiers may be zero, which switches them off.
+   */
+  BACKUP_KEEP_DAILY: z.coerce.number().int().min(1).max(365).default(7),
+  BACKUP_KEEP_WEEKLY: z.coerce.number().int().min(0).max(52).default(4),
+  BACKUP_KEEP_MONTHLY: z.coerce.number().int().min(0).max(24).default(3),
+  /**
    * The credential for the model that classifies a food nobody in the catalog recognises.
    *
    * Optional, and empty by default, because the catalog answers almost everything and an
