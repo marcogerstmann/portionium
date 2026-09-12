@@ -13,6 +13,7 @@ import type { Config } from '../config.js';
 import type { DatabaseHandle } from '../db/client.js';
 import { createLoginThrottle } from '../domain/auth.js';
 import { createRateLimiter } from '../domain/rate-limit.js';
+import { loggerOptions } from './logging.js';
 import { registerAuth } from './plugins/auth.js';
 import { registerIdempotency } from './plugins/idempotency.js';
 import { registerRateLimit } from './plugins/rate-limit.js';
@@ -21,7 +22,7 @@ import { registerWebApp } from './plugins/static.js';
 import { registerProblemHandlers } from './problem.js';
 import { authRoutes } from './routes/auth.js';
 import { foodRoutes } from './routes/foods.js';
-import { healthRoutes, HEALTH_PATH } from './routes/health.js';
+import { healthRoutes, HEALTH_PATH, READY_PATH } from './routes/health.js';
 import { mealRoutes } from './routes/meals.js';
 import { meRoutes } from './routes/me.js';
 import { statsRoutes } from './routes/stats.js';
@@ -75,7 +76,9 @@ export interface AppDependencies {
  */
 export async function buildApp({ config, database }: AppDependencies): Promise<FastifyInstance> {
   const app = Fastify({
-    logger: { level: config.LOG_LEVEL },
+    // Structured JSON, what a line may never carry, and what a finished request says about
+    // itself. All three are decided in one place, see http/logging.ts.
+    logger: loggerOptions(config.LOG_LEVEL),
     // Behind a proxy this is what makes request.ip and the logged protocol honest.
     trustProxy: true,
     // Refused before the body is read into memory, which is what makes it a limit rather than
@@ -130,7 +133,7 @@ export async function buildApp({ config, database }: AppDependencies): Promise<F
   registerRateLimit(app, {
     limiter: rateLimiter,
     authPathPrefix: `${API_PREFIX}/auth`,
-    exemptPaths: [HEALTH_PATH],
+    exemptPaths: [HEALTH_PATH, READY_PATH],
   });
 
   // Second, so a CORS preflight is answered before anything asks it for a credential it cannot
@@ -182,7 +185,7 @@ export async function buildApp({ config, database }: AppDependencies): Promise<F
   }
 
   // Non-versioned endpoints
-  await app.register(healthRoutes);
+  await app.register(healthRoutes, { db: database.db });
 
   await app.register(
     (v1, _options, done) => {

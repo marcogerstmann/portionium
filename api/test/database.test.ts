@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm';
 import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { databaseNotReadyReason } from '../src/db/client.js';
 import { baseColumns } from '../src/db/schema/base.js';
 import { createTestDatabase, reopenTestDatabase, type TestDatabase } from './helpers/database.js';
 
@@ -151,5 +152,44 @@ describe('openDatabase', () => {
       expect(updated!.createdAt.getTime()).toBe(row!.createdAt.getTime());
       expect(updated!.updatedAt.getTime()).toBeGreaterThan(row!.updatedAt.getTime());
     });
+  });
+});
+
+describe('databaseNotReadyReason', () => {
+  let database: TestDatabase;
+
+  beforeEach(() => {
+    database = createTestDatabase();
+  });
+
+  afterEach(() => {
+    database.close();
+  });
+
+  it('says nothing about a database that is open and fully migrated', () => {
+    expect(databaseNotReadyReason(database.db)).toBeUndefined();
+  });
+
+  it('names the closed connection rather than throwing out of the probe', () => {
+    database.close();
+
+    expect(databaseNotReadyReason(database.db)).toMatch(/did not answer/);
+  });
+
+  /**
+   * What this is actually for. The migrator runs before the listener opens, so a serving
+   * process has migrated something; the question is whether it migrated the file it is now
+   * reading. Removing the last row is what a file migrated by an older build looks like.
+   */
+  it('refuses a schema that is behind the build, which is a file from an older release', () => {
+    // By rowid, not by the table's own id: drizzle declares that column SERIAL, which SQLite
+    // gives numeric affinity rather than treating as a rowid alias, so every value in it is null.
+    database.db.$client
+      .prepare(
+        'delete from __drizzle_migrations where rowid = (select max(rowid) from __drizzle_migrations)',
+      )
+      .run();
+
+    expect(databaseNotReadyReason(database.db)).toMatch(/behind this build/);
   });
 });

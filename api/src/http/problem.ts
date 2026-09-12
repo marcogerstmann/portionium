@@ -134,6 +134,11 @@ const DOMAIN_PROBLEMS: Record<
     title: 'Idempotency-Key reused for a different request',
     status: 422,
   },
+  not_ready: {
+    type: PROBLEM.notReady,
+    title: 'Not ready',
+    status: 503,
+  },
   idempotency_request_in_progress: {
     type: PROBLEM.idempotencyRequestInProgress,
     title: 'Request still in progress',

@@ -223,11 +223,12 @@ credentials by definition and a 401 to it reads as "blocked by CORS" in every co
 `API_PREFIX` in `app.ts` is where `/api/v1` is written down. A future v2 is a second `register`
 call there, not an edit in every route file.
 
-Operational endpoints sit outside it. `GET /health` is unversioned because a version is a promise
-about a contract that can change, and there is no v2 of "is this process alive". Its caller is an
-orchestrator or an uptime monitor, configured once by someone who is not tracking API versions,
-so versioning it means either breaking their probe the day v2 ships or keeping `/api/v1/health`
-alive forever as a fossil. Anything a client negotiates over goes under the prefix.
+Operational endpoints sit outside it. `GET /health` and `GET /ready` are unversioned because a
+version is a promise about a contract that can change, and there is no v2 of "is this process
+alive". Their caller is an orchestrator or an uptime monitor, configured once by someone who is
+not tracking API versions, so versioning them means either breaking their probe the day v2 ships
+or keeping `/api/v1/health` alive forever as a fossil. Anything a client negotiates over goes
+under the prefix.
 
 ### Pagination
 
@@ -332,6 +333,49 @@ cookie depends on.
 runs the `onClose` hook that releases the database file. `index.ts` calls it on SIGTERM and
 SIGINT, once, so a second signal during a slow drain kills the process rather than starting a
 second shutdown.
+
+### Logging and the two probes
+
+Pino, which is Fastify's own logger, writing one JSON object per line to stdout at `LOG_LEVEL`.
+Every request gets an id and a child logger bound to it, so the two lines a request writes and
+every application line in between carry the same `reqId`, and that id is in the body of every
+error response, which is what turns "it broke yesterday afternoon" into one log lookup. Fastify
+logs the status and the duration on the completion line;
+[`api/src/http/logging.ts`](./api/src/http/logging.ts) adds the method and the path to it, so the
+line somebody greps for says what it was a response to.
+
+What a line may never carry is in that same file, as Pino redaction paths, rather than at the
+call sites: passwords, tokens, addresses in full and the content of any prompt sent to a model,
+each matched both bare and one level in. A rule applied where the line is written is a rule every
+line already follows, including the ones nobody has written yet. An address is masked rather than
+dropped, because a burst of failures against one domain is the shape worth noticing, and
+`maskEmail` on an already masked address returns it unchanged, so a call site that masks
+deliberately is not punished for it.
+
+Startup logs the resolved configuration, with any value whose key names a secret replaced. The
+list of such keys is empty today and the match is on the name, so the day an API key for the
+classifier arrives it is masked without anybody remembering, see `maskedConfig`.
+
+An uncaught exception or an unhandled rejection is logged at fatal and ends the process, in
+[`api/src/index.ts`](./api/src/index.ts). Nothing is drained first: a graceful shutdown in a
+state nothing can reason about is how a container hangs instead of restarting.
+
+Two probes, because an orchestrator does two different things with the answers. `GET /health` is
+liveness and deliberately does not touch the database, since a check that fails on a held write
+lock would have the process killed for a condition that clears itself in milliseconds.
+`GET /ready` is readiness and does: one statement that answers both whether the file still
+responds and whether its schema is the one this build ships, see `databaseNotReadyReason` in
+[`api/src/db/client.ts`](./api/src/db/client.ts). That second half looks tautological, since
+migrations run before the listener opens, and it catches the case that is not normal, this
+process talking to a different file than the one it migrated.
+
+Neither probe needs a credential and neither carries a version, a commit, an uptime or any
+configuration. An unauthenticated caller gets a status code; why an instance is not ready names
+a schema version and goes to the log instead. Neither is rate limited either, because a 429 reads
+as a dead process to one caller and as an instance to stop sending traffic to for the other.
+
+Why there is no Prometheus, no OpenTelemetry and no dashboard, and the concrete trigger that
+would change that, is [ADR 005](./docs/adr/005-no-redis-no-metrics-stack.md).
 
 ## Authentication
 

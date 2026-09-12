@@ -124,6 +124,9 @@ jobs:
           set -euo pipefail
           # The API, and the migrations and seed catalog that had to run before it answered.
           curl -fsS http://localhost:8080/health | grep -q '"status":"ok"'
+          # Readiness, which is also the only check that the migration journal shipped in the
+          # image and that the compiled process resolves it from dist/ rather than from src/.
+          curl -fsS http://localhost:8080/ready | grep -q '"status":"ready"'
           # The client, on the same origin, including a route only the client knows about.
           curl -fsS http://localhost:8080/ | grep -qi '<html'
           curl -fsS http://localhost:8080/settings | grep -qi '<html'

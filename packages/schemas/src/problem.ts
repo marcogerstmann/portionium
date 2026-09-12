@@ -97,6 +97,13 @@ export const PROBLEM = {
   /** A favourite with nothing in it. The way out is the same as a meal's: delete it instead. */
   favouriteHasNoItems: `${PROBLEM_NAMESPACE}/favourite-has-no-items`,
   implausibleWeight: `${PROBLEM_NAMESPACE}/implausible-weight`,
+  /**
+   * The readiness probe found this instance unable to serve: the database did not answer, or
+   * its schema is not the one this build expects. Carries no detail, because the only caller is
+   * an orchestrator reading a status code and the detail would describe the deployment to
+   * anybody who asked. What failed is in the log, under the request id.
+   */
+  notReady: `${PROBLEM_NAMESPACE}/not-ready`,
   internalError: `${PROBLEM_NAMESPACE}/internal-error`,
 } as const;
 

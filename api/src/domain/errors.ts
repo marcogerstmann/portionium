@@ -25,7 +25,8 @@ export type DomainErrorCode =
   | 'resource_not_found'
   | 'food_in_use'
   | 'idempotency_key_mismatch'
-  | 'idempotency_request_in_progress';
+  | 'idempotency_request_in_progress'
+  | 'not_ready';
 
 export class DomainError extends Error {
   readonly code: DomainErrorCode;
@@ -236,5 +237,20 @@ export class IdempotencyRequestInProgressError extends DomainError {
       'A request with this Idempotency-Key is still being processed. Retry shortly.',
     );
     this.name = 'IdempotencyRequestInProgressError';
+  }
+}
+
+/**
+ * This instance cannot serve requests. Raised by the readiness probe alone, never by a route
+ * doing work: a request that fails because the database has gone away is a 500 with a stack in
+ * the log, which is the honest answer to an unexpected failure.
+ *
+ * The message is deliberately all a caller is told. Why it is not ready names the database path
+ * and the schema version, which is configuration, so it goes to the log instead. See
+ * databaseNotReadyReason in db/client.ts.
+ */
+export class NotReadyError extends DomainError {
+  constructor() {
+    super('not_ready', 'This instance is not ready to serve requests.');
   }
 }

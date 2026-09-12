@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { parseConfig } from '../../src/config.js';
 import { API_PREFIX, buildApp } from '../../src/http/app.js';
-import { HEALTH_PATH } from '../../src/http/routes/health.js';
+import { HEALTH_PATH, READY_PATH } from '../../src/http/routes/health.js';
 import { createTestFixtures, TEST_PASSWORD, type TestFixtures } from '../helpers/fixtures.js';
 
 /**
@@ -163,11 +163,16 @@ describe('rate limiting', () => {
    * client address every caller shares one IP, so limiting the probe would turn a busy minute
    * into a restart loop.
    */
-  it('never rate limits the liveness probe', async () => {
+  it('never rate limits either probe', async () => {
     const { app } = await buildTestApp({ RATE_LIMIT_READ_PER_MINUTE: '1' });
 
-    for (let probe = 0; probe < 5; probe += 1) {
-      expect((await get(app, HEALTH_PATH)).statusCode).toBe(200);
+    // The readiness probe for the same reason one step further on: a 429 reads as an instance to
+    // stop sending traffic to, so limiting it takes the instance out of rotation during exactly
+    // the busy minute it was coping with.
+    for (const path of [HEALTH_PATH, READY_PATH]) {
+      for (let probe = 0; probe < 5; probe += 1) {
+        expect((await get(app, path)).statusCode).toBe(200);
+      }
     }
   });
 });

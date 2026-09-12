@@ -1,4 +1,4 @@
-import { parseConfig } from './config.js';
+import { maskedConfig, parseConfig } from './config.js';
 import { openDatabase } from './db/client.js';
 import { seedFoodCatalog } from './db/seed.js';
 import { buildApp } from './http/app.js';
@@ -14,6 +14,28 @@ try {
   // Applies any pending migrations before anything else can touch the database.
   const database = openDatabase(config.DATABASE_PATH);
   const app = await buildApp({ config, database });
+
+  // The first line in the log, because the commonest deployment problem is a variable that is
+  // not what somebody thought it was, and a default that quietly applied leaves no trace in the
+  // environment it came from. Secrets are masked by the shape of their name, see maskedConfig.
+  app.log.info({ config: maskedConfig(config) }, 'configuration resolved');
+
+  // A thrown exception nobody caught, or a rejected promise nobody handled, leaves this process
+  // in a state none of the code here can reason about: a request may be half served, a
+  // transaction half open. So it is logged at fatal and the process ends, which lets the
+  // orchestrator restart a healthy one. Draining first is deliberately not attempted, because a
+  // graceful shutdown in an unknown state is how a container hangs instead of restarting.
+  //
+  // Registering these replaces Node's own behaviour rather than adding to it: without them an
+  // unhandled rejection terminates the process with a stack trace on stderr and nothing in the
+  // log, which is the line somebody needs at 09:00 the next morning. Pino's default destination
+  // writes synchronously, so the line is on its way out before exit.
+  for (const event of ['uncaughtException', 'unhandledRejection'] as const) {
+    process.on(event, (cause: unknown) => {
+      app.log.fatal({ err: cause, event }, 'terminating on an unhandled failure');
+      process.exit(1);
+    });
+  }
 
   // Same reasoning as running migrations here: one process, one file, and the loader only
   // writes what is missing, so a restart after adding entries to the catalog is the whole

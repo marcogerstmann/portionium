@@ -1,4 +1,4 @@
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -38,6 +38,17 @@ export interface DatabaseHandle {
  * run from source and from dist/: both sit two levels under api/.
  */
 const migrationsFolder = fileURLToPath(new URL('../../drizzle', import.meta.url));
+
+/**
+ * How many migrations this build of the code ships with, read from the same journal drizzle
+ * itself reads. Read once at import, because the folder is baked into the image and cannot
+ * change while the process runs.
+ */
+const shippedMigrationCount: number = (
+  JSON.parse(
+    readFileSync(new URL('../../drizzle/meta/_journal.json', import.meta.url), 'utf8'),
+  ) as { entries: unknown[] }
+).entries.length;
 
 /**
  * Pragmas that matter for a single file database with more than one reader.
@@ -87,4 +98,42 @@ export function openDatabase(path: string): DatabaseHandle {
       }
     },
   };
+}
+
+/**
+ * Whether this process can still serve, and why not when it cannot. `undefined` means ready.
+ *
+ * Two questions, one statement. The query answers whether the file is still there and
+ * readable, which is the failure a mounted volume actually has: the handle was opened at
+ * startup and a disk that has gone away does not announce itself until somebody reads. The
+ * count answers whether the schema is the one this code was built against.
+ *
+ * That second half looks tautological, since openDatabase migrates before the listener opens,
+ * and for the normal case it is. It catches the case that is not normal: this process talking
+ * to a different file than the one it migrated, a DATABASE_PATH pointing somewhere unexpected
+ * or a volume remounted underneath a running container. A count rather than the hashes,
+ * because the hashes are drizzle's business and a mismatch in them is a migration somebody
+ * hand edited, which is already forbidden.
+ *
+ * The reason it returns is for the log, never for the response: it names a path and a schema
+ * version, and an unauthenticated caller is owed a status code and nothing else. See
+ * routes/health.ts.
+ */
+export function databaseNotReadyReason(db: Db): string | undefined {
+  let applied: number;
+
+  try {
+    applied = db.$client
+      .prepare('select count(*) as count from __drizzle_migrations')
+      .pluck()
+      .get() as number;
+  } catch (error) {
+    return `the database did not answer: ${error instanceof Error ? error.message : String(error)}`;
+  }
+
+  if (applied < shippedMigrationCount) {
+    return `the schema is behind this build, ${applied} of ${shippedMigrationCount} migrations applied`;
+  }
+
+  return undefined;
 }

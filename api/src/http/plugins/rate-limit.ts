@@ -23,10 +23,15 @@ export interface RateLimitPluginOptions {
   /** Requests under this prefix are charged against the stricter auth allowance. */
   authPathPrefix: string;
   /**
-   * Route paths that are never rate limited. One entry, the liveness probe: an orchestrator
-   * reads a 429 as a dead process and restarts it, so limiting the probe turns a busy minute
-   * into a restart loop. Behind a proxy that forgets X-Forwarded-For every caller shares one
-   * IP, which is the case where that would actually happen.
+   * Route paths that are never rate limited. Two entries, the two probes: an orchestrator reads
+   * a 429 from one as a dead process and restarts it, and from the other as an instance to stop
+   * sending traffic to, so limiting either turns a busy minute into an outage. Behind a proxy
+   * that forgets X-Forwarded-For every caller shares one IP, which is the case where that would
+   * actually happen.
+   *
+   * The readiness probe does reach the database, so exempting it leaves one statement anybody
+   * can ask for without limit. It is a count over a table of eight rows in a page the process
+   * has already cached, which is cheaper than the 404 an unrecognised path costs.
    */
   exemptPaths: readonly string[];
 }

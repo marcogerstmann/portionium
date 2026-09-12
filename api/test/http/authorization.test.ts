@@ -121,9 +121,14 @@ describe('the public surface', () => {
    * application is authenticated, so widening this is a line in this file rather than one word
    * on a route that nobody reviews twice.
    */
-  const PUBLIC = ['GET /health', 'POST /api/v1/auth/login', 'GET /api/v1/openapi.json'];
+  const PUBLIC = [
+    'GET /health',
+    'GET /ready',
+    'POST /api/v1/auth/login',
+    'GET /api/v1/openapi.json',
+  ];
 
-  it('is exactly the three endpoints that cannot require a credential', async () => {
+  it('is exactly the four endpoints that cannot require a credential', async () => {
     const app = await buildShippedApp({ API_DOCS_ENABLED: 'false' });
 
     expect([...app.publicRoutes].sort()).toEqual([...PUBLIC].sort());

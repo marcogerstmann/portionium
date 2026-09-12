@@ -1,4 +1,5 @@
 import { compileErrors, validate } from '@readme/openapi-parser';
+import { PROBLEM, PROBLEM_CONTENT_TYPE, type ProblemDetails } from '@portionium/schemas';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -56,6 +57,65 @@ describe('health route', () => {
     const response = await app.inject({ url: '/health?verbose=true' });
 
     expect(response.statusCode).toBe(400);
+  });
+});
+
+describe('readiness route', () => {
+  it('answers ready on a database that is open and migrated', async () => {
+    const { app } = await buildTestApp();
+
+    const response = await app.inject({ url: '/ready' });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ status: 'ready' });
+  });
+
+  /**
+   * The liveness probe does not touch the database, so it still answers here. That difference
+   * is the whole reason there are two of them: this instance should be taken out of rotation,
+   * not restarted.
+   */
+  it('answers 503 once the database has gone away, while liveness still answers 200', async () => {
+    const { app, database } = await buildTestApp();
+
+    database.close();
+
+    const response = await app.inject({ url: '/ready' });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.headers['content-type']).toContain(PROBLEM_CONTENT_TYPE);
+    expect(response.json<ProblemDetails>().type).toBe(PROBLEM.notReady);
+    expect((await app.inject({ url: '/health' })).statusCode).toBe(200);
+  });
+
+  /**
+   * Why it is not ready names the database and the schema version this build expects, which is
+   * configuration, and the caller has no credential. It goes to the log instead, under the
+   * request id this body carries.
+   */
+  it('tells an unauthenticated caller nothing about the deployment', async () => {
+    const { app, database } = await buildTestApp();
+
+    database.close();
+    const response = await app.inject({ url: '/ready' });
+    const problem = response.json<ProblemDetails>();
+
+    expect(problem.requestId).toBeTypeOf('string');
+    expect(response.payload).not.toContain('migration');
+    expect(response.payload).not.toContain('.db');
+    expect(response.payload).not.toContain('sqlite');
+  });
+
+  it('is not versioned either, for the same reason the liveness probe is not', async () => {
+    const { app } = await buildTestApp();
+
+    expect((await app.inject({ url: `${API_PREFIX}/ready` })).statusCode).toBe(404);
+  });
+
+  it('rejects a query parameter it does not declare', async () => {
+    const { app } = await buildTestApp();
+
+    expect((await app.inject({ url: '/ready?verbose=true' })).statusCode).toBe(400);
   });
 });
 
@@ -162,6 +222,7 @@ describe('openapi document', () => {
       `${API_PREFIX}/weight`,
       `${API_PREFIX}/weight/{date}`,
       '/health',
+      '/ready',
     ]);
   });
 

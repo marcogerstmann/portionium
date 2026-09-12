@@ -125,6 +125,28 @@ const configSchema = z.object({
 export type Config = z.infer<typeof configSchema>;
 
 /**
+ * Config keys whose value is a secret and must never be logged. Matched on the name rather
+ * than listed, because the list is empty today: nothing this process reads is a credential.
+ * The day one arrives, an API key for the classifier being the obvious candidate, it is masked
+ * by the name somebody gives it rather than by remembering to add it here.
+ */
+const SECRET_KEY_PATTERN = /KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL/;
+
+/**
+ * The resolved configuration, ready to log. Startup writes this, because the commonest
+ * deployment failure is an environment variable that is not what somebody thinks it is, and a
+ * default that quietly applied is invisible in the environment it came from.
+ */
+export function maskedConfig(config: Config): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(config).map(([key, value]) => [
+      key,
+      SECRET_KEY_PATTERN.test(key) ? '[redacted]' : value,
+    ]),
+  );
+}
+
+/**
  * Validates the process environment. Throws with a readable, multi line message listing
  * every problem at once, rather than failing on the first one and hiding the rest.
  */

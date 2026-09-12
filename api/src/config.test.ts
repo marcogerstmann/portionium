@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseConfig } from './config.js';
+import { type Config, maskedConfig, parseConfig } from './config.js';
 
 describe('parseConfig', () => {
   it('applies defaults when nothing is set', () => {
@@ -63,5 +63,23 @@ describe('parseConfig', () => {
     expect(message).toContain('NODE_ENV');
     expect(message).toContain('LOG_LEVEL');
     expect(message).toContain('.env.example');
+  });
+});
+
+describe('maskedConfig', () => {
+  it('passes the current configuration through untouched, because none of it is a secret', () => {
+    const config = parseConfig({});
+
+    expect(maskedConfig(config)).toEqual({ ...config });
+  });
+
+  it('masks a value whose key names a secret, so the next one added is covered by its name', () => {
+    // Cast because no such variable exists yet. That is the point of matching on the name: the
+    // day an API key for the classifier arrives, it is masked without anybody remembering to
+    // come back here.
+    const config = { ...parseConfig({}), ANTHROPIC_API_KEY: 'sk-ant-real' } as unknown as Config;
+
+    expect(maskedConfig(config).ANTHROPIC_API_KEY).toBe('[redacted]');
+    expect(JSON.stringify(maskedConfig(config))).not.toContain('sk-ant-real');
   });
 });
