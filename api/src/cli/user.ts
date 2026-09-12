@@ -1,4 +1,3 @@
-import { createInterface } from 'node:readline/promises';
 import { parseArgs } from 'node:util';
 
 import { z } from 'zod';
@@ -13,6 +12,7 @@ import {
 } from '@portionium/schemas';
 
 import { parseConfig } from '../config.js';
+import { readPassword } from './prompt.js';
 import {
   countUsers,
   findUserByEmail,
@@ -54,48 +54,6 @@ const USAGE = `Usage:
 The password is read from a prompt, or from stdin when it is piped in.
 The first account on a fresh instance is an admin unless --role says otherwise.
 revoke-tokens kills every API token the account has, see SECURITY.md.`;
-
-/**
- * Reads a password without putting it on the screen.
- *
- * Piped input is taken whole, minus the newline the pipe added, so a script can hand one over
- * without a terminal. At a terminal, readline's echo is switched off and the answer is asked
- * for twice, because a mistyped password nobody can see is a locked out account.
- */
-async function readPassword(): Promise<string> {
-  if (!process.stdin.isTTY) {
-    const chunks: Buffer[] = [];
-    for await (const chunk of process.stdin) {
-      chunks.push(chunk as Buffer);
-    }
-
-    return Buffer.concat(chunks)
-      .toString('utf8')
-      .replace(/\r?\n$/, '');
-  }
-
-  const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true });
-
-  // readline echoes every keystroke it reads. Silencing that method is how a password prompt is
-  // written against this module, and it is why the prompt itself is written to stdout directly.
-  (rl as unknown as { _writeToOutput: () => void })._writeToOutput = () => {};
-
-  try {
-    process.stdout.write('Password: ');
-    const password = await rl.question('');
-    process.stdout.write('\nRepeat: ');
-    const again = await rl.question('');
-    process.stdout.write('\n');
-
-    if (password !== again) {
-      throw new Error('The two passwords do not match.');
-    }
-
-    return password;
-  } finally {
-    rl.close();
-  }
-}
 
 /** Missing rather than empty, so `--email` with nothing after it is an error and not an address. */
 function required(value: string | undefined, flag: string): string {
@@ -152,7 +110,9 @@ try {
       const isFirstAccount = countUsers(database.db) === 0;
       const role = userRoleSchema.parse(values.role ?? (isFirstAccount ? 'admin' : 'user'));
 
-      const passwordHash = await hashPassword(passwordSchema.parse(await readPassword()));
+      const passwordHash = await hashPassword(
+        passwordSchema.parse(await readPassword({ input: process.stdin, output: process.stdout })),
+      );
 
       const user = insertUser(database.db, {
         email,
@@ -170,7 +130,9 @@ try {
         throw new Error(`No account for ${email}.`);
       }
 
-      const passwordHash = await hashPassword(passwordSchema.parse(await readPassword()));
+      const passwordHash = await hashPassword(
+        passwordSchema.parse(await readPassword({ input: process.stdin, output: process.stdout })),
+      );
       const invalidated = setPasswordHash(database.db, user.id, passwordHash);
 
       console.log(

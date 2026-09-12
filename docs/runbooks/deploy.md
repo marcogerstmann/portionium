@@ -183,6 +183,15 @@ anyone could then forge an address and hand themselves a fresh rate limit budget
 proxy on later is fine, but it means restricting port 443 to the CDN's address ranges in the same
 sitting.
 
+**Your provider probably gave you an IPv6 network, not an address.** Hetzner and most others
+hand out a whole `/64`, and a `AAAA` record names one host, so pasting `2a01:…:ed8e::/64` is
+rejected. The address you want is the one actually configured on the interface, conventionally
+the first in the range:
+
+```sh
+ssh portionium ip -6 addr show scope global
+```
+
 **Done when:** `dig +short food.example.com` returns your server's address.
 
 ## Step 4: start the app
