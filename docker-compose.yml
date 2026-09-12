@@ -4,8 +4,9 @@
 #   docker compose --profile caddy up -d    the same, behind https on a real domain
 #
 # Nothing here has to be edited first. Settings go in .env.docker, which mirrors .env.example
-# and is optional, and the two knobs Compose itself needs are read from the environment or from
-# .env with the defaults below.
+# and is optional, and the three knobs Compose itself needs are read from the environment or
+# from .env with the defaults below. Those three are Compose's own and not the app's, which is
+# why they are not in .env.docker: that file is handed to the container, not to Compose.
 
 name: portionium
 
@@ -14,7 +15,14 @@ services:
     build: .
     # A tagged release is published here, so a deployment can pull rather than build. Compose
     # builds from the Dockerfile above when this tag is not already present locally.
-    image: ghcr.io/marcogerstmann/portionium:latest
+    #
+    # PORTIONIUM_TAG is what a deployment pins and what a rollback changes. CI publishes both
+    # :latest and the git tag on a v* push, so `PORTIONIUM_TAG=v0.3.1 docker compose up -d` runs
+    # the release before this one, and a checkout that names nothing gets :latest. Pin it on a
+    # server: :latest makes which version is running a question about when somebody last pulled.
+    # It rolls back the image and nothing else. A migration that dropped a column is a restore,
+    # see docs/runbooks/backup.md.
+    image: ghcr.io/marcogerstmann/portionium:${PORTIONIUM_TAG:-latest}
     restart: unless-stopped
 
     # Optional, and read only if it is there, so a first run needs no file at all. It is where

@@ -1,0 +1,109 @@
+#cloud-config
+#
+# The configuration of the deployment box, in one file. Everything above the operating system is
+# already described by docker-compose.yml and the Caddyfile, so this covers exactly the gap
+# between a fresh Ubuntu image and `docker compose up -d`: a user to log in as, Docker, and the
+# two defaults that are wrong for a machine nobody watches.
+#
+# This is a cloud-init config, which is a format rather than anything this project invented.
+# cloud-init is the init system the distribution's cloud image already ships with: on first boot
+# it reads **user data** from the provider's metadata service and applies it, and the
+# `#cloud-config` line above is what identifies the file as this format. The name of the file is
+# ours and means nothing; the contents are a documented schema.
+#
+# Nothing in this repository reads this file. It is handed to the provider when the server is
+# created, by pasting it into a "user data" or "cloud config" field or with a flag such as
+# Hetzner's `--user-data-from-file`, see docs/runbooks/deploy.md. That is also why it is not
+# specific to one provider: the same file works on Hetzner, DigitalOcean, Vultr, Scaleway or a
+# Proxmox VM at home.
+#
+# There is no Terraform, Pulumi or Ansible here on purpose, see
+# docs/adr/009-hosting-and-deployment.md. One server, one firewall and one DNS record is four
+# resources created once, and a state file describing them would be the least reliable thing in
+# the stack. What is worth writing down is what is *inside* the box, which is this file, and the
+# commands that create it, which are docs/runbooks/deploy.md. Recreating this machine is not the
+# recovery path either way: that is a new box, this file, and `backup restore`.
+
+# Declared explicitly because cloud-init creates users before any package is installed. Without
+# this the user below references a group that does not exist yet and the whole run fails.
+groups:
+  - docker
+
+users:
+  - name: deploy
+    shell: /bin/bash
+    # Honest about what this is: membership of the docker group is root equivalent, since anyone
+    # in it can mount the host filesystem into a container. This is a habit and an audit trail,
+    # not a privilege boundary. The boundary is that only a key opens this machine at all.
+    groups: [docker]
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    # Whose keys open this machine. Copy this file to infra/cloud-init.yaml, which is gitignored,
+    # and paste your own public key here, the same way .env.example becomes .env.
+    #
+    # The placeholder below is deliberately not a working key. Secrecy is not the reason a real
+    # one is absent, a public key is public and GitHub serves everybody's at
+    # github.com/<user>.keys. The reason is that a key committed here would be the repository
+    # owner's, and the next person to deploy this without reading line by line would hand their
+    # new server to a stranger. A default that fails is correct; a default that works for
+    # somebody else is not.
+    #
+    # `ssh_import_id: [gh:your-handle]` instead of this pulls the keys off a GitHub account,
+    # which is less typing and three more ways to go wrong: a fetch over the network during the
+    # first boot, every key on that account rather than the one you meant, and that account's
+    # security deciding who gets in. Root is disabled below either way, so getting this wrong
+    # means the provider's console is the way back in.
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAA_REPLACE_THIS_WITH_YOUR_OWN_PUBLIC_KEY you@your-machine
+
+ssh_pwauth: false
+disable_root: true
+
+write_files:
+  # Docker's default json-file driver rotates nothing. This process writes one JSON line per
+  # request at info, so on a box that is never looked at the logs grow until the disk is full
+  # and SQLite starts failing writes. 50 MiB per container is weeks of history here, which is
+  # what makes `docker compose logs` an answer to "what happened on Tuesday".
+  - path: /etc/docker/daemon.json
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": { "max-size": "10m", "max-file": "5" }
+      }
+
+  # Ubuntu applies security updates unattended already, but never reboots, so a kernel or glibc
+  # fix sits installed and unused until somebody remembers. The application survives the reboot
+  # because every service in the Compose file is `restart: unless-stopped`, and a few seconds of
+  # downtime at half past four is cheaper than tracking CVEs by hand. Time is UTC.
+  - path: /etc/apt/apt.conf.d/52-portionium-reboot
+    content: |
+      Unattended-Upgrade::Automatic-Reboot "true";
+      Unattended-Upgrade::Automatic-Reboot-Time "04:30";
+
+package_update: true
+package_upgrade: true
+
+# From Ubuntu's own repositories rather than piping get.docker.com into a shell. Docker is a few
+# releases behind there, which matters to nothing this runs, and in exchange it is patched by the
+# same unattended-upgrades as everything else instead of by a script nobody runs again.
+# unattended-upgrades is already on the cloud image; naming it makes the drop-in above meaningful
+# if that ever changes.
+packages:
+  - docker.io
+  - docker-compose-v2
+  - unattended-upgrades
+  - git
+
+runcmd:
+  - [systemctl, enable, --now, docker]
+
+# Deliberately not here:
+#
+#   ufw          The provider's own firewall does this outside the VM, where nothing that gets a
+#                shell inside can switch it off, and every provider worth using has one. Two
+#                firewalls is one more chance to lock yourself out and one more place to look
+#                when a port is closed. On a provider with no external firewall, add ufw to the
+#                packages above and open 22, 80 and 443 in runcmd.
+#   fail2ban     Password authentication is off and root is disabled, so the thing it watches
+#                for cannot succeed. It would be a log of failures nobody reads.
+#   the app      Cloning the repository needs decisions this file should not make. It is three
+#                commands in the runbook, run once, by a person who is watching.

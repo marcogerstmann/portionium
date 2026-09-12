@@ -18,3 +18,4 @@ A story with an ADR acceptance criterion is not done until its ADR exists.
 | [006](./006-single-foods-table.md)             | Single foods table for ingredients and dishes, no composition                              | Accepted |
 | [007](./007-append-only-classification-log.md) | Append-only classification log with a resolution rule instead of a mutable category column | Accepted |
 | [008](./008-weight-trend-smoothing.md)         | Weight trend smoothing algorithm                                                           | Accepted |
+| [009](./009-hosting-and-deployment.md)         | Hosting model and deployment target                                                        | Accepted |

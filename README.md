@@ -57,8 +57,9 @@ Every variable and what it does is in [`.env.example`](./.env.example). To chang
 a file called `.env.docker` next to the Compose file and restart. Anything you do not name keeps
 the default baked into the image.
 
-Two knobs belong to Compose rather than to the app, and are read from your environment or from
-`.env`: `PORTIONIUM_PORT` (8080) and `PORTIONIUM_BIND` (`0.0.0.0`).
+Three knobs belong to Compose rather than to the app, and are read from your environment or from
+`.env`: `PORTIONIUM_PORT` (8080), `PORTIONIUM_BIND` (`0.0.0.0`) and `PORTIONIUM_TAG` (`latest`),
+which is the released image to run and the one thing a rollback changes.
 
 ### On a domain, with https
 
@@ -80,6 +81,14 @@ refused.
 
 Released images are published to `ghcr.io/marcogerstmann/portionium`, built for amd64 and
 arm64, so a VPS or a Raspberry Pi pulls rather than builds.
+
+The developer's instance is one 6 euro VPS, created by hand and configured by
+[`infra/cloud-init.example.yaml`](./infra/cloud-init.example.yaml). That file works on any provider whose images
+speak cloud-init, which is all of them, and
+[docs/runbooks/deploy.md](./docs/runbooks/deploy.md) is written for any of them: creating the
+machine, updating it, rolling it back and what to check afterwards. Why one small VPS and not a
+platform, a home device or anything with a state file is
+[ADR 009](./docs/adr/009-hosting-and-deployment.md).
 
 ## Working on it
 

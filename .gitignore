@@ -5,6 +5,12 @@
 *.pem
 *.key
 
+# Your copy of the deployment box's configuration. The committed file is the .example, the same
+# way .env works: the concrete one carries the public key that opens a real machine, and the next
+# person to clone this should get a placeholder that fails rather than one that works for
+# somebody else.
+infra/cloud-init.yaml
+
 # Dependencies and build output
 node_modules/
 dist/
