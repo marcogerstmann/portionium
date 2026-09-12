@@ -13,7 +13,13 @@ import {
 } from '@portionium/schemas';
 
 import { parseConfig } from '../config.js';
-import { countUsers, findUserByEmail, insertUser, setPasswordHash } from '../db/auth.js';
+import {
+  countUsers,
+  findUserByEmail,
+  insertUser,
+  revokeAllApiTokens,
+  setPasswordHash,
+} from '../db/auth.js';
 import { openDatabase } from '../db/client.js';
 import { hashPassword } from '../domain/auth.js';
 
@@ -32,6 +38,7 @@ import { hashPassword } from '../domain/auth.js';
  *
  *   pnpm --filter @portionium/api user create --email a@b.de --name "Ada" --timezone Europe/Berlin
  *   pnpm --filter @portionium/api user passwd --email a@b.de
+ *   pnpm --filter @portionium/api user revoke-tokens --email a@b.de
  *
  * The password is never an argument. Anything on a command line is in the shell history of
  * whoever typed it and in the process list of everybody on the machine while it runs, so it is
@@ -42,9 +49,11 @@ const USAGE = `Usage:
   user create --email <address> --name <display name> --timezone <IANA zone>
               [--role user|admin] [--day-boundary-hour 0-23]
   user passwd --email <address>
+  user revoke-tokens --email <address>
 
 The password is read from a prompt, or from stdin when it is piped in.
-The first account on a fresh instance is an admin unless --role says otherwise.`;
+The first account on a fresh instance is an admin unless --role says otherwise.
+revoke-tokens kills every API token the account has, see SECURITY.md.`;
 
 /**
  * Reads a password without putting it on the screen.
@@ -166,6 +175,20 @@ try {
 
       console.log(
         `Password changed for ${user.email}. ${invalidated} session(s) invalidated, API tokens untouched.`,
+      );
+    } else if (command === 'revoke-tokens') {
+      const user = findUserByEmail(database.db, email);
+      if (user === undefined) {
+        throw new Error(`No account for ${email}.`);
+      }
+
+      // No confirmation prompt. This is the command somebody reaches for while a credential is
+      // believed to be loose, and a script piping into it should not hang on a question; the
+      // damage it does is a script owner minting a new token, which is the point.
+      const revoked = revokeAllApiTokens(database.db, user.id);
+
+      console.log(
+        `Revoked ${revoked} API token(s) for ${user.email}. Sessions untouched, run passwd to end those.`,
       );
     } else {
       throw new Error(`Unknown command "${command}".\n\n${USAGE}`);

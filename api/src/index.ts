@@ -20,6 +20,17 @@ try {
   // environment it came from. Secrets are masked by the shape of their name, see maskedConfig.
   app.log.info({ config: maskedConfig(config) }, 'configuration resolved');
 
+  // Said out loud rather than left to be inferred from the masked line above, which shows every
+  // credential as [redacted] whether or not there is one behind it. An instance without a key
+  // is a working instance: the seeded catalog answers almost everything, and a food nobody
+  // recognises is one somebody classifies themselves. Saying so is what stops that reading as a
+  // broken deployment to whoever finds an unclassified food a fortnight later.
+  app.log.info(
+    config.AI_API_KEY === ''
+      ? 'no AI_API_KEY set, classification of unknown foods is off and the catalog answers alone'
+      : 'AI_API_KEY set, unknown foods will be classified by the model',
+  );
+
   // A thrown exception nobody caught, or a rejected promise nobody handled, leaves this process
   // in a state none of the code here can reason about: a request may be half served, a
   // transaction half open. So it is logged at fatal and the process ends, which lets the

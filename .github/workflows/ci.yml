@@ -33,6 +33,16 @@ jobs:
       - run: pnpm test
       - run: pnpm build
 
+      # Known vulnerabilities in what ships, read from the lockfile that was just installed.
+      #
+      # High and above only, and that threshold is the point rather than a compromise. A gate
+      # that fires on every moderate in a transitive dev dependency is a gate somebody starts
+      # passing with --no-verify and then stops reading, and most of those advisories are a
+      # regular expression that is slow on input this repository never sees. High and critical
+      # are the ones worth stopping a release for, and a moderate that actually matters is still
+      # in the output above, where somebody looks at it on purpose.
+      - run: pnpm audit --audit-level high
+
       # A green depcruise that cruised nothing enforces nothing. Fail loudly instead.
       - name: Assert dependency-cruiser actually saw the sources
         run: |
@@ -42,6 +52,38 @@ jobs:
             'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).summary.totalCruised))')
           echo "modules cruised: $modules"
           test "$modules" -gt 0
+
+  # Every commit that has ever been on this branch, scanned for credentials.
+  #
+  # The whole history rather than the diff, because a secret is in the repository from the
+  # commit that added it until somebody rewrites history, and a later commit removing the line
+  # changes nothing about who can read it. On a repository that goes public that history goes
+  # with it, in every clone.
+  #
+  # Its own job, because it is the only thing here that needs an unshallow clone, and because a
+  # leaked credential is a different answer than a failing test: the first thing to do about it
+  # is rotate, see SECURITY.md, and the red tick should say which of the two happened.
+  #
+  # The binary rather than the marketplace action, which needs a licence key the day this moves
+  # into an organisation. The same scan runs in .githooks/pre-commit before a commit exists.
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Every commit, and every branch tip, which is what the scan below reads.
+          fetch-depth: 0
+
+      - name: Scan the history for secrets
+        run: |
+          set -euo pipefail
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz gitleaks
+          # --redact, so a finding does not become a second copy of the secret in a log that is
+          # public on a public repository and kept for months on a private one.
+          ./gitleaks git --redact --no-banner .
+        env:
+          GITLEAKS_VERSION: 8.30.1
 
   # The image, built the way a deployment builds it and then actually started. A Dockerfile that
   # compiles is not a Dockerfile that runs: the runtime stage ships @portionium/schemas compiled

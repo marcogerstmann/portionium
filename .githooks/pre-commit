@@ -1,0 +1,24 @@
+#!/bin/sh
+# Scans what is about to be committed for anything that looks like a credential, and refuses
+# the commit if it finds one. Enabled by `pnpm install`, which points core.hooksPath here, so
+# nobody has to remember a setup step and there is no hook manager in the dependency tree.
+#
+# A secret that reaches a commit is in the history whether or not the next commit removes it,
+# and on a repository that later goes public it is in every clone of that history. Catching it
+# here is the difference between deleting a line and rotating a credential.
+#
+# The same scan runs in CI over the whole history, which is the half that is actually enforced:
+# this hook is a courtesy to whoever is committing and can be skipped with --no-verify or by
+# not installing gitleaks at all, and CI cannot.
+set -e
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "pre-commit: gitleaks is not installed, skipping the secret scan." >&2
+  echo "            brew install gitleaks   (or see https://github.com/gitleaks/gitleaks)" >&2
+  echo "            CI runs it either way, so a secret committed now fails the push." >&2
+  exit 0
+fi
+
+# --staged is the diff that is about to become a commit, --redact keeps the finding itself out
+# of the terminal scrollback and out of whatever records it.
+gitleaks git --staged --redact --no-banner

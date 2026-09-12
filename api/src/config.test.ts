@@ -21,6 +21,7 @@ describe('parseConfig', () => {
       CORS_ORIGINS: [],
       WEIGHT_MAX_DRIFT_PER_DAY: 0.02,
       WEIGHT_TREND_HALF_LIFE_DAYS: 10,
+      AI_API_KEY: '',
     });
   });
 
@@ -50,6 +51,41 @@ describe('parseConfig', () => {
     expect(() => parseConfig({ NODE_ENV: 'staging' })).toThrow(/NODE_ENV/);
   });
 
+  it('takes the AI key when it is given and defaults it to absent, because it is optional', () => {
+    expect(parseConfig({ AI_API_KEY: 'sk-test' }).AI_API_KEY).toBe('sk-test');
+    expect(parseConfig({}).AI_API_KEY).toBe('');
+  });
+
+  it('refuses to start on plain http against a public host in production', () => {
+    expect(() =>
+      parseConfig({ NODE_ENV: 'production', WEB_ORIGIN: 'http://food.example.com' }),
+    ).toThrow(/WEB_ORIGIN/);
+  });
+
+  it('allows plain http on a local address in production, which is how the image ships', () => {
+    for (const origin of [
+      'http://localhost:8080',
+      'http://127.0.0.1:8080',
+      'http://[::1]:8080',
+      'http://192.168.1.5:8080',
+      'http://10.0.0.4:8080',
+      'http://172.16.0.4:8080',
+      'http://raspberrypi:8080',
+      'http://pi.local:8080',
+    ]) {
+      expect(parseConfig({ NODE_ENV: 'production', WEB_ORIGIN: origin }).WEB_ORIGIN).toBe(origin);
+    }
+  });
+
+  it('allows the same public origin over https, and outside production either way', () => {
+    expect(
+      parseConfig({ NODE_ENV: 'production', WEB_ORIGIN: 'https://food.example.com' }).WEB_ORIGIN,
+    ).toBe('https://food.example.com');
+    expect(
+      parseConfig({ NODE_ENV: 'development', WEB_ORIGIN: 'http://food.example.com' }).WEB_ORIGIN,
+    ).toBe('http://food.example.com');
+  });
+
   it('reports every problem at once, not just the first', () => {
     const message = (() => {
       try {
@@ -67,19 +103,25 @@ describe('parseConfig', () => {
 });
 
 describe('maskedConfig', () => {
-  it('passes the current configuration through untouched, because none of it is a secret', () => {
+  it('passes everything that is not a secret through untouched', () => {
     const config = parseConfig({});
 
-    expect(maskedConfig(config)).toEqual({ ...config });
+    expect(maskedConfig(config)).toEqual({ ...config, AI_API_KEY: '[redacted]' });
+  });
+
+  it('keeps the AI key out of the startup line it is written for', () => {
+    const config = parseConfig({ AI_API_KEY: 'sk-ant-real' });
+
+    expect(maskedConfig(config).AI_API_KEY).toBe('[redacted]');
+    expect(JSON.stringify(maskedConfig(config))).not.toContain('sk-ant-real');
   });
 
   it('masks a value whose key names a secret, so the next one added is covered by its name', () => {
     // Cast because no such variable exists yet. That is the point of matching on the name: the
-    // day an API key for the classifier arrives, it is masked without anybody remembering to
-    // come back here.
-    const config = { ...parseConfig({}), ANTHROPIC_API_KEY: 'sk-ant-real' } as unknown as Config;
+    // day a second credential arrives it is masked without anybody remembering to come here.
+    const config = { ...parseConfig({}), SMTP_PASSWORD: 'hunter2' } as unknown as Config;
 
-    expect(maskedConfig(config).ANTHROPIC_API_KEY).toBe('[redacted]');
-    expect(JSON.stringify(maskedConfig(config))).not.toContain('sk-ant-real');
+    expect(maskedConfig(config).SMTP_PASSWORD).toBe('[redacted]');
+    expect(JSON.stringify(maskedConfig(config))).not.toContain('hunter2');
   });
 });

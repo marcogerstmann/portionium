@@ -4,9 +4,9 @@ import { promisify } from 'node:util';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { findUserByEmail, insertSession } from '../src/db/auth.js';
-import { sessionTable } from '../src/db/schema/index.js';
-import { createSessionToken } from '../src/domain/auth.js';
+import { findUserByEmail, insertApiToken, insertSession } from '../src/db/auth.js';
+import { apiTokenTable, sessionTable } from '../src/db/schema/index.js';
+import { createApiToken, createSessionToken } from '../src/domain/auth.js';
 import { createTestDatabase, type TestDatabase } from './helpers/database.js';
 
 /**
@@ -117,5 +117,52 @@ describe('the user command', () => {
     expect(findUserByEmail(database.db, 'ada@example.test')?.passwordHash).not.toBe(
       ada?.passwordHash,
     );
+  });
+
+  /**
+   * The incident path SECURITY.md documents. A password change deliberately leaves tokens
+   * alone, so without this there is no answer to "revoke everything" that does not involve
+   * opening the database file by hand.
+   */
+  it('revokes every live API token at once and leaves the sessions alone', async () => {
+    database = createTestDatabase();
+    await runUser([
+      'create',
+      '--email',
+      'ada@example.test',
+      '--name',
+      'Ada',
+      '--timezone',
+      'Europe/Berlin',
+    ]);
+
+    const ada = findUserByEmail(database.db, 'ada@example.test');
+    for (const name of ['Deploy script', 'Phone shortcut']) {
+      insertApiToken(database.db, {
+        userId: ada!.id,
+        name,
+        tokenHash: createApiToken().tokenHash,
+        scopes: ['read'],
+        expiresAt: null,
+      });
+    }
+    const { tokenHash, expiresAt } = createSessionToken();
+    insertSession(database.db, { userId: ada!.id, tokenHash, expiresAt });
+
+    const revoked = await runUser(['revoke-tokens', '--email', 'ADA@example.test']);
+
+    expect(revoked.stdout).toContain('Revoked 2 API token(s)');
+    expect(
+      database.db
+        .select()
+        .from(apiTokenTable)
+        .all()
+        .every((token) => token.revokedAt !== null),
+    ).toBe(true);
+    expect(database.db.select().from(sessionTable).all()).toHaveLength(1);
+
+    // Twice is not an error and does not claim to have done anything the second time.
+    const again = await runUser(['revoke-tokens', '--email', 'ada@example.test']);
+    expect(again.stdout).toContain('Revoked 0 API token(s)');
   });
 });

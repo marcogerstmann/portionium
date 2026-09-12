@@ -8,6 +8,7 @@
     "node": ">=24.0.0 <25"
   },
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
     "build": "pnpm -r build",
     "dev": "pnpm --filter @portionium/api dev",
     "dev:web": "pnpm --filter @portionium/web dev",
@@ -17,7 +18,9 @@
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "depcruise": "depcruise api/src packages/schemas/src web/src --config .dependency-cruiser.cjs",
-    "depcruise:graph": "depcruise api/src packages/schemas/src web/src --config .dependency-cruiser.cjs --output-type dot"
+    "depcruise:graph": "depcruise api/src packages/schemas/src web/src --config .dependency-cruiser.cjs --output-type dot",
+    "audit": "pnpm audit --audit-level high",
+    "secrets": "gitleaks git --redact --no-banner"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

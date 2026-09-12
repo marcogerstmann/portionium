@@ -73,4 +73,7 @@ arm64, so a VPS or a Raspberry Pi pulls rather than builds.
 
 Start with [AGENTS.md](./AGENTS.md) for setup, layout and conventions.
 
+[SECURITY.md](./SECURITY.md) is how to report a vulnerability, and the procedures for rotating a
+password, ending every session and revoking API tokens. Worth reading before you need them.
+
 The full README lands with the documentation story.

@@ -288,6 +288,26 @@ export function revokeApiToken(
 }
 
 /**
+ * Revokes every live token an account has, and answers how many that was.
+ *
+ * The incident version of revokeApiToken above. One at a time by their owner is right for
+ * retiring a script; it is the wrong shape at the moment somebody believes a credential has
+ * leaked and does not yet know which, because that is exactly when a list has to be worked
+ * through under pressure. This is the command SECURITY.md points at, run from the machine the
+ * database file is on, which is the same authorisation making the account needed.
+ *
+ * Already revoked rows are left as they are, so the count is tokens that were actually working
+ * a moment ago rather than rows touched, and running it twice reports nothing the second time.
+ */
+export function revokeAllApiTokens(db: Db, userId: string, now: Date = new Date()): number {
+  return db
+    .update(apiTokenTable)
+    .set({ revokedAt: now })
+    .where(and(eq(apiTokenTable.userId, userId), isNull(apiTokenTable.revokedAt)))
+    .run().changes;
+}
+
+/**
  * Sets a new password and ends every session that was opened with the old one, in one
  * transaction, because a password that has been changed while a session it authorised is still
  * live is a password that has not really been changed.

@@ -120,15 +120,89 @@ const configSchema = z.object({
         .array(z.url({ protocol: /^https?$/ }))
         .transform((origins) => origins.map((origin) => new URL(origin).origin)),
     ),
+  /**
+   * The credential for the model that classifies a food nobody in the catalog recognises.
+   *
+   * Optional, and empty by default, because the catalog answers almost everything and an
+   * instance that never reaches the classifier is the behaviour this project claims rather
+   * than a degraded one. Absent means that path is off and the startup log says so, see
+   * index.ts, which is the difference between a feature somebody chose not to configure and
+   * one that is broken.
+   *
+   * It is the first secret this process reads, and it is why SECRET_KEY_PATTERN below exists
+   * rather than being added the day it was needed.
+   */
+  AI_API_KEY: z.string().default(''),
+});
+
+/**
+ * Hosts where plain http is somebody's deliberate local choice rather than a credential on an
+ * untrusted wire: loopback, the private and link local IPv4 ranges, the suffixes a home network
+ * resolves on its own, and anything without a dot in it, which covers a bare hostname and an
+ * IPv6 literal in brackets and cannot be a public name either way.
+ *
+ * ponytail: the ranges written out rather than a CIDR library, they have not moved since 1996.
+ * A deployment on something exotic, a CGNAT range on a mesh VPN say, sets https or an override
+ * we have not needed yet.
+ */
+const PRIVATE_HOST = new RegExp(
+  [
+    '^[^.]+$',
+    '^127\\.',
+    '^10\\.',
+    '^192\\.168\\.',
+    '^172\\.(1[6-9]|2\\d|3[01])\\.',
+    '^169\\.254\\.',
+    '\\.(local|internal|lan|home\\.arpa)$',
+  ].join('|'),
+  'i',
+);
+
+/**
+ * The one configuration that can weaken a session credential, refused in production.
+ *
+ * There is no session secret to check here and there never will be: a session token is 32 bytes
+ * from a CSPRNG, stored as a SHA-256 of itself, so there is no key shared between sessions that
+ * could be left at a default or set to something guessable. See domain/auth.ts.
+ *
+ * What is left is the scheme of WEB_ORIGIN, because the session cookie's `Secure` flag follows
+ * it, see http/plugins/auth.ts. Plain http against a public host in production is therefore an
+ * `HttpOnly` cookie travelling in clear across whatever is between the browser and the server,
+ * which is the modern shape of the mistake the weak secret check was invented for, and the
+ * process refuses to start on it rather than serving an instance whose sessions can be read off
+ * a shared network.
+ *
+ * Loopback and private addresses are allowed and deliberately so. The image ships
+ * WEB_ORIGIN=http://localhost:8080 so that `docker run` with no environment at all is a working
+ * instance, and the deployment this project is actually for is a machine on a home network. A
+ * check that refused those would be a check somebody switches off.
+ */
+const productionOrigin = configSchema.superRefine((config, ctx) => {
+  if (config.NODE_ENV !== 'production') {
+    return;
+  }
+
+  const { protocol, hostname } = new URL(config.WEB_ORIGIN);
+  if (protocol === 'http:' && !PRIVATE_HOST.test(hostname)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['WEB_ORIGIN'],
+      message:
+        `${config.WEB_ORIGIN} is plain http against a public host in production. The session ` +
+        'cookie is marked Secure only when this is https, so every sign in would cross the ' +
+        'network in clear. Serve it over https, the caddy profile in docker-compose.yml does ' +
+        'that on its own, or name the private address if this instance is only reachable on a ' +
+        'local network.',
+    });
+  }
 });
 
 export type Config = z.infer<typeof configSchema>;
 
 /**
- * Config keys whose value is a secret and must never be logged. Matched on the name rather
- * than listed, because the list is empty today: nothing this process reads is a credential.
- * The day one arrives, an API key for the classifier being the obvious candidate, it is masked
- * by the name somebody gives it rather than by remembering to add it here.
+ * Config keys whose value is a secret and must never be logged. Matched on the name rather than
+ * listed, which is why AI_API_KEY arrived masked without anybody editing this line, and why the
+ * next credential will too.
  */
 const SECRET_KEY_PATTERN = /KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL/;
 
@@ -151,7 +225,7 @@ export function maskedConfig(config: Config): Record<string, unknown> {
  * every problem at once, rather than failing on the first one and hiding the rest.
  */
 export function parseConfig(env: NodeJS.ProcessEnv): Config {
-  const result = configSchema.safeParse(env);
+  const result = productionOrigin.safeParse(env);
   if (result.success) {
     return result.data;
   }

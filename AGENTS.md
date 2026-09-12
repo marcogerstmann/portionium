@@ -6,6 +6,12 @@ Read this before changing anything. Conventions live here so they are not re-exp
 
 Node comes from `.nvmrc`, pnpm from the `packageManager` field via Corepack (`corepack enable`).
 
+`pnpm install` also points `core.hooksPath` at [`.githooks/`](./.githooks), whose `pre-commit`
+scans the staged diff for credentials with [gitleaks](https://github.com/gitleaks/gitleaks).
+Install it (`brew install gitleaks`) or the hook stands aside with a message; the same scan runs
+over the whole history in CI either way. What counts as a secret here, and what to do when one
+gets out, is [SECURITY.md](./SECURITY.md).
+
 ```sh
 pnpm install
 cp .env.example .env
@@ -538,6 +544,7 @@ same authorisation restoring a backup needs.
 ```sh
 pnpm --filter @portionium/api user create --email a@b.de --name "Ada" --timezone Europe/Berlin
 pnpm --filter @portionium/api user passwd --email a@b.de
+pnpm --filter @portionium/api user revoke-tokens --email a@b.de
 ```
 
 The first account on a fresh instance is an admin unless `--role` says otherwise, because there
@@ -552,7 +559,9 @@ the plugin already enforces. The functions such a route would call are already i
 Changing a password ends every session opened with the old one, in the same transaction. API
 tokens are deliberately left alone: they are a credential a user issued on purpose to a script
 that is not sitting at the keyboard, and revoking them as a side effect of good hygiene breaks
-automation. They are revoked one at a time, by their owner.
+automation. They are revoked one at a time, by their owner, or all at once with `revoke-tokens`
+above, which is the incident command and not the everyday one. Which credential to rotate when,
+and in what order, is [SECURITY.md](./SECURITY.md).
 
 ### The account over HTTP
 
