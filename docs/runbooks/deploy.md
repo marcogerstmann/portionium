@@ -286,8 +286,10 @@ The resolved configuration, with anything secret masked, then one line per reque
 
 Then three things by hand, because no command above proves them:
 
-- **Install the app on a phone** from the deployed address and open it from the home screen. This
-  is the entire reason the deployment needed a certificate.
+- **Install the app on a phone** from the deployed address and open it from the home screen, once
+  the web client ships a manifest and a service worker. That is the entire reason the deployment
+  needed a certificate, and until then a browser has nothing to offer an install for. Note that
+  no iPhone ever prompts: installing there is Share, then Add to Home Screen.
 - **Get a password wrong five times** and confirm you are refused with a `Retry-After`. That
   counter lives only in this process, so it is worth seeing once on the real machine.
 - **Restore a backup**, following [backup.md](./backup.md). CI proves the commands work; only you
