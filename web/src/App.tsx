@@ -240,7 +240,7 @@ export function App() {
         <Stats user={user} active={tab === 'stats'} />
       </div>
       <div hidden={tab !== 'settings'} className={CLEAR_TAB_BAR}>
-        <Settings user={user} onSignedOut={() => applyUser(undefined)} />
+        <Settings user={user} onUserChange={applyUser} onSignedOut={() => applyUser(undefined)} />
       </div>
 
       {!composing && <TabBar tab={tab} onChange={setTab} />}

@@ -63,6 +63,18 @@ export const de: typeof en = {
 
   settingsTitle: 'Einstellungen',
   settingsSignOut: 'Abmelden',
+  settingsLanguage: 'Sprache',
+  settingsLanguageAuto: 'Wie im Browser',
+  settingsDisplayName: 'Anzeigename',
+  settingsTimezone: 'Zeitzone',
+  settingsDayBoundaryHour: 'Tagesgrenze',
+  settingsDayBoundaryHelp: 'Eine Mahlzeit, die um 01:00 Uhr eingetragen wird, zählt zum Vortag.',
+  settingsPasswordTitle: 'Passwort ändern',
+  settingsCurrentPassword: 'Aktuelles Passwort',
+  settingsNewPassword: 'Neues Passwort',
+  settingsPasswordWarning:
+    'Das beendet jede Sitzung, auch diese hier, und meldet dich ab. API-Tokens sind davon nicht betroffen.',
+  settingsChangingPassword: 'Passwort wird geändert',
 
   composeMealTypeGroup: 'Mahlzeitentyp',
   composeTitle: 'Mahlzeit hinzufügen',

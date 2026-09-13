@@ -63,6 +63,18 @@ export const en = {
 
   settingsTitle: 'Settings',
   settingsSignOut: 'Sign out',
+  settingsLanguage: 'Language',
+  settingsLanguageAuto: 'Follow browser',
+  settingsDisplayName: 'Display name',
+  settingsTimezone: 'Timezone',
+  settingsDayBoundaryHour: 'Day boundary hour',
+  settingsDayBoundaryHelp: 'A meal logged at 01:00 counts towards the previous day.',
+  settingsPasswordTitle: 'Change password',
+  settingsCurrentPassword: 'Current password',
+  settingsNewPassword: 'New password',
+  settingsPasswordWarning:
+    'This ends every session, including this one, and signs you out. API tokens are not affected.',
+  settingsChangingPassword: 'Changing password',
 
   composeMealTypeGroup: 'Meal type',
   composeTitle: 'Add a meal',

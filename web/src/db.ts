@@ -406,6 +406,16 @@ async function trimDays(): Promise<void> {
   }
 }
 
+/**
+ * Every cached day, gone. See POR-67: the local date of everything already logged is derived
+ * from the timezone and the day boundary hour together, so changing either makes every date
+ * already on the device a potentially wrong one. There is no repair for a cached day, only a
+ * refetch, and the next visit to one already does that, see `load` in today.tsx.
+ */
+export async function invalidateDays(): Promise<void> {
+  await database.days.clear();
+}
+
 /** The frequent foods on the device, in the order the server ranked them. */
 export async function cachedFoods(): Promise<FoodResponse[]> {
   return (await database.foods.orderBy('rank').toArray()).map((cached) => cached.food);

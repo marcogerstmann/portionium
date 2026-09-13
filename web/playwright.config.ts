@@ -57,6 +57,7 @@ export const ACCOUNTS = {
   today: fixture('today'),
   compose: fixture('compose'),
   statistics: fixture('statistics'),
+  settings: fixture('settings'),
 };
 
 /**
