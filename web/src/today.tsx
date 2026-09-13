@@ -232,15 +232,12 @@ function Weight({
   day,
   weight,
   pending,
-  onEnter,
   onRecord,
 }: {
   day: DayResponse;
   /** The last thing the server said about the trend, or nothing on a device that never asked. */
   weight: StatsWeightResponse | undefined;
   pending: boolean;
-  /** Before the field opens, because a reading is stamped with this clock. See the call site. */
-  onEnter: () => void;
   onRecord: (weightKg: number) => void;
 }) {
   const [entering, setEntering] = useState(false);
@@ -268,14 +265,7 @@ function Weight({
 
   if (!entering) {
     return (
-      <button
-        type="button"
-        className="row"
-        onClick={() => {
-          onEnter();
-          setEntering(true);
-        }}
-      >
+      <button type="button" className="row" onClick={() => setEntering(true)}>
         <span>Weight</span>
         <span className="hint">Add</span>
       </button>
@@ -507,7 +497,7 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
   // After every hook, so the hook order is the same on every branch. The day behind these is
   // left mounted in state rather than unwound: closing one is a render, not a reload.
   if (screen === 'compose') {
-    return <Compose user={user} onDone={() => setScreen('day')} />;
+    return <Compose user={user} date={date} onDone={() => setScreen('day')} />;
   }
 
   if (screen === 'stats') {
@@ -545,17 +535,7 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
 
       <Rejected entries={queue.failed} onDiscard={(key) => void discardWrite(key)} />
 
-      <button
-        type="button"
-        className="save"
-        onClick={() => {
-          // A meal is stamped with this clock, so it lands on today whichever day is being read.
-          // Paging first is what keeps the screen honest about where it went, rather than logging
-          // to a day the person is not looking at.
-          setDate(today);
-          setScreen('compose');
-        }}
-      >
+      <button type="button" className="save" onClick={() => setScreen('compose')}>
         Add a meal
       </button>
 
@@ -607,12 +587,7 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
         day={day}
         weight={weight}
         pending={queue.pending.has(weightSubject(date))}
-        // A reading is stamped with this clock, so it lands on today whichever day is being
-        // read, exactly as a meal is. Paging first is what keeps the screen honest about where
-        // it went: without it, recording from a day in the past leaves that day still saying
-        // "Add" while the value quietly appears on today. See logWeight.
-        onEnter={() => setDate(today)}
-        onRecord={(weightKg) => void logWeight(user, weightKg)}
+        onRecord={(weightKg) => void logWeight(user, weightKg, date)}
       />
 
       {/* The way to the other screen, as a row like the one above it rather than a tab bar: two

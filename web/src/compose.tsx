@@ -2,6 +2,7 @@ import {
   foodResponseSchema,
   MEAL_TYPES,
   type FoodResponse,
+  type LocalDate,
   type MealType,
   type UserResponse,
 } from '@portionium/schemas';
@@ -86,9 +87,12 @@ function MealTypes({ chosen, onChoose }: { chosen: MealType; onChoose: (type: Me
 
 export function Compose({
   user,
+  date,
   onDone,
 }: {
   user: UserResponse;
+  /** The day this meal is logged for, whichever day was on screen when this opened. */
+  date: LocalDate;
   /** Back to the day. Called whether the meal was saved or abandoned. */
   onDone: () => void;
 }) {
@@ -348,7 +352,7 @@ export function Compose({
         onClick={() => {
           // Not awaited, and that is the contract: the meal is durable once ./outbox.ts has it
           // in IndexedDB, and the day behind this screen already shows it.
-          void logMeal(user, { type, foods: chosen });
+          void logMeal(user, { type, foods: chosen }, date);
           onDone();
         }}
       >

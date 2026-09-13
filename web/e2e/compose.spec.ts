@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { localDateFor, shiftDate } from '../src/db';
 import { ACCOUNTS } from '../playwright.config';
 
 /** This file's own account, so nothing another spec logs is visible here. See ACCOUNTS. */
@@ -36,14 +37,15 @@ const API = '/api/v1';
  */
 const OFFLINE_FOODS = ['Aubergine', 'Blumenkohl', 'Brokkoli'];
 const KEYBOARD_FOODS = ['Camembert', 'Couscous'];
+const PAST_DAY_FOOD = 'Erdbeere';
 
 /**
- * The weight the offline test records. Nothing else in this file records one, so the count below
- * would hold either way; it is named for the same reason the foods are, so that adding a second
- * weight-writing test here is a claim somebody has to make rather than a count that quietly
- * starts passing for the wrong reason.
+ * The weights this file records, one per test that records one, for the same reason the foods
+ * above are claimed: a count that is only right because nothing else in the file writes one is a
+ * count that quietly starts passing for the wrong reason once something else does.
  */
 const OFFLINE_WEIGHT = 79.3;
+const PAST_DAY_WEIGHT = 68.4;
 
 interface LoggedMeal {
   id: string;
@@ -266,4 +268,61 @@ test('logs three meals and a weight with no network and drains them exactly once
   // The server's copy afterwards, not the optimistic one, which a reload is what tells apart.
   await page.reload();
   await expect(page.getByText(`${OFFLINE_WEIGHT} kg`)).toBeVisible();
+});
+
+/**
+ * POR-62: both writes used to be stamped with this clock regardless of the day on screen, which
+ * put a backdated meal or weight on today and forced a page back to today to hide it. See
+ * outbox.ts's logMeal and logWeight.
+ */
+test('composing a meal and recording a weight on a past day files both there, not on today', async ({
+  page,
+}) => {
+  await signIn(page);
+
+  const me = await page.request.get(`${API}/me`);
+  const { timezone, dayBoundaryHour } = (await me.json()) as {
+    timezone: string;
+    dayBoundaryHour: number;
+  };
+  const today = localDateFor(new Date(), timezone, dayBoundaryHour);
+  const yesterday = shiftDate(today, -1);
+
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.getByRole('heading', { name: 'Yesterday' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Add a meal' }).click();
+  await addFood(page, PAST_DAY_FOOD);
+  await page.getByRole('button', { name: /^Log / }).click();
+
+  // Back on the day the composer was opened from, not paged to today, see today.tsx.
+  await expect(page.getByRole('heading', { name: 'Yesterday' })).toBeVisible();
+
+  await page.getByRole('button', { name: /Weight/ }).click();
+  await page.getByLabel('Weight in kg').fill(String(PAST_DAY_WEIGHT));
+  await page.getByRole('button', { name: 'Save' }).click();
+
+  await expect(page.getByText(`${PAST_DAY_WEIGHT} kg`)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Yesterday' })).toBeVisible();
+
+  const [foodId] = await foodIds(page, [PAST_DAY_FOOD]);
+
+  const yesterdayResponse = await page.request.get(`${API}/days/${yesterday}`);
+  const yesterdayBody = (await yesterdayResponse.json()) as {
+    meals: { items: { foodId: string }[] }[];
+    weightEntry: { weightKg: number } | null;
+  };
+
+  expect(
+    yesterdayBody.meals.some((meal) => meal.items.some((item) => item.foodId === foodId)),
+  ).toBe(true);
+  expect(yesterdayBody.weightEntry?.weightKg).toBe(PAST_DAY_WEIGHT);
+
+  const todayResponse = await page.request.get(`${API}/days/${today}`);
+  const todayBody = (await todayResponse.json()) as typeof yesterdayBody;
+
+  expect(todayBody.meals.some((meal) => meal.items.some((item) => item.foodId === foodId))).toBe(
+    false,
+  );
+  expect(todayBody.weightEntry?.weightKg).not.toBe(PAST_DAY_WEIGHT);
 });

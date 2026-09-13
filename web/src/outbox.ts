@@ -5,6 +5,7 @@ import {
   type LocalDate,
   type MealResponse,
   type MealType,
+  type Timezone,
   type UserResponse,
   type WeightEntryResponse,
 } from '@portionium/schemas';
@@ -151,13 +152,73 @@ export function classifyAttempt(cause: unknown): AttemptOutcome {
 }
 
 /**
+ * The instant to stamp a write with, for whichever day is being viewed.
+ *
+ * Today needs no reconstruction: `new Date()` already falls inside today's boundaries, see
+ * localDateFor, and using it verbatim is what keeps a meal's precise time meaningful. A past day
+ * has no real instant to read, so this manufactures one that localDateFor's own rule (an hour at
+ * or past the boundary stays on that calendar date) is guaranteed to place back on `date`: the
+ * boundary hour itself, in the user's timezone.
+ *
+ * `zonedInstant` is the one piece of arithmetic that needs, and Intl.DateTimeFormat has no
+ * reverse direction to lean on: it guesses the instant as if the wall clock read UTC and
+ * corrects for whatever offset the zone actually carries there. One correction is enough for a
+ * boundary hour; the only way it is wrong is a DST transition landing on this exact hour, which
+ * is rare enough that a second pass is not worth carrying.
+ */
+export function instantFor(date: LocalDate, timezone: Timezone, boundaryHour: number): Date {
+  const now = new Date();
+
+  if (localDateFor(now, timezone, boundaryHour) === date) {
+    return now;
+  }
+
+  return zonedInstant(date, boundaryHour, timezone);
+}
+
+/** The instant whose wall clock in `timezone` reads `hour`:00:00 on `date`. */
+function zonedInstant(date: LocalDate, hour: number, timezone: Timezone): Date {
+  const guess = new Date(`${date}T${String(hour).padStart(2, '0')}:00:00Z`);
+
+  return new Date(guess.getTime() - offsetMinutes(guess, timezone) * 60_000);
+}
+
+/** How far `timezone`'s wall clock at `instant` sits ahead of UTC, in minutes. */
+function offsetMinutes(instant: Date, timezone: Timezone): number {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(instant);
+
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((candidate) => candidate.type === type)?.value ?? 0);
+
+  const wallClockAsUtc = Date.UTC(
+    part('year'),
+    part('month') - 1,
+    part('day'),
+    part('hour'),
+    part('minute'),
+    part('second'),
+  );
+
+  return (wallClockAsUtc - instant.getTime()) / 60_000;
+}
+
+/**
  * Log a meal. Durable when this resolves, sent whenever the network allows.
  *
  * The returned meal is what the screen renders and what goes into the cached day, ids and all.
  * It is a prediction of the row the server will hold, and every part of it is decided here: the
- * id is minted here, the instant is this clock's, the local date is derived with the same rule
- * the server derives it with, see localDateFor, and the colours come from the entries the
- * caller picked.
+ * id is minted here, the local date is the one the caller is looking at, the instant is derived
+ * from it rather than read off this clock, see instantFor, and the colours come from the entries
+ * the caller picked.
  *
  * The whole catalog entry is taken rather than its id, which is what makes that last part true.
  * A food is chosen from a search result or from the cache, so the colour resolved for this user
@@ -169,9 +230,9 @@ export function classifyAttempt(cause: unknown): AttemptOutcome {
 export async function logMeal(
   user: UserResponse,
   meal: { type: MealType; foods: readonly FoodResponse[]; notes?: string },
+  date: LocalDate,
 ): Promise<MealResponse> {
-  const loggedAt = new Date();
-  const date = localDateFor(loggedAt, user.timezone, user.dayBoundaryHour);
+  const loggedAt = instantFor(date, user.timezone, user.dayBoundaryHour);
 
   const optimistic: MealResponse = {
     id: uuidv7(),
@@ -223,9 +284,9 @@ export async function logMeal(
 export async function logWeight(
   user: UserResponse,
   weightKg: number,
+  date: LocalDate,
 ): Promise<WeightEntryResponse> {
-  const recordedAt = new Date();
-  const date = localDateFor(recordedAt, user.timezone, user.dayBoundaryHour);
+  const recordedAt = instantFor(date, user.timezone, user.dayBoundaryHour);
 
   const optimistic: WeightEntryResponse = {
     id: uuidv7(),
