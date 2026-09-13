@@ -64,6 +64,13 @@
       "when": 1789314736754,
       "tag": "0008_add_user_locale",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1789330377219,
+      "tag": "0009_rename_meal_item_to_entry_and_stamp_category",
+      "breakpoints": true
     }
   ]
 }

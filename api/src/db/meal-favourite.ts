@@ -1,4 +1,4 @@
-import type { MealItemInput, MealType } from '@portionium/schemas';
+import type { EntryInput, MealType } from '@portionium/schemas';
 import { and, desc, eq, isNull, lt } from 'drizzle-orm';
 
 import type { Db } from './client.js';
@@ -12,13 +12,13 @@ export interface NewMealFavourite {
   userId: string;
   name: string;
   type: MealType;
-  items: readonly MealItemInput[];
+  entries: readonly EntryInput[];
 }
 
 export function insertMealFavourite(db: Db, favourite: NewMealFavourite): MealFavouriteRecord {
   return db
     .insert(mealFavouriteTable)
-    .values({ ...favourite, items: [...favourite.items] })
+    .values({ ...favourite, entries: [...favourite.entries] })
     .returning()
     .get();
 }

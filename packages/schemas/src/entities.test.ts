@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   foodClassificationSchema,
   foodSchema,
-  mealItemSchema,
+  entryInputSchema,
+  entrySchema,
   mealSchema,
   userSchema,
   weightEntrySchema,
@@ -150,26 +151,53 @@ describe('mealSchema', () => {
   });
 });
 
-describe('mealItemSchema', () => {
-  const item = { id: ID, mealId: OTHER_ID, foodId: ID, position: 0 };
+describe('entrySchema', () => {
+  const entry = { id: ID, mealId: OTHER_ID, foodId: ID, category: 'green', position: 0 };
 
-  it('accepts an item with no quantity, and must keep doing so forever', () => {
+  it('accepts an entry with no quantity, and must keep doing so forever', () => {
     // The product does not ask users to weigh their food. If this ever fails, quantity has
     // become required and the product has turned into a calorie tracker.
-    expect(mealItemSchema.safeParse(item).success).toBe(true);
+    expect(entrySchema.safeParse(entry).success).toBe(true);
   });
 
   it('accepts a quantity when one is supplied', () => {
-    expect(mealItemSchema.parse({ ...item, quantity: 1.5 }).quantity).toBe(1.5);
+    expect(entrySchema.parse({ ...entry, quantity: 1.5 }).quantity).toBe(1.5);
   });
 
   it('rejects a non positive quantity', () => {
-    expect(mealItemSchema.safeParse({ ...item, quantity: 0 }).success).toBe(false);
+    expect(entrySchema.safeParse({ ...entry, quantity: 0 }).success).toBe(false);
   });
 
   it('rejects a fractional or negative position', () => {
-    expect(mealItemSchema.safeParse({ ...item, position: 1.5 }).success).toBe(false);
-    expect(mealItemSchema.safeParse({ ...item, position: -1 }).success).toBe(false);
+    expect(entrySchema.safeParse({ ...entry, position: 1.5 }).success).toBe(false);
+    expect(entrySchema.safeParse({ ...entry, position: -1 }).success).toBe(false);
+  });
+
+  it('accepts a food still waiting for a verdict, which is a state and not a gap', () => {
+    expect(entrySchema.safeParse({ ...entry, category: null }).success).toBe(true);
+  });
+
+  it('accepts a bare colour, which names no food at all', () => {
+    expect(entrySchema.safeParse({ ...entry, foodId: null }).success).toBe(true);
+  });
+});
+
+describe('entryInputSchema', () => {
+  it('accepts a food on its own, which is the ordinary case', () => {
+    expect(entryInputSchema.safeParse({ foodId: ID }).success).toBe(true);
+  });
+
+  it('accepts a colour on its own, which is a bare entry', () => {
+    expect(entryInputSchema.safeParse({ category: 'orange' }).success).toBe(true);
+  });
+
+  it('accepts both, which is an explicit colour with the provenance kept', () => {
+    expect(entryInputSchema.safeParse({ foodId: ID, category: 'orange' }).success).toBe(true);
+  });
+
+  it('rejects neither, so the table CHECK is never what a client hears about', () => {
+    expect(entryInputSchema.safeParse({}).success).toBe(false);
+    expect(entryInputSchema.safeParse({ quantity: 2 }).success).toBe(false);
   });
 });
 

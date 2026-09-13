@@ -533,7 +533,7 @@ describe('removing an entry', () => {
   it('refuses a food a meal names, so a history cannot grow holes', async () => {
     const { app, fixtures } = await buildTestApp();
     const food = ownedBy(fixtures, fixtures.userA.id);
-    fixtures.create.meal(fixtures.userB, { items: [{ foodId: food.id }] });
+    fixtures.create.meal(fixtures.userB, { entries: [{ foodId: food.id }] });
 
     const response = await app.inject({
       method: 'DELETE',
@@ -899,7 +899,7 @@ describe('searching the catalog', () => {
       source: 'user',
       userId: fixtures.userA.id,
     });
-    fixtures.create.meal(fixtures.userA, { items: [{ foodId: mango.id }] });
+    fixtures.create.meal(fixtures.userA, { entries: [{ foodId: mango.id }] });
 
     const response = await app.inject({
       method: 'GET',
@@ -928,8 +928,8 @@ describe('searching the catalog', () => {
       source: 'user',
       userId: fixtures.userA.id,
     });
-    fixtures.create.meal(fixtures.userA, { items: [{ foodId: mango.id }] });
-    fixtures.create.meal(fixtures.userB, { items: [{ foodId: plain.id }] });
+    fixtures.create.meal(fixtures.userA, { entries: [{ foodId: mango.id }] });
+    fixtures.create.meal(fixtures.userB, { entries: [{ foodId: plain.id }] });
 
     const response = await app.inject({
       method: 'GET',
@@ -948,7 +948,7 @@ describe('searching the catalog', () => {
     const { app, fixtures } = await buildTestApp();
     fixtures.create.food({ name: 'Aardvark Steak' });
     const usual = fixtures.create.food({ name: 'Zucchini' });
-    fixtures.create.meal(fixtures.userA, { items: [{ foodId: usual.id }] });
+    fixtures.create.meal(fixtures.userA, { entries: [{ foodId: usual.id }] });
 
     const response = await app.inject({
       method: 'GET',
@@ -1077,9 +1077,9 @@ describe('the review queue', () => {
     const rare = fixtures.create.food({ name: 'Rare' });
     const popular = fixtures.create.food({ name: 'Popular' });
     fixtures.create.food({ name: 'Never' });
-    fixtures.create.meal(fixtures.userA, { items: [{ foodId: rare.id }] });
-    fixtures.create.meal(fixtures.userA, { items: [{ foodId: popular.id }] });
-    fixtures.create.meal(fixtures.userA, { items: [{ foodId: popular.id }] });
+    fixtures.create.meal(fixtures.userA, { entries: [{ foodId: rare.id }] });
+    fixtures.create.meal(fixtures.userA, { entries: [{ foodId: popular.id }] });
+    fixtures.create.meal(fixtures.userA, { entries: [{ foodId: popular.id }] });
 
     const response = await app.inject({
       url: UNCLASSIFIED,

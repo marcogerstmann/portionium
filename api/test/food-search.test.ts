@@ -129,7 +129,7 @@ describe('the order results come back in', () => {
     const skyr = fixtures.create.food({ name: 'Skyr' });
     const vanilla = fixtures.create.food({ name: 'Skyr Vanilla' });
     for (let i = 0; i < 5; i += 1) {
-      fixtures.create.meal(fixtures.userA, { items: [{ foodId: vanilla.id }] });
+      fixtures.create.meal(fixtures.userA, { entries: [{ foodId: vanilla.id }] });
     }
 
     expect(search('skyr')).toEqual([skyr.name, vanilla.name]);
@@ -142,15 +142,15 @@ describe('the order results come back in', () => {
 
     // User B eats the plain one constantly. It is still not what user A meant.
     for (let i = 0; i < 10; i += 1) {
-      fixtures.create.meal(fixtures.userB, { items: [{ foodId: popular.id }] });
+      fixtures.create.meal(fixtures.userB, { entries: [{ foodId: popular.id }] });
     }
     fixtures.create.meal(fixtures.userA, {
       loggedAt: new Date('2026-09-01T08:00:00Z'),
-      items: [{ foodId: older.id }],
+      entries: [{ foodId: older.id }],
     });
     fixtures.create.meal(fixtures.userA, {
       loggedAt: new Date('2026-09-09T08:00:00Z'),
-      items: [{ foodId: mine.id }],
+      entries: [{ foodId: mine.id }],
     });
 
     expect(search('skyr')).toEqual(['Skyr Mango', 'Skyr Vanilla', 'Skyr Plain']);
@@ -167,9 +167,9 @@ describe('the order results come back in', () => {
     const quiet = fixtures.create.food({ name: 'Skyr Quiet' });
     const loud = fixtures.create.food({ name: 'Skyr Loud' });
     for (let i = 0; i < 3; i += 1) {
-      fixtures.create.meal(fixtures.userB, { items: [{ foodId: loud.id }] });
+      fixtures.create.meal(fixtures.userB, { entries: [{ foodId: loud.id }] });
     }
-    fixtures.create.meal(fixtures.userB, { items: [{ foodId: quiet.id }] });
+    fixtures.create.meal(fixtures.userB, { entries: [{ foodId: quiet.id }] });
 
     expect(search('skyr')).toEqual(['Skyr Loud', 'Skyr Quiet']);
   });
@@ -177,10 +177,10 @@ describe('the order results come back in', () => {
   it('does not count a meal the user deleted towards what they eat', () => {
     const deleted = fixtures.create.food({ name: 'Skyr Deleted' });
     const kept = fixtures.create.food({ name: 'Skyr Kept' });
-    const { meal } = fixtures.create.meal(fixtures.userA, { items: [{ foodId: deleted.id }] });
+    const { meal } = fixtures.create.meal(fixtures.userA, { entries: [{ foodId: deleted.id }] });
     fixtures.create.meal(fixtures.userA, {
       loggedAt: new Date('2020-01-01T08:00:00Z'),
-      items: [{ foodId: kept.id }],
+      entries: [{ foodId: kept.id }],
     });
 
     fixtures.db
@@ -206,9 +206,9 @@ describe('an empty query', () => {
     const rare = fixtures.create.food({ name: 'Aardvark Steak' });
     const usual = fixtures.create.food({ name: 'Zucchini' });
     for (let i = 0; i < 3; i += 1) {
-      fixtures.create.meal(fixtures.userA, { items: [{ foodId: usual.id }] });
+      fixtures.create.meal(fixtures.userA, { entries: [{ foodId: usual.id }] });
     }
-    fixtures.create.meal(fixtures.userA, { items: [{ foodId: rare.id }] });
+    fixtures.create.meal(fixtures.userA, { entries: [{ foodId: rare.id }] });
 
     expect(search('').slice(0, 2)).toEqual(['Zucchini', 'Aardvark Steak']);
   });
@@ -216,7 +216,7 @@ describe('an empty query', () => {
   it('degrades to what the instance eats when the caller has no history', () => {
     fixtures.create.food({ name: 'Aardvark Steak' });
     const popular = fixtures.create.food({ name: 'Zucchini' });
-    fixtures.create.meal(fixtures.userB, { items: [{ foodId: popular.id }] });
+    fixtures.create.meal(fixtures.userB, { entries: [{ foodId: popular.id }] });
 
     expect(search('')[0]).toBe('Zucchini');
   });
@@ -306,8 +306,8 @@ describe('at the size a catalog actually reaches', () => {
     // because nothing has ever been logged.
     const catalog = fixtures.db.select({ id: foodTable.id }).from(foodTable).all();
     for (let i = 0; i < 300; i += 1) {
-      fixtures.create.meal(fixtures.userA, { items: [{ foodId: catalog[i * 3]!.id }] });
-      fixtures.create.meal(fixtures.userB, { items: [{ foodId: catalog[i * 5]!.id }] });
+      fixtures.create.meal(fixtures.userA, { entries: [{ foodId: catalog[i * 3]!.id }] });
+      fixtures.create.meal(fixtures.userB, { entries: [{ foodId: catalog[i * 5]!.id }] });
     }
 
     const slowest = ['', 'sky', 'skyr', 'sykr', 'sk', 'käse', 'zzzzz'].map((query) => ({

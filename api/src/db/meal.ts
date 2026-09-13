@@ -1,9 +1,9 @@
-import type { MealType } from '@portionium/schemas';
+import type { Category, MealType } from '@portionium/schemas';
 import { and, desc, eq, gte, inArray, isNotNull, isNull, lt, lte } from 'drizzle-orm';
 
-import type { ValidatedMeal, ValidatedMealItem } from '../domain/meal.js';
+import type { ValidatedEntry, ValidatedMeal } from '../domain/meal.js';
 import type { Db } from './client.js';
-import { mealItemTable, mealTable } from './schema/index.js';
+import { entryTable, mealTable } from './schema/index.js';
 
 /**
  * Every query a meal needs. Reads are always scoped to `userId`, the way every user owned table
@@ -11,7 +11,7 @@ import { mealItemTable, mealTable } from './schema/index.js';
  */
 
 export type MealRecord = typeof mealTable.$inferSelect;
-export type MealItemRecord = typeof mealItemTable.$inferSelect;
+export type EntryRecord = typeof entryTable.$inferSelect;
 
 export interface MealListFilters {
   userId: string;
@@ -23,8 +23,8 @@ export interface MealListFilters {
 }
 
 /**
- * Stores a validated meal and its items in one transaction, so a meal is never visible without
- * the items it was created with.
+ * Stores a validated meal and its entries in one transaction, so a meal is never visible without
+ * the entries it was created with.
  *
  * `id` is the client's own, for a meal logged offline and synced later, or absent to let the
  * column default mint one. A supplied id that already belongs to a live row resolves to nothing
@@ -42,8 +42,8 @@ export interface MealListFilters {
 export function insertMeal(
   db: Db,
   meal: ValidatedMeal['meal'] & { id?: string },
-  items: readonly ValidatedMealItem[],
-): { meal: MealRecord; items: MealItemRecord[] } | undefined {
+  entries: readonly ValidatedEntry[],
+): { meal: MealRecord; entries: EntryRecord[] } | undefined {
   return db.transaction((tx) => {
     const stored = tx
       .insert(mealTable)
@@ -62,16 +62,16 @@ export function insertMeal(
     }
 
     // Whatever this id pointed at before is gone either way: nothing for a fresh id, the old
-    // item list for a revived one. A meal is never left holding a mix of the two.
-    tx.delete(mealItemTable).where(eq(mealItemTable.mealId, stored.id)).run();
+    // entry list for a revived one. A meal is never left holding a mix of the two.
+    tx.delete(entryTable).where(eq(entryTable.mealId, stored.id)).run();
 
-    const storedItems = tx
-      .insert(mealItemTable)
-      .values(items.map((item) => ({ ...item, mealId: stored.id })))
+    const storedEntries = tx
+      .insert(entryTable)
+      .values(entries.map((entry) => ({ ...entry, mealId: stored.id })))
       .returning()
       .all();
 
-    return { meal: stored, items: storedItems };
+    return { meal: stored, entries: storedEntries };
   });
 }
 
@@ -85,18 +85,18 @@ export function findMealById(db: Db, userId: string, id: string): MealRecord | u
 }
 
 /**
- * Replaces a meal's fields and its whole item list in one transaction, the same all-or-nothing
- * guarantee insertMeal gives a create. Items are deleted and reinserted rather than diffed
+ * Replaces a meal's fields and its whole entry list in one transaction, the same all-or-nothing
+ * guarantee insertMeal gives a create. Entries are deleted and reinserted rather than diffed
  * against what is already there, which is what lets a caller add, remove and reorder in one
- * call: the array it sent is the array that ends up stored, position and all.
+ * call: the array it sent is the array that ends up stored, position, colour and all.
  */
 export function updateMeal(
   db: Db,
   userId: string,
   id: string,
   meal: ValidatedMeal['meal'],
-  items: readonly ValidatedMealItem[],
-): { meal: MealRecord; items: MealItemRecord[] } | undefined {
+  entries: readonly ValidatedEntry[],
+): { meal: MealRecord; entries: EntryRecord[] } | undefined {
   return db.transaction((tx) => {
     const stored = tx
       .update(mealTable)
@@ -108,14 +108,14 @@ export function updateMeal(
       return undefined;
     }
 
-    tx.delete(mealItemTable).where(eq(mealItemTable.mealId, id)).run();
-    const storedItems = tx
-      .insert(mealItemTable)
-      .values(items.map((item) => ({ ...item, mealId: id })))
+    tx.delete(entryTable).where(eq(entryTable.mealId, id)).run();
+    const storedEntries = tx
+      .insert(entryTable)
+      .values(entries.map((entry) => ({ ...entry, mealId: id })))
       .returning()
       .all();
 
-    return { meal: stored, items: storedItems };
+    return { meal: stored, entries: storedEntries };
   });
 }
 
@@ -181,20 +181,23 @@ export function findMealsForDay(db: Db, userId: string, localDate: string): Meal
 }
 
 /**
- * Every item logged in a local date range, with the day it landed on, in one query regardless
+ * Every entry logged in a local date range, with the day it landed on, in one query regardless
  * of how many days or meals the range spans. See the performance note in domain/stats.ts, which
- * groups and resolves colours over whatever this returns.
+ * groups whatever this returns.
+ *
+ * The colour comes off the entry rather than out of the classification log, so there is no
+ * second query behind this one any more and no food id to correlate on.
  */
-export function findItemsForDateRange(
+export function findEntriesForDateRange(
   db: Db,
   userId: string,
   from: string,
   to: string,
-): { foodId: string; localDate: string }[] {
+): { category: Category | null; localDate: string }[] {
   return db
-    .select({ foodId: mealItemTable.foodId, localDate: mealTable.localDate })
-    .from(mealItemTable)
-    .innerJoin(mealTable, eq(mealTable.id, mealItemTable.mealId))
+    .select({ category: entryTable.category, localDate: mealTable.localDate })
+    .from(entryTable)
+    .innerJoin(mealTable, eq(mealTable.id, entryTable.mealId))
     .where(
       and(
         eq(mealTable.userId, userId),
@@ -207,19 +210,19 @@ export function findItemsForDateRange(
 }
 
 /**
- * Every item across a page or a day of meals, in one query rather than one per meal. That is
- * the whole of the performance note on GET /days/{date}: a day with twenty items costs the same
- * round trip as a day with two.
+ * Every entry across a page or a day of meals, in one query rather than one per meal. That is
+ * the whole of the performance note on GET /days/{date}: a day with twenty entries costs the
+ * same round trip as a day with two.
  */
-export function findItemsForMeals(db: Db, mealIds: readonly string[]): MealItemRecord[] {
+export function findEntriesForMeals(db: Db, mealIds: readonly string[]): EntryRecord[] {
   if (mealIds.length === 0) {
     return [];
   }
 
   return db
     .select()
-    .from(mealItemTable)
-    .where(inArray(mealItemTable.mealId, [...mealIds]))
-    .orderBy(mealItemTable.position)
+    .from(entryTable)
+    .where(inArray(entryTable.mealId, [...mealIds]))
+    .orderBy(entryTable.position)
     .all();
 }

@@ -20,3 +20,4 @@ A story with an ADR acceptance criterion is not done until its ADR exists.
 | [008](./008-weight-trend-smoothing.md)         | Weight trend smoothing algorithm                                                           | Accepted |
 | [009](./009-hosting-and-deployment.md)         | Hosting model and deployment target                                                        | Accepted |
 | [010](./010-pwa-and-offline-outbox.md)         | PWA instead of native, and one-directional outbox instead of bidirectional sync            | Accepted |
+| [011](./011-an-entry-is-a-colour.md)           | An entry is a colour, stamped at write, not a projection of its food                       | Accepted |

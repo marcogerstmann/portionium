@@ -1,15 +1,6 @@
-import type { Category } from '@portionium/schemas';
 import { describe, expect, it } from 'vitest';
 
 import { computeDailyColourStats, everyLocalDate } from './stats.js';
-
-const GREEN_FOOD = 'green-food';
-const ORANGE_FOOD = 'orange-food';
-const UNJUDGED_FOOD = 'unjudged-food';
-
-function resolved(entries: Record<string, Category>): Map<string, { category: Category }> {
-  return new Map(Object.entries(entries).map(([foodId, category]) => [foodId, { category }]));
-}
 
 describe('everyLocalDate', () => {
   it('lists every date from `from` to `to`, both included', () => {
@@ -36,7 +27,7 @@ describe('everyLocalDate', () => {
 
 describe('computeDailyColourStats', () => {
   it('fills every day in the range with zero counts when nothing was logged', () => {
-    const stats = computeDailyColourStats([], new Map(), '2026-03-01', '2026-03-02');
+    const stats = computeDailyColourStats([], '2026-03-01', '2026-03-02');
 
     expect(stats).toEqual([
       {
@@ -52,15 +43,14 @@ describe('computeDailyColourStats', () => {
     ]);
   });
 
-  it('groups items by local date and counts each into its resolved colour', () => {
+  it('groups entries by local date and counts each into the colour it was logged with', () => {
     const stats = computeDailyColourStats(
       [
-        { foodId: GREEN_FOOD, localDate: '2026-03-01' },
-        { foodId: GREEN_FOOD, localDate: '2026-03-01' },
-        { foodId: ORANGE_FOOD, localDate: '2026-03-01' },
-        { foodId: ORANGE_FOOD, localDate: '2026-03-02' },
+        { category: 'green', localDate: '2026-03-01' },
+        { category: 'green', localDate: '2026-03-01' },
+        { category: 'orange', localDate: '2026-03-01' },
+        { category: 'orange', localDate: '2026-03-02' },
       ],
-      resolved({ [GREEN_FOOD]: 'green', [ORANGE_FOOD]: 'orange' }),
       '2026-03-01',
       '2026-03-02',
     );
@@ -75,10 +65,9 @@ describe('computeDailyColourStats', () => {
     });
   });
 
-  it('counts a food with no resolved verdict as unclassified, never as a colour', () => {
+  it('counts an entry still waiting for a colour as unclassified, never as a colour', () => {
     const stats = computeDailyColourStats(
-      [{ foodId: UNJUDGED_FOOD, localDate: '2026-03-01' }],
-      new Map(),
+      [{ category: null, localDate: '2026-03-01' }],
       '2026-03-01',
       '2026-03-01',
     );
@@ -89,18 +78,17 @@ describe('computeDailyColourStats', () => {
   it('reports each count as a share of the day, and never divides by zero', () => {
     const stats = computeDailyColourStats(
       [
-        { foodId: GREEN_FOOD, localDate: '2026-03-01' },
-        { foodId: GREEN_FOOD, localDate: '2026-03-01' },
-        { foodId: ORANGE_FOOD, localDate: '2026-03-01' },
-        { foodId: UNJUDGED_FOOD, localDate: '2026-03-02' },
+        { category: 'green', localDate: '2026-03-01' },
+        { category: 'green', localDate: '2026-03-01' },
+        { category: 'orange', localDate: '2026-03-01' },
+        { category: null, localDate: '2026-03-02' },
       ],
-      resolved({ [GREEN_FOOD]: 'green', [ORANGE_FOOD]: 'orange' }),
       '2026-03-01',
       '2026-03-02',
     );
 
     expect(stats[0]?.share).toEqual({ green: 2 / 3, yellow: 0, orange: 1 / 3, unclassified: 0 });
-    // A day of nothing but one unclassified item is entirely unclassified, not a NaN.
+    // A day of nothing but one unclassified entry is entirely unclassified, not a NaN.
     expect(stats[1]?.share).toEqual({ green: 0, yellow: 0, orange: 0, unclassified: 1 });
   });
 });

@@ -1,4 +1,4 @@
-import type { Meal, MealItem, User } from '@portionium/schemas';
+import type { Entry, Meal, User } from '@portionium/schemas';
 
 import { DomainError } from './errors.js';
 import { resolveLocalDate } from './local-date.js';
@@ -12,14 +12,22 @@ import { resolveLocalDate } from './local-date.js';
  * Ids and timestamps are not assigned here. The database mints those, see db/schema/base.ts.
  */
 
-/** What a caller supplies for one item. Position is ours to assign, the rest is theirs. */
-export type NewMealItem = Omit<MealItem, 'id' | 'mealId' | 'position'>;
+/**
+ * What a caller supplies for one entry, once the adapter has stamped the colour. Position is
+ * ours to assign, the rest is theirs.
+ *
+ * `category` is already resolved by the time it gets here: stamping is a read of the
+ * classification log, which the domain has no business doing, so it happens in the one write
+ * path on the way in, see POST /meals in api/src/http/routes/meals.ts. Null is a food nobody has
+ * judged yet; null on both fields is refused by the table's own CHECK.
+ */
+export type NewEntry = Omit<Entry, 'id' | 'mealId' | 'position'>;
 
 /**
  * `localDate` is absent on purpose. It is derived from `loggedAt`, so accepting one would let a
  * caller hand over a day that contradicts the instant beside it.
  */
-export type NewMeal = Omit<Meal, 'id' | 'localDate'> & { items: readonly NewMealItem[] };
+export type NewMeal = Omit<Meal, 'id' | 'localDate'> & { entries: readonly NewEntry[] };
 
 /**
  * The only two things about a user that dating a meal depends on. Narrower than `User` because
@@ -27,11 +35,11 @@ export type NewMeal = Omit<Meal, 'id' | 'localDate'> & { items: readonly NewMeal
  */
 export type MealDayContext = Pick<User, 'timezone' | 'dayBoundaryHour'>;
 
-export type ValidatedMealItem = Omit<MealItem, 'id' | 'mealId'>;
+export type ValidatedEntry = Omit<Entry, 'id' | 'mealId'>;
 
 export interface ValidatedMeal {
   meal: Omit<Meal, 'id'>;
-  items: ValidatedMealItem[];
+  entries: ValidatedEntry[];
 }
 
 /**
@@ -51,18 +59,18 @@ function assertNotTooFarInFuture(loggedAt: Date): void {
 }
 
 /**
- * Validates a meal and normalises its items. Shared by createMeal and applyMealChanges below, so
- * an edit is held to exactly the invariants a create is, never a looser set.
+ * Validates a meal and normalises its entries. Shared by createMeal and applyMealChanges below,
+ * so an edit is held to exactly the invariants a create is, never a looser set.
  *
- * A meal with no items is rejected rather than stored empty. It would show up in every list and
+ * A meal with no entries is rejected rather than stored empty. It would show up in every list and
  * every streak as a day the user logged something, while saying nothing about what they ate, and
  * no read path could tell it apart from a real meal. This is not a shape rule, an empty array is
  * a perfectly good array, which is why it is enforced here and not in the schema. The message
  * names the way out, deleting the meal, because that is the one silent alternative a caller
- * removing the last item might otherwise reach for and be surprised by.
+ * removing the last entry might otherwise reach for and be surprised by.
  *
  * Position comes from the array index, so it is always dense and always zero based. Callers do
- * not supply it, which is the only way to be sure no two items in one meal share a position.
+ * not supply it, which is the only way to be sure no two entries in one meal share a position.
  *
  * `localDate` is resolved here for the same reason: it is derived from `loggedAt` and the
  * user's day boundary, so it is computed at the one point where both are in hand rather than
@@ -70,52 +78,52 @@ function assertNotTooFarInFuture(loggedAt: Date): void {
  * resolveLocalDate, with no route left for a hand written day to get in.
  */
 export function createMeal(
-  { items, ...meal }: NewMeal,
+  { entries, ...meal }: NewMeal,
   { timezone, dayBoundaryHour }: MealDayContext,
 ): ValidatedMeal {
-  if (items.length === 0) {
+  if (entries.length === 0) {
     throw new DomainError(
-      'meal_has_no_items',
-      'A meal must contain at least one item. Delete the meal instead of removing its last one.',
+      'meal_has_no_entries',
+      'A meal must contain at least one entry. Delete the meal instead of removing its last one.',
     );
   }
   assertNotTooFarInFuture(meal.loggedAt);
 
   return {
     meal: { ...meal, localDate: resolveLocalDate(meal.loggedAt, timezone, dayBoundaryHour) },
-    items: items.map((item, position) => ({ ...item, position })),
+    entries: entries.map((entry, position) => ({ ...entry, position })),
   };
 }
 
 /**
- * The one invariant a favourite's item list is held to, the same rule createMeal enforces for a
+ * The one invariant a favourite's entry list is held to, the same rule createMeal enforces for a
  * meal and for the same reason: a favourite with nothing in it would show up wherever favourites
  * are listed while saying nothing about what to log. Unlike a meal, a favourite has no
- * `loggedAt` to be too far in the future and no position to assign, its items become a meal's
+ * `loggedAt` to be too far in the future and no position to assign, its entries become a meal's
  * verbatim, so this is the whole of what pinning one has to check.
  */
-export function validateFavouriteItems(items: readonly NewMealItem[]): void {
-  if (items.length === 0) {
+export function validateFavouriteEntries(entries: readonly unknown[]): void {
+  if (entries.length === 0) {
     throw new DomainError(
-      'favourite_has_no_items',
-      'A favourite must contain at least one item. Delete it instead of clearing its items.',
+      'favourite_has_no_entries',
+      'A favourite must contain at least one entry. Delete it instead of clearing its entries.',
     );
   }
 }
 
 /** What an edit may change. A field left out is a field nobody touched. */
-export type MealChanges = Partial<Pick<NewMeal, 'type' | 'loggedAt' | 'notes' | 'items'>>;
+export type MealChanges = Partial<Pick<NewMeal, 'type' | 'loggedAt' | 'notes' | 'entries'>>;
 
 /**
  * Merges an edit into what a meal already is, then runs the result through createMeal, so
  * PATCH /meals/{id} is held to the same invariants POST /meals is rather than a looser set:
- * still no empty item list, still no meal dated further into the future than clock skew allows,
+ * still no empty entry list, still no meal dated further into the future than clock skew allows,
  * and a local date freshly derived from whichever `loggedAt` wins.
  *
- * `items` absent leaves the current list exactly as it stands, position and all. `items` present
- * replaces it whole rather than being diffed against the current one, which is what lets a
- * caller add, remove and reorder items in a single PATCH: the array it sent is the array that
- * ends up stored.
+ * `entries` absent leaves the current list exactly as it stands, position, colour and all.
+ * `entries` present replaces it whole rather than being diffed against the current one, which is
+ * what lets a caller add, remove and reorder entries in a single PATCH: the array it sent is the
+ * array that ends up stored.
  */
 export function applyMealChanges(
   current: NewMeal,
@@ -132,7 +140,7 @@ export function applyMealChanges(
         : current.notes !== undefined
           ? { notes: current.notes }
           : {}),
-      items: changes.items ?? current.items,
+      entries: changes.entries ?? current.entries,
     },
     context,
   );

@@ -50,7 +50,7 @@ const PAST_DAY_WEIGHT = 68.4;
 interface LoggedMeal {
   id: string;
   type: string;
-  items: { foodId: string }[];
+  entries: { foodId: string | null }[];
 }
 
 async function signIn(page: Page) {
@@ -89,7 +89,9 @@ async function mealsOf(page: Page, names: readonly string[]): Promise<LoggedMeal
   const response = await page.request.get(`${API}/meals?limit=100`);
   const { items } = (await response.json()) as { items: LoggedMeal[] };
 
-  return items.filter((meal) => meal.items.some((item) => wanted.has(item.foodId)));
+  return items.filter((meal) =>
+    meal.entries.some((entry) => entry.foodId !== null && wanted.has(entry.foodId)),
+  );
 }
 
 /** The readings on the server carrying this exact weight, which is how a spec finds its own. */
@@ -189,7 +191,7 @@ test('logs a meal from the keyboard alone: type, arrow down, enter, repeat', asy
   const [meal] = await mealsOf(page, KEYBOARD_FOODS);
 
   expect(meal?.type).toBe('lunch');
-  expect(meal?.items.map((item) => item.foodId)).toEqual(await foodIds(page, KEYBOARD_FOODS));
+  expect(meal?.entries.map((entry) => entry.foodId)).toEqual(await foodIds(page, KEYBOARD_FOODS));
 });
 
 test('adds a food the catalog does not have, with nothing but a name', async ({ page }) => {
@@ -252,14 +254,14 @@ test('logs three meals and a weight with no network and drains them exactly once
   // changed is re-fetched from the server, which is what clears the marks.
   await expect(page.getByRole('img', { name: /not sent yet/ })).toHaveCount(0, { timeout: 15_000 });
 
-  // Three meals rather than six, and three items rather than six. Every attempt at one entry
+  // Three meals rather than six, and three entries rather than six. Every attempt at one entry
   // carries the idempotency key minted when it was queued, and a meal carries the id this device
   // minted, so a retry whose first response was lost cannot become a second meal. See
   // docs/adr/004-idempotency-keys.md and classifyAttempt in src/outbox.ts.
   const logged = await mealsOf(page, OFFLINE_FOODS);
 
   expect(logged).toHaveLength(3);
-  expect(logged.flatMap((meal) => meal.items)).toHaveLength(3);
+  expect(logged.flatMap((meal) => meal.entries)).toHaveLength(3);
 
   // And exactly one reading rather than two. A weight carries no client minted id, so the
   // idempotency key is the only thing standing between a retry and a second row, see logWeight.
@@ -309,20 +311,20 @@ test('composing a meal and recording a weight on a past day files both there, no
 
   const yesterdayResponse = await page.request.get(`${API}/days/${yesterday}`);
   const yesterdayBody = (await yesterdayResponse.json()) as {
-    meals: { items: { foodId: string }[] }[];
+    meals: { entries: { foodId: string | null }[] }[];
     weightEntry: { weightKg: number } | null;
   };
 
   expect(
-    yesterdayBody.meals.some((meal) => meal.items.some((item) => item.foodId === foodId)),
+    yesterdayBody.meals.some((meal) => meal.entries.some((entry) => entry.foodId === foodId)),
   ).toBe(true);
   expect(yesterdayBody.weightEntry?.weightKg).toBe(PAST_DAY_WEIGHT);
 
   const todayResponse = await page.request.get(`${API}/days/${today}`);
   const todayBody = (await todayResponse.json()) as typeof yesterdayBody;
 
-  expect(todayBody.meals.some((meal) => meal.items.some((item) => item.foodId === foodId))).toBe(
-    false,
-  );
+  expect(
+    todayBody.meals.some((meal) => meal.entries.some((entry) => entry.foodId === foodId)),
+  ).toBe(false);
   expect(todayBody.weightEntry?.weightKg).not.toBe(PAST_DAY_WEIGHT);
 });

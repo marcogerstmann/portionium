@@ -242,10 +242,13 @@ export async function logMeal(
     loggedAt: loggedAt.toISOString(),
     localDate: date,
     ...(meal.notes === undefined ? {} : { notes: meal.notes }),
-    items: meal.foods.map((food, position) => ({
+    entries: meal.foods.map((food, position) => ({
       id: uuidv7(),
       foodId: food.id,
       position,
+      // The colour the server is about to stamp, from the same resolution the search result
+      // already carried, so the optimistic copy is the row that comes back. See stampEntries in
+      // api/src/http/routes/meals.ts.
       category: food.category,
     })),
   };
@@ -265,7 +268,7 @@ export async function logMeal(
       // still a meal eaten tonight, and letting the server stamp it on arrival would file it
       // under the wrong day.
       loggedAt: optimistic.loggedAt,
-      items: meal.foods.map((food) => ({ foodId: food.id })),
+      entries: meal.foods.map((food) => ({ foodId: food.id })),
       ...(meal.notes === undefined ? {} : { notes: meal.notes }),
     },
   });
@@ -337,9 +340,13 @@ export async function deleteMeal(meal: MealResponse): Promise<void> {
 /**
  * Put back a meal this device deleted, which is what undo means here.
  *
- * The same id, the same instant and the same items, so this is the row coming back rather than
+ * The same id, the same instant and the same entries, so this is the row coming back rather than
  * a second meal that looks like it: the id was minted on this device in the first place and the
  * server revives its own soft deleted row for it.
+ *
+ * An entry naming a food is sent as that food alone and takes the colour it has now, which is
+ * what every other write here does; a bare colour is sent as itself, because it has nothing
+ * else to be.
  */
 export async function restoreMeal(meal: MealResponse): Promise<void> {
   const known = await cachedFoods();
@@ -354,7 +361,9 @@ export async function restoreMeal(meal: MealResponse): Promise<void> {
       id: meal.id,
       type: meal.type,
       loggedAt: meal.loggedAt,
-      items: meal.items.map((item) => ({ foodId: item.foodId })),
+      entries: meal.entries.map((entry) =>
+        entry.foodId === null ? { category: entry.category } : { foodId: entry.foodId },
+      ),
       ...(meal.notes === undefined ? {} : { notes: meal.notes }),
     },
   });

@@ -1,11 +1,11 @@
 import { z } from 'zod';
 
 import {
+  entryInputSchema,
+  entrySchema,
   foodClassificationSchema,
   foodSchema,
   mealFavouriteSchema,
-  mealItemInputSchema,
-  mealItemSchema,
   mealSchema,
   userSchema,
   weightEntrySchema,
@@ -151,29 +151,34 @@ export const createMealRequestSchema = z.strictObject({
   loggedAt: timestampSchema.optional(),
   notes: mealSchema.shape.notes,
   /**
-   * Order is meaning: the position stored on each item is this array's index. There is no
+   * Order is meaning: the position stored on each entry is this array's index. There is no
    * `.min(1)` here on purpose, an empty meal is a domain invariant rather than a shape error,
    * and it is rejected with a typed error by createMeal in api/src/domain/meal.ts. Absent has
    * the same meaning as empty, which is what lets a request name `fromMealId` instead.
    */
-  items: z.array(mealItemInputSchema).optional(),
+  entries: z.array(entryInputSchema).optional(),
   /**
-   * Copies another meal's items into this one instead of listing them again: the "repeat this"
+   * Copies another meal's entries into this one instead of listing them again: the "repeat this"
    * and "log this suggestion" flows both end up here rather than each inventing its own way to
-   * resend an item list the server already has. Mutually exclusive with `items`, see POST
+   * resend an entry list the server already has. Mutually exclusive with `entries`, see POST
    * /meals in api/src/http/routes/meals.ts, which is where that is enforced.
+   *
+   * It is a fresh write and not a copy of the old colours: an entry naming a food takes that
+   * food's colour as it stands now, a bare one keeps the colour it was logged with.
    */
   fromMealId: idSchema.optional(),
 });
 
 export type CreateMealRequest = z.infer<typeof createMealRequestSchema>;
 
-/** One item on its way out, with the colour resolved for whoever asked, the same as a food. */
-export const mealItemResponseSchema = mealItemSchema.omit({ mealId: true }).extend({
-  category: categorySchema.nullable(),
-});
+/**
+ * One entry on its way out, carrying the colour it was logged with rather than one resolved for
+ * this request. An entry's colour and its food's current colour can differ, and this is the one
+ * a client renders, see docs/adr/011-an-entry-is-a-colour.md.
+ */
+export const entryResponseSchema = entrySchema.omit({ mealId: true });
 
-export type MealItemResponse = z.infer<typeof mealItemResponseSchema>;
+export type EntryResponse = z.infer<typeof entryResponseSchema>;
 
 /**
  * `loggedAt` is re-typed rather than inherited from mealSchema. timestampSchema is a one way
@@ -184,7 +189,7 @@ export type MealItemResponse = z.infer<typeof mealItemResponseSchema>;
  */
 export const mealResponseSchema = mealSchema.omit({ loggedAt: true }).extend({
   loggedAt: z.iso.datetime(),
-  items: z.array(mealItemResponseSchema),
+  entries: z.array(entryResponseSchema),
 });
 
 export type MealResponse = z.infer<typeof mealResponseSchema>;
@@ -209,27 +214,35 @@ export type MealListQuery = z.infer<typeof mealListQuerySchema>;
  * Editing one. Every field optional, the same convention updateProfileRequestSchema follows: a
  * client sends what it is changing and an absent field is a field nobody touched.
  *
- * `items` is the exception to that reading. Left out, the meal's current items stand; sent, it
- * replaces the whole list, position and all, which is what lets one PATCH add, remove and
- * reorder items instead of three separate verbs. An empty array is let through here for the same
- * reason createMealRequestSchema lets one through: leaving a meal with no items is a domain
- * invariant, not a shape error, see applyMealChanges in api/src/domain/meal.ts.
+ * `entries` is the exception to that reading. Left out, the meal's current entries stand; sent,
+ * it replaces the whole list, position and all, which is what lets one PATCH add, remove and
+ * reorder entries instead of three separate verbs. An empty array is let through here for the
+ * same reason createMealRequestSchema lets one through: leaving a meal with no entries is a
+ * domain invariant, not a shape error, see applyMealChanges in api/src/domain/meal.ts.
+ *
+ * Every entry it names is stamped afresh, the same as a create: a replaced list is a new write.
  */
 export const updateMealRequestSchema = z.strictObject({
   type: mealTypeSchema.optional(),
   loggedAt: timestampSchema.optional(),
   notes: mealSchema.shape.notes,
-  items: z.array(mealItemInputSchema).optional(),
+  entries: z.array(entryInputSchema).optional(),
 });
 
 export type UpdateMealRequest = z.infer<typeof updateMealRequestSchema>;
 
-/** One item of a suggestion or a favourite, with the colour resolved the way a meal item's is. */
-export const mealCompositionItemResponseSchema = mealItemInputSchema.extend({
+/**
+ * One entry of a suggestion or a favourite. Unlike a logged entry's, this colour is resolved for
+ * whoever asked, because a composition is a preset rather than history: it says what logging
+ * this again would give you now, see docs/adr/011-an-entry-is-a-colour.md.
+ */
+export const mealCompositionEntryResponseSchema = z.object({
+  foodId: idSchema.optional(),
+  quantity: entrySchema.shape.quantity,
   category: categorySchema.nullable(),
 });
 
-export type MealCompositionItemResponse = z.infer<typeof mealCompositionItemResponseSchema>;
+export type MealCompositionEntryResponse = z.infer<typeof mealCompositionEntryResponseSchema>;
 
 /**
  * Asking what to log again. `type` narrows to one meal type because a suggestion only makes
@@ -252,34 +265,34 @@ export type MealSuggestionsQuery = z.infer<typeof mealSuggestionsQuerySchema>;
  *
  * `mealId` is the most recent meal this composition came from, and is what a client hands back
  * as `fromMealId` on POST /meals to log it in the one tap POR-33 asks for, rather than resending
- * the item list it was just given.
+ * the entry list it was just given.
  */
 export const mealSuggestionResponseSchema = z.object({
   mealId: idSchema,
-  items: z.array(mealCompositionItemResponseSchema),
+  entries: z.array(mealCompositionEntryResponseSchema),
 });
 
 export type MealSuggestionResponse = z.infer<typeof mealSuggestionResponseSchema>;
 
 /**
- * Pinning one. `items` is held to the same shape createMealRequestSchema's is and to the same
- * domain invariant, no empty list, enforced by validateFavouriteItems in
+ * Pinning one. `entries` is held to the same shape createMealRequestSchema's is and to the same
+ * domain invariant, no empty list, enforced by validateFavouriteEntries in
  * api/src/domain/meal.ts rather than here for the reason that comment gives.
  */
 export const createFavouriteRequestSchema = mealFavouriteSchema
-  .pick({ name: true, type: true, items: true })
+  .pick({ name: true, type: true, entries: true })
   .strict();
 
 export type CreateFavouriteRequest = z.infer<typeof createFavouriteRequestSchema>;
 
 /**
  * A favourite on its way out. `userId` is dropped, favourites are private so it is always the
- * caller's own, and `items` carries the resolved colour the same reason a suggestion's does: so
- * a preview renders from this response alone.
+ * caller's own, and `entries` carries the resolved colour the same reason a suggestion's does:
+ * so a preview renders from this response alone.
  */
 export const favouriteResponseSchema = mealFavouriteSchema
-  .omit({ userId: true, createdAt: true, items: true })
-  .extend({ items: z.array(mealCompositionItemResponseSchema) });
+  .omit({ userId: true, createdAt: true, entries: true })
+  .extend({ entries: z.array(mealCompositionEntryResponseSchema) });
 
 export type FavouriteResponse = z.infer<typeof favouriteResponseSchema>;
 
@@ -291,9 +304,9 @@ export const favouriteListQuerySchema = paginationQuerySchema.extend({
 export type FavouriteListQuery = z.infer<typeof favouriteListQuerySchema>;
 
 /**
- * How many of a day's items landed in each colour, including the ones nobody has judged yet.
- * Counted over items rather than meals, since a colour is a property of what was eaten and one
- * meal usually carries more than one.
+ * How many of a day's entries landed in each colour, including the ones nobody has judged yet.
+ * Counted over entries rather than meals, since an entry is a colour and one meal usually
+ * carries more than one.
  */
 export const colourCountsSchema = z.object({
   green: z.int().nonnegative(),
@@ -494,7 +507,7 @@ export const weightEntryCreateResponseSchema = weightEntryResponseSchema.extend(
 export type WeightEntryCreateResponse = z.infer<typeof weightEntryCreateResponseSchema>;
 
 /**
- * Everything the app needs the moment it opens: the day's meals with their items and colours,
+ * Everything the app needs the moment it opens: the day's meals with their entries and colours,
  * today's weight if there is one, and the counts a summary bar draws without re-deriving them
  * from the meal list. See the performance note on GET /days/{date} for why this is assembled
  * from a small fixed number of queries rather than one per meal or per item.
@@ -505,7 +518,7 @@ export const dayResponseSchema = z.object({
   weightEntry: weightEntryResponseSchema.nullable(),
   colourCounts: colourCountsSchema,
   /**
-   * Every food the meals above name, once each, in the order the items first name them.
+   * Every food the meals above name, once each, in the order the entries first name them.
    *
    * An item carries a `foodId` and a colour, which is what a count needs, and not a name, which
    * is what a person reads. That name is sent here rather than on each item for two reasons. A
@@ -540,7 +553,7 @@ export type StatsRangeQuery = z.infer<typeof statsRangeQuerySchema>;
 /**
  * One day's worth of colour, whether or not anything was logged on it. `counts` is the same
  * shape a single day's summary carries, see colourCountsSchema; `share` is the same four numbers
- * as a fraction of the day's items, 0 when nothing was logged so a client never divides by zero
+ * as a fraction of the day's entries, 0 when nothing was logged so a client never divides by zero
  * itself.
  */
 export const dayColourStatsSchema = z.object({
@@ -657,7 +670,7 @@ export type StatsWeeklyQuery = z.infer<typeof statsWeeklyQuerySchema>;
 
 /**
  * A colour breakdown that can go either way, the difference against the previous week. Signed
- * rather than a share or a percentage: a week going from zero orange items to one is an
+ * rather than a share or a percentage: a week going from zero orange entries to one is an
  * infinite percentage change, and a percentage of a count this small is misleading either way.
  */
 export const colourDifferenceSchema = z.object({

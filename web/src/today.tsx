@@ -4,7 +4,7 @@ import {
   type DayResponse,
   type FoodResponse,
   type LocalDate,
-  type MealItemResponse,
+  type EntryResponse,
   type MealResponse,
   type StatsWeightResponse,
   type UserResponse,
@@ -75,15 +75,15 @@ import { useWeightStats } from './statistics';
  * from the meal below, and it needs PATCH /meals/{id} rather than the outbox's create path.
  */
 
-/** An item's colour as a dot takes it: null on the wire is a state, not a missing value. */
-function dotFor(item: MealItemResponse): DotCategory {
-  return dotOf(item.category);
+/** An entry's colour as a dot takes it: null on the wire is a state, not a missing value. */
+function dotFor(entry: EntryResponse): DotCategory {
+  return dotOf(entry.category);
 }
 
 /**
- * The day at a glance: one dot per item, in the order they were eaten.
+ * The day at a glance: one dot per entry, in the order they were eaten.
  *
- * One dot per item rather than a count per colour, because the shape of a day is what somebody
+ * One dot per entry rather than a count per colour, because the shape of a day is what somebody
  * is reading here and four numbers are a score. The whole row is one image to a screen reader,
  * which gets the sentence instead, since hearing "green, green, yellow, green" fifteen times is
  * not a summary of anything.
@@ -95,9 +95,9 @@ function Summary({ day }: { day: DayResponse }) {
   // The same order as the rows below, so the row of dots reads left to right as the day reads
   // top to bottom. The server lists meals by when they were logged, which is usually the same
   // and is not the same the moment somebody logs a lunch after their dinner.
-  const items = orderMeals(day.meals).flatMap((meal) => meal.items);
+  const entries = orderMeals(day.meals).flatMap((meal) => meal.entries);
 
-  if (items.length === 0) {
+  if (entries.length === 0) {
     return <p className="mt-4 mb-6 text-muted">{t('todayNothingLogged')}</p>;
   }
 
@@ -109,8 +109,8 @@ function Summary({ day }: { day: DayResponse }) {
     >
       {/* Silent, because the row above is already one image with the sentence. Dot rather than a
           second copy of its markup, so the shapes cannot drift between here and the meals. */}
-      {items.map((item) => (
-        <Dot key={item.id} category={dotFor(item)} silent />
+      {entries.map((entry) => (
+        <Dot key={entry.id} category={dotFor(entry)} silent />
       ))}
     </p>
   );
@@ -142,8 +142,8 @@ function MealRow({
       {/* A step wider than the summary's, because these are the dots that can wear the unsent
           ring and a ring wants a little more air around it. See Dot's `pending`. */}
       <span className="flex flex-wrap justify-end gap-2">
-        {meal.items.map((item) => (
-          <Dot key={item.id} category={dotFor(item)} pending={pending} />
+        {meal.entries.map((entry) => (
+          <Dot key={entry.id} category={dotFor(entry)} pending={pending} />
         ))}
       </span>
     </button>
@@ -153,9 +153,14 @@ function MealRow({
 /**
  * An opened meal: what was in it, and the two things that can be done to it here.
  *
- * An item with no colour is a button rather than a line of text, because it is the one thing on
+ * An entry with no colour is a button rather than a line of text, because it is the one thing on
  * this screen worth fixing in passing: the food is in front of the person who ate it, and asking
  * them then is how a catalog gets classified without anybody sitting down to a queue.
+ *
+ * Only an entry that names a food can be that button. An entry with no colour always names one,
+ * the table's CHECK sees to it, so the narrowing below never actually falls through; it is
+ * written out because a bare colour is expressible on the wire and this file should say what it
+ * would do with one rather than assume it away. Composing one is WEB 13.
  */
 function MealDetail({
   meal,
@@ -178,19 +183,23 @@ function MealDetail({
   return (
     <div>
       <ul className="pl-4">
-        {meal.items.map((item) => {
-          const name = foods.get(item.foodId)?.name ?? t('todayUnknownFood');
+        {meal.entries.map((entry) => {
+          // Destructured so it narrows inside the handlers below rather than needing a cast at
+          // each one: a bare entry has no food to name, to classify, or to be pending on.
+          const { foodId } = entry;
+          const name =
+            foodId === null
+              ? t('todayBareEntry')
+              : (foods.get(foodId)?.name ?? t('todayUnknownFood'));
 
           return (
-            <li key={item.id}>
-              {item.category === null ? (
+            <li key={entry.id}>
+              {entry.category === null && foodId !== null ? (
                 <button
                   type="button"
                   className="row justify-start"
-                  aria-expanded={classifying === item.foodId}
-                  onClick={() =>
-                    setClassifying(classifying === item.foodId ? undefined : item.foodId)
-                  }
+                  aria-expanded={classifying === foodId}
+                  onClick={() => setClassifying(classifying === foodId ? undefined : foodId)}
                 >
                   <Dot category={UNCLASSIFIED} />
                   <span>{name}</span>
@@ -198,12 +207,15 @@ function MealDetail({
                 </button>
               ) : (
                 <p className="row justify-start">
-                  <Dot category={item.category} pending={pending.has(foodSubject(item.foodId))} />
+                  <Dot
+                    category={dotFor(entry)}
+                    pending={foodId !== null && pending.has(foodSubject(foodId))}
+                  />
                   <span>{name}</span>
                 </p>
               )}
 
-              {classifying === item.foodId && (
+              {foodId !== null && classifying === foodId && (
                 <p className="mb-2 flex gap-2 pl-4">
                   {CATEGORIES.map((category) => (
                     <button
@@ -212,7 +224,7 @@ function MealDetail({
                       className="flex flex-1 items-center justify-center gap-2 text-sm"
                       onClick={() => {
                         setClassifying(undefined);
-                        onClassify(item.foodId, category);
+                        onClassify(foodId, category);
                       }}
                     >
                       <Dot category={category} />

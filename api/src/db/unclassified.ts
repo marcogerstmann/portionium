@@ -8,7 +8,7 @@ import {
 } from './classification.js';
 import type { Db } from './client.js';
 import { visibleClassifications, type FoodRecord } from './food.js';
-import { foodClassificationTable, foodTable, mealItemTable, mealTable } from './schema/index.js';
+import { entryTable, foodClassificationTable, foodTable, mealTable } from './schema/index.js';
 
 /**
  * The human-in-the-loop queue, see POR-30 and docs/adr/007-append-only-classification-log.md.
@@ -112,20 +112,22 @@ export interface UnclassifiedFood {
  */
 function usageCounts(db: Db, userId: string, foodIds: readonly string[]): Map<string, number> {
   const rows = db
-    .select({ foodId: mealItemTable.foodId, uses: count() })
-    .from(mealItemTable)
-    .innerJoin(mealTable, eq(mealTable.id, mealItemTable.mealId))
+    .select({ foodId: entryTable.foodId, uses: count() })
+    .from(entryTable)
+    .innerJoin(mealTable, eq(mealTable.id, entryTable.mealId))
     .where(
       and(
         eq(mealTable.userId, userId),
         isNull(mealTable.deletedAt),
-        inArray(mealItemTable.foodId, [...foodIds]),
+        inArray(entryTable.foodId, [...foodIds]),
       ),
     )
-    .groupBy(mealItemTable.foodId)
+    .groupBy(entryTable.foodId)
     .all();
 
-  return new Map(rows.map((row) => [row.foodId, row.uses]));
+  // A bare entry names no food and cannot group under one, so the null key is dropped rather
+  // than counted: `inArray` above already excludes it, this is the type following suit.
+  return new Map(rows.flatMap((row) => (row.foodId === null ? [] : [[row.foodId, row.uses]])));
 }
 
 /**

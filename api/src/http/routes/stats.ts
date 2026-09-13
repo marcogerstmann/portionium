@@ -12,11 +12,9 @@ import {
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
 
 import { findUserById, type UserRecord } from '../../db/auth.js';
-import { findClassificationsForFoods } from '../../db/classification.js';
 import type { Db } from '../../db/client.js';
-import { findItemsForDateRange } from '../../db/meal.js';
+import { findEntriesForDateRange } from '../../db/meal.js';
 import { listWeightHistoryForUser } from '../../db/weight.js';
-import { resolveClassifications } from '../../domain/classification.js';
 import { UnauthenticatedError } from '../../domain/errors.js';
 import { resolveLocalDate } from '../../domain/local-date.js';
 import { computeDailyColourStats } from '../../domain/stats.js';
@@ -31,8 +29,9 @@ import { authenticatedProblemResponses, problemResponses } from '../problem.js';
 /**
  * POR-36, POR-37 and POR-38: the basic feedback loop, how a range of days looked next to a
  * normal day, what the scale is saying underneath its own noise, and the two side by side one
- * ISO week at a time. Everything is resolved, grouped and smoothed at read time, see
- * domain/stats.ts for why that stays cheap enough not to need a materialised table yet.
+ * ISO week at a time. Colours are read off the entries, which carry the one they were logged
+ * with, and grouping and smoothing happen at read time, see domain/stats.ts for why that stays
+ * cheap enough not to need a materialised table yet.
  */
 
 export interface StatsRouteOptions {
@@ -98,17 +97,12 @@ export const statsRoutes: FastifyPluginCallbackZod<StatsRouteOptions> = (app, op
       const { userId } = request.auth;
       const { from, to } = request.query;
 
-      // Two queries whatever the range contains, the same split itemsAndColours in meals.ts
-      // makes for a single day: every item in the range in one, then every colour those items'
-      // foods resolve to in one more, bounded by the catalog rather than by the range.
-      const items = findItemsForDateRange(db, userId, from, to);
-      const foodIds = [...new Set(items.map((item) => item.foodId))];
-      const resolved = resolveClassifications(
-        findClassificationsForFoods(db, foodIds, userId),
-        userId,
-      );
+      // One query whatever the range contains, where it used to be two: an entry carries the
+      // colour it was logged with, so there is no classification log to resolve against here,
+      // see docs/adr/011-an-entry-is-a-colour.md.
+      const entries = findEntriesForDateRange(db, userId, from, to);
 
-      return { days: computeDailyColourStats(items, resolved, from, to) };
+      return { days: computeDailyColourStats(entries, from, to) };
     },
   );
 
@@ -191,14 +185,9 @@ export const statsRoutes: FastifyPluginCallbackZod<StatsRouteOptions> = (app, op
       const from = first?.startDate ?? today;
       const to = last?.endDate ?? today;
 
-      // The same two queries GET /stats/days makes, over the whole span rather than per week.
-      const items = findItemsForDateRange(db, userId, from, to);
-      const foodIds = [...new Set(items.map((item) => item.foodId))];
-      const resolved = resolveClassifications(
-        findClassificationsForFoods(db, foodIds, userId),
-        userId,
-      );
-      const dailyColours = computeDailyColourStats(items, resolved, from, to);
+      // The same query GET /stats/days makes, over the whole span rather than per week.
+      const entries = findEntriesForDateRange(db, userId, from, to);
+      const dailyColours = computeDailyColourStats(entries, from, to);
 
       // The same trend calculation GET /stats/weight makes, once over the whole span; each
       // week below is a slice of its days rather than a trend computed from scratch.

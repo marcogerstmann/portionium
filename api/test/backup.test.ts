@@ -94,7 +94,7 @@ describe('the backup and restore round trip', () => {
     seedFoodCatalog(fixtures.db);
 
     const user = fixtures.userA;
-    const { meal, items } = fixtures.create.meal(user);
+    const { meal, entries } = fixtures.create.meal(user);
     const foodsBefore = count(fixtures.db, 'select count(*) as count from food');
     const migrationsBefore = count(
       fixtures.db,
@@ -151,8 +151,8 @@ describe('the backup and restore round trip', () => {
         count(reopened.db, 'select count(*) as count from meal where user_id = ?', user.id),
       ).toBe(1);
       expect(
-        count(reopened.db, 'select count(*) as count from meal_item where meal_id = ?', meal.id),
-      ).toBe(items.length);
+        count(reopened.db, 'select count(*) as count from entry where meal_id = ?', meal.id),
+      ).toBe(entries.length);
       expect(count(reopened.db, 'select count(*) as count from food')).toBe(foodsBefore);
 
       // The schema is at the version this build ships, which is the half of a restore that is

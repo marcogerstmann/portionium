@@ -8,7 +8,7 @@ import {
 } from '../domain/food-search.js';
 import type { Db } from './client.js';
 import type { FoodRecord } from './food.js';
-import { foodTable, mealItemTable, mealTable } from './schema/index.js';
+import { entryTable, foodTable, mealTable } from './schema/index.js';
 
 /**
  * Finding a food, which is on the critical path of the only interaction this app has. If
@@ -58,25 +58,25 @@ const RECALL_LIMIT = 500;
 function userStats(db: Db, userId: string) {
   return db
     .select({
-      foodId: mealItemTable.foodId,
+      foodId: entryTable.foodId,
       uses: count().as('user_uses'),
       lastUsedAt: sql<number | null>`max(${mealTable.loggedAt})`.as('user_last_used_at'),
     })
-    .from(mealItemTable)
-    .innerJoin(mealTable, eq(mealTable.id, mealItemTable.mealId))
+    .from(entryTable)
+    .innerJoin(mealTable, eq(mealTable.id, entryTable.mealId))
     .where(and(eq(mealTable.userId, userId), isNull(mealTable.deletedAt)))
-    .groupBy(mealItemTable.foodId)
+    .groupBy(entryTable.foodId)
     .as('user_stats');
 }
 
 /** The same question asked of the whole instance, which is what "popular" means here. */
 function globalStats(db: Db) {
   return db
-    .select({ foodId: mealItemTable.foodId, uses: count().as('global_uses') })
-    .from(mealItemTable)
-    .innerJoin(mealTable, eq(mealTable.id, mealItemTable.mealId))
+    .select({ foodId: entryTable.foodId, uses: count().as('global_uses') })
+    .from(entryTable)
+    .innerJoin(mealTable, eq(mealTable.id, entryTable.mealId))
     .where(isNull(mealTable.deletedAt))
-    .groupBy(mealItemTable.foodId)
+    .groupBy(entryTable.foodId)
     .as('global_stats');
 }
 

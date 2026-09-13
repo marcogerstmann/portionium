@@ -109,48 +109,81 @@ export const mealSchema = z.object({
 
 export type Meal = z.infer<typeof mealSchema>;
 
-export const mealItemSchema = z.object({
+export const entrySchema = z.object({
   id: idSchema,
   mealId: idSchema,
-  foodId: idSchema,
+  /**
+   * The food this entry came from, or null for a bare colour. Provenance rather than the
+   * subject: an entry is a colour, and naming the preset it was logged from is what makes the
+   * search, the catalog and the review queue worth having. See docs/adr/011-an-entry-is-a-colour.md.
+   */
+  foodId: idSchema.nullable(),
+  /**
+   * The colour this entry was logged as, written when it happened and never recomputed. Null
+   * means nobody has judged the food behind it yet, which is a state and not a failure: a `user`
+   * verdict on that food fills it in, see insertClassifications in api/src/db/classification.ts.
+   *
+   * Null beside a null `foodId` is refused by the table's own CHECK rather than by application
+   * code, so an entry that means nothing is not expressible.
+   */
+  category: categorySchema.nullable(),
   /**
    * Deliberately optional and deliberately unused. Portion sizes are not part of the product,
    * the whole point is that a user does not weigh their food. This is here so that a later
    * feature can record a number without a migration.
    *
-   * It must never become required. A required quantity turns this into a calorie tracker.
+   * It must never become required. A required quantity turns this into a calorie tracker, and a
+   * bare colour is the opposite of a portion rather than a step towards one.
    */
   quantity: z.number().positive().optional(),
   /** Display order within the meal, zero based and dense. Assigned by the domain factory. */
   position: z.int().nonnegative(),
 });
 
-export type MealItem = z.infer<typeof mealItemSchema>;
+export type Entry = z.infer<typeof entrySchema>;
 
 /**
- * What a caller supplies about one item, on a meal or a favourite alike: which food, how much.
- * Extracted because three different requests take exactly this and nothing more, see
- * createMealRequestSchema, updateMealRequestSchema and createFavouriteRequestSchema in api.ts.
+ * What a caller supplies for one entry, on a meal or a favourite alike. Extracted because three
+ * different requests take exactly this and nothing more, see createMealRequestSchema,
+ * updateMealRequestSchema and createFavouriteRequestSchema in api.ts.
+ *
+ * Three combinations, and the refinement below is what rules out the fourth:
+ *
+ *   - `foodId` alone, the ordinary case: the server stamps the colour that food resolves to for
+ *     this caller at this moment, or leaves it null when nobody has judged it yet
+ *   - `foodId` with `category`, an explicit colour for this one entry with the provenance kept
+ *   - `category` alone, a bare colour: somebody logging what they ate without naming it
+ *
+ * Neither field is refused here rather than by the table's CHECK, so a client gets a 400 that
+ * names the problem instead of a 500 from a constraint.
  */
-export const mealItemInputSchema = mealItemSchema.pick({ foodId: true, quantity: true });
+export const entryInputSchema = z
+  .object({
+    foodId: idSchema.optional(),
+    category: categorySchema.optional(),
+    quantity: entrySchema.shape.quantity,
+  })
+  .refine((entry) => entry.foodId !== undefined || entry.category !== undefined, {
+    error: 'An entry must name a food, a colour, or both.',
+  });
 
-export type MealItemInput = z.infer<typeof mealItemInputSchema>;
+export type EntryInput = z.infer<typeof entryInputSchema>;
 
 /**
  * A meal composition a user has named and pinned on purpose, "Standard Frühstück", rather than
  * one this API noticed from their history, see the suggestion schemas in api.ts. Favourites are
  * private: `userId` is never null the way a shared catalog food's `createdBy` can be.
  *
- * `items` carries no `position`. The array's own order is the order, the same convention
- * `mealItemSchema.position` encodes explicitly for a stored meal, and it is what lets a
- * favourite's items go straight into createMeal to become a real one.
+ * `entries` carries no `position`. The array's own order is the order, the same convention
+ * `entrySchema.position` encodes explicitly for a stored meal, and it is what lets a favourite's
+ * entries go straight into createMeal to become a real one.
  */
 export const mealFavouriteSchema = z.object({
   id: idSchema,
   userId: idSchema,
   name: z.string().trim().min(1).max(100),
   type: mealTypeSchema,
-  items: z.array(mealItemInputSchema),
+  entries: z.array(entryInputSchema),
   createdAt: timestampSchema,
 });
 

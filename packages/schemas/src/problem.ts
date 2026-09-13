@@ -82,7 +82,7 @@ export const PROBLEM = {
    * nothing returns is a history with holes in it. Rename it instead.
    */
   foodInUse: `${PROBLEM_NAMESPACE}/food-in-use`,
-  mealHasNoItems: `${PROBLEM_NAMESPACE}/meal-has-no-items`,
+  mealHasNoEntries: `${PROBLEM_NAMESPACE}/meal-has-no-entries`,
   /** A client supplied a meal id that already belongs to a row. Retry with a new one. */
   mealIdConflict: `${PROBLEM_NAMESPACE}/meal-id-conflict`,
   /**
@@ -90,12 +90,12 @@ export const PROBLEM = {
    * allowed, this is the one direction a meal cannot move.
    */
   mealLoggedInFuture: `${PROBLEM_NAMESPACE}/meal-logged-in-future`,
-  /** An item named a food id the catalog has no live entry for. */
+  /** An entry named a food id the catalog has no live entry for. */
   unknownFoodReference: `${PROBLEM_NAMESPACE}/unknown-food-reference`,
-  /** POST /meals was asked to copy another meal's items and given its own item list too. */
-  mealFromIdWithItems: `${PROBLEM_NAMESPACE}/meal-from-id-with-items`,
+  /** POST /meals was asked to copy another meal's entries and given its own entry list too. */
+  mealFromIdWithEntries: `${PROBLEM_NAMESPACE}/meal-from-id-with-entries`,
   /** A favourite with nothing in it. The way out is the same as a meal's: delete it instead. */
-  favouriteHasNoItems: `${PROBLEM_NAMESPACE}/favourite-has-no-items`,
+  favouriteHasNoEntries: `${PROBLEM_NAMESPACE}/favourite-has-no-entries`,
   implausibleWeight: `${PROBLEM_NAMESPACE}/implausible-weight`,
   /**
    * The readiness probe found this instance unable to serve: the database did not answer, or
@@ -116,7 +116,7 @@ export type ProblemType = (typeof PROBLEM)[keyof typeof PROBLEM];
 export const PROBLEM_CONTENT_TYPE = 'application/problem+json';
 
 /**
- * One failed field. `path` is the JSON Pointer the validator produced, so `/items/0/quantity`
+ * One failed field. `path` is the JSON Pointer the validator produced, so `/entries/0/quantity`
  * addresses the offending value inside the request exactly as RFC 6901 spells it. It is taken
  * from the Zod issue rather than rewritten, because a path that is reformatted by hand is a
  * path that can be wrong.

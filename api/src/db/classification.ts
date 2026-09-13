@@ -1,8 +1,13 @@
 import type { Category, ClassificationSource } from '@portionium/schemas';
-import { and, desc, eq, gte, inArray, isNull, not, notExists, or, sql } from 'drizzle-orm';
+import { and, desc, eq, exists, gte, inArray, isNull, not, notExists, or, sql } from 'drizzle-orm';
 
 import type { Db } from './client.js';
-import { foodClassificationTable, foodClassificationWithdrawalTable } from './schema/index.js';
+import {
+  entryTable,
+  foodClassificationTable,
+  foodClassificationWithdrawalTable,
+  mealTable,
+} from './schema/index.js';
 
 /**
  * Every query the classification log needs, and deliberately no more than that.
@@ -74,6 +79,13 @@ function withdrawnSince(db: Db, userId: string) {
  * Takes a list because the seed loader inserts a few hundred at once and a caller with one
  * verdict passes one. Returning the rows rather than a count means the endpoint that writes an
  * override can answer with what it stored, without reading it back.
+ *
+ * A `user` verdict does a second thing, in the same transaction: it fills in the colour of that
+ * user's entries that named the food and were still waiting for one, see colourWaitingEntries
+ * below. That is here rather than in the three routes that write one, PUT
+ * /foods/{id}/classification, POST /foods/unclassified/confirm and the AI confirm and reject to
+ * come, because this module exposes one write and therefore there is no second door a caller
+ * could come through having forgotten. See docs/adr/011-an-entry-is-a-colour.md.
  */
 export function insertClassifications(
   db: Db,
@@ -83,11 +95,62 @@ export function insertClassifications(
     return [];
   }
 
-  return db
-    .insert(foodClassificationTable)
-    .values([...verdicts])
-    .returning()
-    .all();
+  return db.transaction((tx) => {
+    const stored = tx
+      .insert(foodClassificationTable)
+      .values([...verdicts])
+      .returning()
+      .all();
+
+    for (const verdict of stored) {
+      if (verdict.source === 'user' && verdict.userId !== null) {
+        colourWaitingEntries(tx, verdict.foodId, verdict.userId, verdict.category);
+      }
+    }
+
+    return stored;
+  });
+}
+
+/**
+ * Gives this user's still uncoloured entries for one food the colour they were waiting for.
+ *
+ * Three conditions, and each of them is a rule rather than an optimisation.
+ *
+ * `category IS NULL` is what makes a logged colour history: an entry that already carries one is
+ * never rewritten, whatever the source and whoever says so. Recolouring a food changes what
+ * logging it again would give you and leaves every day it was already eaten on alone.
+ *
+ * The correlated subquery on `meal.user_id` is what makes cross-user isolation hold by
+ * construction rather than by a filter somebody could forget: the rows this can reach are the
+ * ones whose meal belongs to the user whose verdict this is, so the other household member's
+ * waiting entries are not in range at all.
+ *
+ * And only a `user` source reaches this at all, see the caller. A seed or a model verdict is an
+ * opinion about the catalog, not about what somebody ate, so it never writes here.
+ */
+function colourWaitingEntries(
+  // A transaction rather than the connection, which is everything a Db is but its driver handle.
+  db: Omit<Db, '$client'>,
+  foodId: string,
+  userId: string,
+  category: Category,
+): void {
+  db.update(entryTable)
+    .set({ category })
+    .where(
+      and(
+        eq(entryTable.foodId, foodId),
+        isNull(entryTable.category),
+        exists(
+          db
+            .select({ present: sql`1` })
+            .from(mealTable)
+            .where(and(eq(mealTable.id, entryTable.mealId), eq(mealTable.userId, userId))),
+        ),
+      ),
+    )
+    .run();
 }
 
 /**

@@ -33,6 +33,7 @@ export const en = {
   todayNothingLogged: 'Nothing logged yet.',
   todayDayImageLabel: 'This day: {summary}.',
   todayUnknownFood: 'Unknown food',
+  todayBareEntry: 'Something eaten',
   todayClassify: 'Classify',
   todayDeleteMeal: 'Delete this {mealType}',
   todayWeightLabel: 'Weight',

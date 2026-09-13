@@ -8,7 +8,7 @@ function meal(id: string, daysAgo: number, foodIds: readonly string[]): Suggesti
   return {
     id,
     loggedAt: new Date(NOW.getTime() - daysAgo * 24 * 60 * 60 * 1000),
-    items: foodIds.map((foodId) => ({ foodId })),
+    entries: foodIds.map((foodId) => ({ foodId })),
   };
 }
 
@@ -18,7 +18,7 @@ describe('rankMealSuggestions', () => {
 
     const result = rankMealSuggestions(meals, 10, NOW);
 
-    expect(result[0]?.items.map((item) => item.foodId)).toEqual(['skyr']);
+    expect(result[0]?.entries.map((entry) => entry.foodId)).toEqual(['skyr']);
   });
 
   it('treats the same foods in a different order, or repeated, as one composition', () => {
@@ -46,7 +46,7 @@ describe('rankMealSuggestions', () => {
 
     const result = rankMealSuggestions([...abandoned, ...current], 10, NOW);
 
-    expect(result[0]?.items.map((item) => item.foodId)).toEqual(['skyr']);
+    expect(result[0]?.entries.map((entry) => entry.foodId)).toEqual(['skyr']);
   });
 
   it('returns nothing for a caller with no history, rather than throwing', () => {

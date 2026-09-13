@@ -16,29 +16,42 @@ const ID = '0199e0e9-1c4b-7000-8f2c-6e4c1c2a9b31';
 const OTHER_ID = '0199e0e9-1c4b-7000-8f2c-6e4c1c2a9b32';
 
 describe('createMealRequestSchema', () => {
-  it('accepts a meal with items and no explicit timestamp', () => {
+  it('accepts a meal with entries and no explicit timestamp', () => {
     const parsed = createMealRequestSchema.parse({
       type: 'lunch',
-      items: [{ foodId: ID }, { foodId: OTHER_ID, quantity: 2 }],
+      entries: [{ foodId: ID }, { foodId: OTHER_ID, quantity: 2 }],
     });
 
     expect(parsed.loggedAt).toBeUndefined();
-    expect(parsed.items).toHaveLength(2);
+    expect(parsed.entries).toHaveLength(2);
   });
 
-  it('lets an empty item list through, because that is a domain error and not a shape error', () => {
-    expect(createMealRequestSchema.safeParse({ type: 'lunch', items: [] }).success).toBe(true);
+  it('accepts a bare colour beside a food, so one meal can carry both', () => {
+    const parsed = createMealRequestSchema.parse({
+      type: 'lunch',
+      entries: [{ foodId: ID }, { category: 'orange' }],
+    });
+
+    expect(parsed.entries?.[1]).toEqual({ category: 'orange' });
   });
 
-  it('rejects an item pointing at something that is not a food id', () => {
-    const request = { type: 'lunch', items: [{ foodId: 'porridge' }] };
+  it('rejects an entry naming neither a food nor a colour', () => {
+    expect(createMealRequestSchema.safeParse({ type: 'lunch', entries: [{}] }).success).toBe(false);
+  });
+
+  it('lets an empty entry list through, because that is a domain error and not a shape error', () => {
+    expect(createMealRequestSchema.safeParse({ type: 'lunch', entries: [] }).success).toBe(true);
+  });
+
+  it('rejects an entry pointing at something that is not a food id', () => {
+    const request = { type: 'lunch', entries: [{ foodId: 'porridge' }] };
     expect(createMealRequestSchema.safeParse(request).success).toBe(false);
   });
 
   it('rejects a caller supplied user id rather than ignoring it, the session decides who is writing', () => {
     const result = createMealRequestSchema.safeParse({
       type: 'lunch',
-      items: [],
+      entries: [],
       userId: ID,
     });
 

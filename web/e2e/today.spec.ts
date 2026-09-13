@@ -30,18 +30,18 @@ async function signIn(page: Page) {
  * wants, see api/src/http/plugins/auth.ts.
  */
 async function logMeal(page: Page, meal: { type: string; foodNames: string[] }): Promise<void> {
-  const items = [];
+  const entries = [];
 
   for (const name of meal.foodNames) {
     const found = await page.request.get(`${API}/foods/search?q=${encodeURIComponent(name)}`);
     const [food] = (await found.json()) as { id: string; name: string }[];
     expect(food, `the seed catalog has ${name}`).toBeDefined();
-    items.push({ foodId: food?.id });
+    entries.push({ foodId: food?.id });
   }
 
   const response = await page.request.post(`${API}/meals`, {
     headers: { origin: new URL(page.url()).origin },
-    data: { type: meal.type, items },
+    data: { type: meal.type, entries },
   });
 
   expect(response.status()).toBe(201);

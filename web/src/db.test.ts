@@ -19,14 +19,14 @@ import {
  */
 
 /** A meal with one item per colour given, since the colours are all these tests look at. */
-function meal(...categories: MealResponse['items'][number]['category'][]): MealResponse {
+function meal(...categories: MealResponse['entries'][number]['category'][]): MealResponse {
   return {
     id: '01930000-0000-7000-8000-000000000001',
     userId: '01930000-0000-7000-8000-0000000000ff',
     type: 'lunch',
     loggedAt: '2026-09-13T11:00:00.000Z',
     localDate: '2026-09-13',
-    items: categories.map((category, position) => ({
+    entries: categories.map((category, position) => ({
       id: `01930000-0000-7000-8000-00000000010${position}`,
       foodId: `01930000-0000-7000-8000-00000000020${position}`,
       position,
@@ -126,7 +126,7 @@ describe('withMeal', () => {
 
   it('carries in the names the new items need, and only those', () => {
     const added = meal('green');
-    const eaten = added.items[0]?.foodId ?? '';
+    const eaten = added.entries[0]?.foodId ?? '';
 
     const day = withMeal(emptyDay('2026-09-13'), added, [
       food(eaten, 'Skyr'),
@@ -141,7 +141,7 @@ describe('withMeal', () => {
 
   it('names a food once when a second meal eats it again', () => {
     const first = meal('green');
-    const eaten = first.items[0]?.foodId ?? '';
+    const eaten = first.entries[0]?.foodId ?? '';
     const second = { ...first, id: '01930000-0000-7000-8000-000000000002' };
     const catalog = [food(eaten, 'Skyr')];
 
@@ -173,7 +173,7 @@ describe('withoutMeal', () => {
 describe('withClassification', () => {
   it('colours every item naming the food, and the summary with them', () => {
     const eaten = meal(null, null);
-    const foodId = eaten.items[0]?.foodId ?? '';
+    const foodId = eaten.entries[0]?.foodId ?? '';
     // Both items of this meal name different foods, so only the first should change colour.
     const day = withMeal(emptyDay('2026-09-13'), eaten, [
       { ...food(foodId, 'Mystery item'), category: null },
@@ -181,7 +181,7 @@ describe('withClassification', () => {
 
     const after = withClassification(day, foodId, 'orange');
 
-    expect(after.meals[0]?.items.map((item) => item.category)).toEqual(['orange', null]);
+    expect(after.meals[0]?.entries.map((entry) => entry.category)).toEqual(['orange', null]);
     expect(after.colourCounts).toEqual({ green: 0, yellow: 0, orange: 1, unclassified: 1 });
     expect(after.foods[0]?.category).toBe('orange');
   });

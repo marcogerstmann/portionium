@@ -34,7 +34,7 @@ async function logMeal(page: Page, foodName: string): Promise<void> {
 
   const response = await page.request.post(`${API}/meals`, {
     headers: { origin: new URL(page.url()).origin },
-    data: { type: 'lunch', items: [{ foodId: food?.id }] },
+    data: { type: 'lunch', entries: [{ foodId: food?.id }] },
   });
 
   expect(response.status()).toBe(201);

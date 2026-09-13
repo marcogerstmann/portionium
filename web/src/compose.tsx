@@ -41,7 +41,7 @@ import { logMeal } from './outbox';
  *
  * What is deliberately not here: favourites and meal suggestions. The API has both, at GET
  * /meals/favourites and GET /meals/suggestions, and neither is renderable yet. A favourite's
- * items carry a `foodId` and no name, so a preview needs a lookup per food that no endpoint
+ * entries carry a `foodId` and no name, so a preview needs a lookup per food that no endpoint
  * offers, and nothing in this client can pin a favourite in the first place, so the list would
  * be empty for everybody. Both are a screen of their own once the API answers with names.
  */

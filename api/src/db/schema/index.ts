@@ -14,6 +14,6 @@ export * from './food.js';
 export * from './food-classification.js';
 export * from './food-classification-withdrawal.js';
 export * from './meal.js';
-export * from './meal-item.js';
+export * from './entry.js';
 export * from './meal-favourite.js';
 export * from './weight-entry.js';

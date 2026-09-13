@@ -12,63 +12,98 @@ const base: NewMeal = {
   userId: USER_ID,
   type: 'breakfast',
   loggedAt: new Date('2026-09-06T06:30:00.000Z'),
-  items: [{ foodId: PORRIDGE }, { foodId: BERRIES }],
+  entries: [
+    { foodId: PORRIDGE, category: 'green' },
+    { foodId: BERRIES, category: null },
+  ],
 };
 
 const berliner: MealDayContext = { timezone: 'Europe/Berlin', dayBoundaryHour: 4 };
 
 describe('createMeal', () => {
-  it('rejects a meal with no items', () => {
-    expect(() => createMeal({ ...base, items: [] }, berliner)).toThrow(DomainError);
+  it('rejects a meal with no entries', () => {
+    expect(() => createMeal({ ...base, entries: [] }, berliner)).toThrow(DomainError);
   });
 
   it('rejects it with a code an adapter can map, not a message it has to match', () => {
     try {
-      createMeal({ ...base, items: [] }, berliner);
+      createMeal({ ...base, entries: [] }, berliner);
       expect.unreachable('an empty meal must not be accepted');
     } catch (error) {
       expect(error).toBeInstanceOf(DomainError);
-      expect((error as DomainError).code).toBe('meal_has_no_items');
+      expect((error as DomainError).code).toBe('meal_has_no_entries');
     }
   });
 
-  it('numbers items densely from zero, in the order they were given', () => {
-    const { items } = createMeal(base, berliner);
+  it('numbers entries densely from zero, in the order they were given', () => {
+    const { entries } = createMeal(base, berliner);
 
-    expect(items.map((item) => item.position)).toEqual([0, 1]);
-    expect(items.map((item) => item.foodId)).toEqual([PORRIDGE, BERRIES]);
+    expect(entries.map((entry) => entry.position)).toEqual([0, 1]);
+    expect(entries.map((entry) => entry.foodId)).toEqual([PORRIDGE, BERRIES]);
   });
 
   it('ignores any position a caller tries to supply', () => {
-    const { items } = createMeal(
+    const { entries } = createMeal(
       {
         ...base,
-        items: [{ foodId: PORRIDGE, position: 7 }, { foodId: BERRIES }] as NewMeal['items'],
+        entries: [
+          { foodId: PORRIDGE, category: null, position: 7 },
+          { foodId: BERRIES, category: null },
+        ] as NewMeal['entries'],
       },
       berliner,
     );
 
-    expect(items.map((item) => item.position)).toEqual([0, 1]);
+    expect(entries.map((entry) => entry.position)).toEqual([0, 1]);
   });
 
   it('carries quantity through untouched when one is given, and leaves it off when not', () => {
-    const { items } = createMeal(
-      { ...base, items: [{ foodId: PORRIDGE, quantity: 1.5 }, { foodId: BERRIES }] },
+    const { entries } = createMeal(
+      {
+        ...base,
+        entries: [
+          { foodId: PORRIDGE, category: null, quantity: 1.5 },
+          { foodId: BERRIES, category: null },
+        ],
+      },
       berliner,
     );
 
-    expect(items[0]?.quantity).toBe(1.5);
-    expect(items[1]?.quantity).toBeUndefined();
+    expect(entries[0]?.quantity).toBe(1.5);
+    expect(entries[1]?.quantity).toBeUndefined();
+  });
+
+  it('carries the stamped colour through untouched, including a bare one with no food', () => {
+    const { entries } = createMeal(
+      {
+        ...base,
+        entries: [
+          { foodId: PORRIDGE, category: 'yellow' },
+          { foodId: null, category: 'orange' },
+          { foodId: BERRIES, category: null },
+        ],
+      },
+      berliner,
+    );
+
+    expect(entries.map((entry) => entry.category)).toEqual(['yellow', 'orange', null]);
+    expect(entries.map((entry) => entry.foodId)).toEqual([PORRIDGE, null, BERRIES]);
   });
 
   it('allows the same food twice, a second helping is not a mistake', () => {
-    const { items } = createMeal(
-      { ...base, items: [{ foodId: PORRIDGE }, { foodId: PORRIDGE }] },
+    const { entries } = createMeal(
+      {
+        ...base,
+        entries: [
+          { foodId: PORRIDGE, category: null },
+          { foodId: PORRIDGE, category: null },
+        ],
+      },
       berliner,
     );
 
-    expect(items).toHaveLength(2);
-    expect(items.map((item) => item.position)).toEqual([0, 1]);
+    expect(entries).toHaveLength(2);
+    expect(entries.map((entry) => entry.position)).toEqual([0, 1]);
   });
 
   it('stamps the day from the instant and the user, not from the caller', () => {
@@ -139,15 +174,24 @@ describe('createMeal', () => {
 });
 
 describe('applyMealChanges', () => {
-  const currentItems = [{ foodId: PORRIDGE }, { foodId: BERRIES }];
-  const current: NewMeal = { ...base, items: currentItems };
+  const currentEntries: NewMeal['entries'] = [
+    { foodId: PORRIDGE, category: 'green' },
+    { foodId: BERRIES, category: null },
+  ];
+  const current: NewMeal = { ...base, entries: currentEntries };
 
   it('leaves a field untouched when the edit does not mention it', () => {
-    const { meal, items } = applyMealChanges(current, {}, berliner);
+    const { meal, entries } = applyMealChanges(current, {}, berliner);
 
     expect(meal.type).toBe('breakfast');
     expect(meal.loggedAt).toEqual(base.loggedAt);
-    expect(items.map((item) => item.foodId)).toEqual([PORRIDGE, BERRIES]);
+    expect(entries.map((entry) => entry.foodId)).toEqual([PORRIDGE, BERRIES]);
+  });
+
+  it('leaves the colours a meal was logged with alone when the edit names no entries', () => {
+    const { entries } = applyMealChanges(current, { notes: 'moved the fork' }, berliner);
+
+    expect(entries.map((entry) => entry.category)).toEqual(['green', null]);
   });
 
   it('moves the meal to a different local date when loggedAt crosses the day boundary', () => {
@@ -161,28 +205,33 @@ describe('applyMealChanges', () => {
     expect(meal.localDate).toBe('2026-09-07');
   });
 
-  it('replaces the whole item list, so add, remove and reorder are one edit', () => {
+  it('replaces the whole entry list, so add, remove and reorder are one edit', () => {
     const CHEESE = '0199e0e9-1c4b-7000-8f2c-6e4c1c2a9b34';
 
-    const { items } = applyMealChanges(
+    const { entries } = applyMealChanges(
       current,
-      { items: [{ foodId: BERRIES }, { foodId: CHEESE }] },
+      {
+        entries: [
+          { foodId: BERRIES, category: 'green' },
+          { foodId: CHEESE, category: 'orange' },
+        ],
+      },
       berliner,
     );
 
-    expect(items.map((item) => [item.foodId, item.position])).toEqual([
+    expect(entries.map((entry) => [entry.foodId, entry.position])).toEqual([
       [BERRIES, 0],
       [CHEESE, 1],
     ]);
   });
 
-  it('rejects removing the last item, with a message that says to delete the meal instead', () => {
+  it('rejects removing the last entry, with a message that says to delete the meal instead', () => {
     try {
-      applyMealChanges(current, { items: [] }, berliner);
-      expect.unreachable('removing the last item must not leave an empty meal');
+      applyMealChanges(current, { entries: [] }, berliner);
+      expect.unreachable('removing the last entry must not leave an empty meal');
     } catch (error) {
       expect(error).toBeInstanceOf(DomainError);
-      expect((error as DomainError).code).toBe('meal_has_no_items');
+      expect((error as DomainError).code).toBe('meal_has_no_entries');
       expect((error as DomainError).message).toMatch(/delete the meal/i);
     }
   });

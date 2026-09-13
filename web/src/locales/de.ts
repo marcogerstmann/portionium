@@ -33,6 +33,7 @@ export const de: typeof en = {
   todayNothingLogged: 'Noch nichts eingetragen.',
   todayDayImageLabel: 'Dieser Tag: {summary}.',
   todayUnknownFood: 'Unbekanntes Lebensmittel',
+  todayBareEntry: 'Etwas gegessen',
   todayClassify: 'Einordnen',
   todayDeleteMeal: '{mealType} löschen',
   todayWeightLabel: 'Gewicht',

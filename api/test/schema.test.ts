@@ -6,7 +6,7 @@ import {
   apiTokenTable,
   foodClassificationTable,
   foodTable,
-  mealItemTable,
+  entryTable,
   mealTable,
   userTable,
   weightEntryTable,
@@ -65,7 +65,7 @@ describe('the entity tables', () => {
         'food',
         'food_classification',
         'meal',
-        'meal_item',
+        'entry',
         'weight_entry',
       ]),
     );
@@ -112,7 +112,7 @@ describe('the entity tables', () => {
         userId: user.id,
         type: 'snack',
         loggedAt: new Date('2026-09-06T23:00:00.000Z'), // 01:00 on the 7th in Berlin.
-        items: [{ foodId: food.id }],
+        entries: [{ foodId: food.id, category: null }],
       },
       user,
     );
@@ -161,25 +161,28 @@ describe('the entity tables', () => {
 
     // The user row is the day context, so this also proves the column default reaches the
     // derivation: nothing set day_boundary_hour, and 23:00 UTC still lands on the 6th.
-    const { meal, items } = createMeal(
+    const { meal, entries } = createMeal(
       {
         userId: user.id,
         type: 'breakfast',
         loggedAt: new Date('2026-09-06T06:30:00.000Z'),
-        items: [{ foodId: porridge.id }, { foodId: berries[0]!.id }],
+        entries: [
+          { foodId: porridge.id, category: 'green' },
+          { foodId: berries[0]!.id, category: null },
+        ],
       },
       user,
     );
 
     const [stored] = await database.db.insert(mealTable).values(meal).returning();
     await database.db
-      .insert(mealItemTable)
-      .values(items.map((item) => ({ ...item, mealId: stored!.id })));
+      .insert(entryTable)
+      .values(entries.map((entry) => ({ ...entry, mealId: stored!.id })));
 
     const rows = await database.db
       .select()
-      .from(mealItemTable)
-      .where(eq(mealItemTable.mealId, stored!.id));
+      .from(entryTable)
+      .where(eq(entryTable.mealId, stored!.id));
 
     expect(rows.map((row) => row.position).sort()).toEqual([0, 1]);
     expect(rows.every((row) => row.quantity === null)).toBe(true);
@@ -187,7 +190,7 @@ describe('the entity tables', () => {
     expect(stored!.loggedAt).toBeInstanceOf(Date);
   });
 
-  it('takes a meal’s items with it when the meal is really deleted', async () => {
+  it('takes a meal’s entries with it when the meal is really deleted', async () => {
     const user = await seedUser();
     const food = await seedFood(user.id);
     const [meal] = await database.db
@@ -195,12 +198,40 @@ describe('the entity tables', () => {
       .values({ userId: user.id, type: 'lunch', loggedAt: new Date(), localDate: '2026-09-06' })
       .returning();
 
-    await database.db
-      .insert(mealItemTable)
-      .values({ mealId: meal!.id, foodId: food.id, position: 0 });
+    await database.db.insert(entryTable).values({ mealId: meal!.id, foodId: food.id, position: 0 });
     await database.db.delete(mealTable).where(eq(mealTable.id, meal!.id));
 
-    expect(await database.db.select().from(mealItemTable)).toHaveLength(0);
+    expect(await database.db.select().from(entryTable)).toHaveLength(0);
+  });
+
+  it('refuses an entry that names neither a food nor a colour', async () => {
+    // The CHECK is the whole of "an entry is a colour": a row that says nothing is refused by
+    // the database, so no migration, CLI or adapter written later can produce one.
+    const user = await seedUser();
+    const [meal] = await database.db
+      .insert(mealTable)
+      .values({ userId: user.id, type: 'lunch', loggedAt: new Date(), localDate: '2026-09-06' })
+      .returning();
+
+    await expect(
+      database.db.insert(entryTable).values({ mealId: meal!.id, position: 0 }),
+    ).rejects.toThrow(/CHECK/i);
+  });
+
+  it('stores a bare colour, which names no food at all', async () => {
+    const user = await seedUser();
+    const [meal] = await database.db
+      .insert(mealTable)
+      .values({ userId: user.id, type: 'lunch', loggedAt: new Date(), localDate: '2026-09-06' })
+      .returning();
+
+    const [entry] = await database.db
+      .insert(entryTable)
+      .values({ mealId: meal!.id, category: 'orange', position: 0 })
+      .returning();
+
+    expect(entry!.foodId).toBeNull();
+    expect(entry!.category).toBe('orange');
   });
 
   it('keeps a shared classification unattached to any user, and a user’s own attached', async () => {

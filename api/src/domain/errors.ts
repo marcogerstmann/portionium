@@ -7,11 +7,11 @@
  * code here and not there is a compile error at that map, which is the point.
  */
 export type DomainErrorCode =
-  | 'meal_has_no_items'
+  | 'meal_has_no_entries'
   | 'meal_id_conflict'
   | 'meal_logged_in_future'
-  | 'meal_from_id_with_items'
-  | 'favourite_has_no_items'
+  | 'meal_from_id_with_entries'
+  | 'favourite_has_no_entries'
   | 'unknown_food_reference'
   | 'implausible_weight'
   | 'invalid_credentials'

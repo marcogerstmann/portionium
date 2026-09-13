@@ -94,9 +94,9 @@ const DOMAIN_PROBLEMS: Record<
     title: 'Food is used by a meal',
     status: 409,
   },
-  meal_has_no_items: {
-    type: PROBLEM.mealHasNoItems,
-    title: 'A meal must contain at least one item',
+  meal_has_no_entries: {
+    type: PROBLEM.mealHasNoEntries,
+    title: 'A meal must contain at least one entry',
     status: 422,
   },
   meal_id_conflict: {
@@ -109,14 +109,14 @@ const DOMAIN_PROBLEMS: Record<
     title: 'A meal cannot be logged in the future',
     status: 422,
   },
-  meal_from_id_with_items: {
-    type: PROBLEM.mealFromIdWithItems,
-    title: 'fromMealId and items may not both be set',
+  meal_from_id_with_entries: {
+    type: PROBLEM.mealFromIdWithEntries,
+    title: 'fromMealId and entries may not both be set',
     status: 422,
   },
-  favourite_has_no_items: {
-    type: PROBLEM.favouriteHasNoItems,
-    title: 'A favourite must contain at least one item',
+  favourite_has_no_entries: {
+    type: PROBLEM.favouriteHasNoEntries,
+    title: 'A favourite must contain at least one entry',
     status: 422,
   },
   unknown_food_reference: {

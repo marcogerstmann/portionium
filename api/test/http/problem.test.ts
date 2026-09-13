@@ -47,7 +47,7 @@ async function buildTestApp() {
   );
 
   app.get('/domain-failure', { config: { auth: 'public' } }, () => {
-    throw new DomainError('meal_has_no_items', 'A meal must contain at least one item.');
+    throw new DomainError('meal_has_no_entries', 'A meal must contain at least one entry.');
   });
 
   app.get(
@@ -136,10 +136,10 @@ describe('problem details', () => {
 
     expect(response.statusCode).toBe(422);
     expect(readProblem(response.payload)).toMatchObject({
-      type: PROBLEM.mealHasNoItems,
+      type: PROBLEM.mealHasNoEntries,
       status: 422,
       // The domain's own message, which is written to be read by a person.
-      detail: 'A meal must contain at least one item.',
+      detail: 'A meal must contain at least one entry.',
     });
   });
 

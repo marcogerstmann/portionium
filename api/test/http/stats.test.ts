@@ -70,7 +70,7 @@ describe('GET /stats/days', () => {
     // weight.test.ts relies on.
     fixtures.create.meal(fixtures.userA, {
       loggedAt: new Date('2026-03-01T05:00:00.000Z'),
-      items: [{ foodId: green.id }, { foodId: unjudged.id }],
+      entries: [{ foodId: green.id }, { foodId: unjudged.id }],
     });
     const token = fixtures.create.session(fixtures.userA);
 
@@ -96,7 +96,7 @@ describe('GET /stats/days', () => {
     fixtures.create.classification(green, { category: 'green' });
     fixtures.create.meal(fixtures.userA, {
       loggedAt: new Date('2026-03-01T05:00:00.000Z'),
-      items: [{ foodId: green.id }],
+      entries: [{ foodId: green.id }],
     });
     const token = fixtures.create.session(fixtures.userA);
 
@@ -117,7 +117,7 @@ describe('GET /stats/days', () => {
     fixtures.create.classification(food, { category: 'green' });
     fixtures.create.meal(fixtures.userB, {
       loggedAt: new Date('2026-03-01T12:00:00.000Z'),
-      items: [{ foodId: food.id }],
+      entries: [{ foodId: food.id }],
     });
     const token = fixtures.create.session(fixtures.userA);
 
@@ -140,7 +140,7 @@ describe('GET /stats/days', () => {
     fixtures.create.classification(green, { category: 'green' });
     const { meal } = fixtures.create.meal(fixtures.userA, {
       loggedAt: new Date('2026-03-01T05:00:00.000Z'),
-      items: [{ foodId: green.id }],
+      entries: [{ foodId: green.id }],
     });
     const token = fixtures.create.session(fixtures.userA);
 
@@ -174,7 +174,7 @@ describe('GET /stats/days', () => {
     fixtures.create.classification(green, { category: 'green' });
     fixtures.create.meal(fixtures.userA, {
       loggedAt: new Date('2026-06-15T12:00:00.000Z'),
-      items: [{ foodId: green.id }],
+      entries: [{ foodId: green.id }],
     });
     const token = fixtures.create.session(fixtures.userA);
 
@@ -407,11 +407,11 @@ describe('GET /stats/weekly', () => {
     // Monday and Tuesday of the current week, past the Berlin boundary.
     fixtures.create.meal(fixtures.userA, {
       loggedAt: new Date('2026-03-09T05:00:00.000Z'),
-      items: [{ foodId: green.id }, { foodId: green.id }],
+      entries: [{ foodId: green.id }, { foodId: green.id }],
     });
     fixtures.create.meal(fixtures.userA, {
       loggedAt: new Date('2026-03-10T05:00:00.000Z'),
-      items: [{ foodId: orange.id }],
+      entries: [{ foodId: orange.id }],
     });
     const token = fixtures.create.session(fixtures.userA);
 
@@ -433,12 +433,12 @@ describe('GET /stats/weekly', () => {
     for (const day of ['2026-03-02', '2026-03-03', '2026-03-04', '2026-03-05']) {
       fixtures.create.meal(fixtures.userA, {
         loggedAt: new Date(`${day}T05:00:00.000Z`),
-        items: [{ foodId: green.id }],
+        entries: [{ foodId: green.id }],
       });
     }
     fixtures.create.meal(fixtures.userA, {
       loggedAt: new Date('2026-03-09T05:00:00.000Z'),
-      items: [{ foodId: green.id }],
+      entries: [{ foodId: green.id }],
     });
     const token = fixtures.create.session(fixtures.userA);
 
@@ -484,7 +484,7 @@ describe('GET /stats/weekly', () => {
     fixtures.create.classification(food, { category: 'green' });
     fixtures.create.meal(fixtures.userB, {
       loggedAt: new Date('2026-03-09T12:00:00.000Z'),
-      items: [{ foodId: food.id }],
+      entries: [{ foodId: food.id }],
     });
     weighDaily(fixtures, fixtures.userB, '2026-03-09', [80_000]);
     const token = fixtures.create.session(fixtures.userA);

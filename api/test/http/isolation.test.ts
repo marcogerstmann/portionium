@@ -8,7 +8,7 @@ import { insertMealFavourite } from '../../src/db/meal-favourite.js';
 import {
   apiTokenTable,
   mealFavouriteTable,
-  mealItemTable,
+  entryTable,
   mealTable,
   sessionTable,
   weightEntryTable,
@@ -161,7 +161,7 @@ const MEAL: OwnedResource = {
   ],
   snapshot: (fixtures, { id }) => ({
     meal: fixtures.db.select().from(mealTable).where(eq(mealTable.id, id)).get(),
-    items: fixtures.db.select().from(mealItemTable).where(eq(mealItemTable.mealId, id)).all(),
+    entries: fixtures.db.select().from(entryTable).where(eq(entryTable.mealId, id)).all(),
   }),
   absent: (fixtures) => fixtures.create.food().id,
   lists: [{ url: `${API_PREFIX}/meals`, ids: page, paged: true }],
@@ -174,7 +174,7 @@ const FAVOURITE: OwnedResource = {
       userId: owner.id,
       name: 'The usual',
       type: 'lunch',
-      items: [{ foodId: fixtures.create.food().id }],
+      entries: [{ foodId: fixtures.create.food().id }],
     });
 
     return { id: stored.id, path: stored.id };
@@ -265,7 +265,7 @@ const API_TOKEN: OwnedResource = {
  *   not Fastify routes, so the story that adds it extends this table and gives that surface the
  *   equivalent of the COVERAGE check below.
  *
- * A meal item is not a row of its own here on purpose: nothing on the wire names one. Items are
+ * An entry is not a row of its own here on purpose: nothing on the wire names one. Entries are
  * written through their meal, so their isolation is the meal's, and the reference a client can
  * actually make is fromMealId, probed further down.
  */
@@ -668,8 +668,8 @@ describe.each(CREDENTIALS)('with $name on both sides', (credential) => {
 
   /**
    * A write that names somebody else's row inside its body rather than in the path. There is
-   * no client supplied `mealId` on an item, items are written through their meal, so the
-   * reference the ticket asks about is `fromMealId`: copy that meal's items into a new one.
+   * no client supplied `mealId` on an entry, entries are written through their meal, so the
+   * reference the ticket asks about is `fromMealId`: copy that meal's entries into a new one.
    */
   describe('a write referencing another account row', () => {
     it('cannot copy a meal it does not own', async () => {
@@ -701,7 +701,7 @@ describe.each(CREDENTIALS)('with $name on both sides', (credential) => {
           id: meal.id,
           type: 'dinner',
           notes: 'taken',
-          items: [{ foodId: fixtures.create.food().id }],
+          entries: [{ foodId: fixtures.create.food().id }],
         },
       });
 
@@ -732,7 +732,7 @@ describe.each(CREDENTIALS)('with $name on both sides', (credential) => {
         method: 'POST',
         url: `${API_PREFIX}/meals/favourites`,
         headers: theirs,
-        payload: { name: 'Toast', type: 'breakfast', items: [{ foodId: id }] },
+        payload: { name: 'Toast', type: 'breakfast', entries: [{ foodId: id }] },
       });
 
       expect(favourite.statusCode).toBe(201);

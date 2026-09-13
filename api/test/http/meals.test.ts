@@ -73,7 +73,7 @@ describe('logging a meal', () => {
         type: 'breakfast',
         loggedAt: '2026-03-02T05:00:00.000Z',
         notes: 'with berries',
-        items: [{ foodId: skyr.id, quantity: 200 }],
+        entries: [{ foodId: skyr.id, quantity: 200 }],
       },
     });
 
@@ -85,7 +85,7 @@ describe('logging a meal', () => {
       localDate: '2026-03-02',
       notes: 'with berries',
     });
-    expect(body.items).toEqual([
+    expect(body.entries).toEqual([
       {
         id: expect.any(String) as string,
         foodId: skyr.id,
@@ -109,12 +109,12 @@ describe('logging a meal', () => {
       headers: browser(token),
       payload: {
         type: 'lunch',
-        items: [{ foodId: c.id }, { foodId: a.id }, { foodId: b.id }],
+        entries: [{ foodId: c.id }, { foodId: a.id }, { foodId: b.id }],
       },
     });
 
     const body = response.json<MealResponse>();
-    expect(body.items.map((item) => [item.foodId, item.position])).toEqual([
+    expect(body.entries.map((entry) => [entry.foodId, entry.position])).toEqual([
       [c.id, 0],
       [a.id, 1],
       [b.id, 2],
@@ -130,10 +130,10 @@ describe('logging a meal', () => {
       method: 'POST',
       url: MEALS,
       headers: browser(token),
-      payload: { type: 'snack', items: [{ foodId: food.id }] },
+      payload: { type: 'snack', entries: [{ foodId: food.id }] },
     });
 
-    expect(response.json<MealResponse>().items[0]).toHaveProperty('category', null);
+    expect(response.json<MealResponse>().entries[0]).toHaveProperty('category', null);
   });
 
   it('rejects an empty meal as a domain error rather than an empty row', async () => {
@@ -144,12 +144,12 @@ describe('logging a meal', () => {
       method: 'POST',
       url: MEALS,
       headers: browser(token),
-      payload: { type: 'lunch', items: [] },
+      payload: { type: 'lunch', entries: [] },
     });
 
     expect(response.statusCode).toBe(422);
     expect(problem(response.payload).type).toBe(
-      'https://portionium.dev/problems/meal-has-no-items',
+      'https://portionium.dev/problems/meal-has-no-entries',
     );
   });
 
@@ -162,7 +162,7 @@ describe('logging a meal', () => {
       method: 'POST',
       url: MEALS,
       headers: browser(token),
-      payload: { type: 'lunch', items: [{ foodId: ghost }] },
+      payload: { type: 'lunch', entries: [{ foodId: ghost }] },
     });
 
     expect(response.statusCode).toBe(422);
@@ -181,7 +181,7 @@ describe('logging a meal', () => {
       method: 'POST',
       url: MEALS,
       headers: browser(token),
-      payload: { id: clientId, type: 'dinner', items: [{ foodId: food.id }] },
+      payload: { id: clientId, type: 'dinner', entries: [{ foodId: food.id }] },
     });
 
     expect(response.statusCode).toBe(201);
@@ -193,7 +193,7 @@ describe('logging a meal', () => {
     const food = fixtures.create.food();
     const token = fixtures.create.session(fixtures.userA);
     const clientId = '0199e0e9-1c4b-7000-8f2c-6e4c1c2a9b31';
-    const payload = { id: clientId, type: 'dinner', items: [{ foodId: food.id }] };
+    const payload = { id: clientId, type: 'dinner', entries: [{ foodId: food.id }] };
 
     const first = await app.inject({
       method: 'POST',
@@ -223,7 +223,7 @@ describe('editing a meal', () => {
     // 05:00 UTC is 06:00 in Berlin, on 2026-03-02.
     const { meal: stored } = fixtures.create.meal(fixtures.userA, {
       loggedAt: new Date('2026-03-02T05:00:00.000Z'),
-      items: [{ foodId: food.id }],
+      entries: [{ foodId: food.id }],
     });
     expect(stored.localDate).toBe('2026-03-02');
 
@@ -252,7 +252,7 @@ describe('editing a meal', () => {
     const token = fixtures.create.session(fixtures.userA);
     const { meal: stored } = fixtures.create.meal(fixtures.userA, {
       type: 'breakfast',
-      items: [{ foodId: original.id }],
+      entries: [{ foodId: original.id }],
     });
 
     const response = await app.inject({
@@ -262,7 +262,7 @@ describe('editing a meal', () => {
       payload: {
         type: 'dinner',
         notes: 'ate later than planned',
-        items: [{ foodId: added.id }, { foodId: original.id }],
+        entries: [{ foodId: added.id }, { foodId: original.id }],
       },
     });
 
@@ -270,7 +270,7 @@ describe('editing a meal', () => {
     const body = response.json<MealResponse>();
     expect(body).toMatchObject({ type: 'dinner', notes: 'ate later than planned' });
     // Reordered: the newly added item now leads, and positions are dense from zero.
-    expect(body.items.map((item) => [item.foodId, item.position])).toEqual([
+    expect(body.entries.map((entry) => [entry.foodId, entry.position])).toEqual([
       [added.id, 0],
       [original.id, 1],
     ]);
@@ -294,10 +294,10 @@ describe('editing a meal', () => {
     const body = response.json<MealResponse>();
     expect(body.type).toBe('lunch');
     expect(body.notes).toBe('updated note');
-    expect(body.items).toHaveLength(1);
+    expect(body.entries).toHaveLength(1);
   });
 
-  it('refuses to remove the last item, suggesting deletion instead', async () => {
+  it('refuses to remove the last entry, suggesting deletion instead', async () => {
     const { app, fixtures } = await buildTestApp();
     const token = fixtures.create.session(fixtures.userA);
     const { meal: stored } = fixtures.create.meal(fixtures.userA);
@@ -306,12 +306,12 @@ describe('editing a meal', () => {
       method: 'PATCH',
       url: meal(stored.id),
       headers: browser(token),
-      payload: { items: [] },
+      payload: { entries: [] },
     });
 
     expect(response.statusCode).toBe(422);
     const body = problem(response.payload);
-    expect(body.type).toBe('https://portionium.dev/problems/meal-has-no-items');
+    expect(body.type).toBe('https://portionium.dev/problems/meal-has-no-entries');
     expect(body.detail).toMatch(/delete the meal/i);
   });
 
@@ -390,7 +390,7 @@ describe('deleting a meal', () => {
     const food = fixtures.create.food();
     const token = fixtures.create.session(fixtures.userA);
     const clientId = '0199e0e9-1c4b-7000-8f2c-6e4c1c2a9b31';
-    const payload = { id: clientId, type: 'lunch', items: [{ foodId: food.id }] };
+    const payload = { id: clientId, type: 'lunch', entries: [{ foodId: food.id }] };
 
     const created = await app.inject({
       method: 'POST',
@@ -420,7 +420,7 @@ describe('deleting a meal', () => {
 
     // Live again: a normal read finds it, and a second delete has something to act on.
     const list = await app.inject({ url: MEALS, headers: browser(token) });
-    expect(list.json<{ items: MealResponse[] }>().items.map((item) => item.id)).toContain(clientId);
+    expect(list.json<{ items: MealResponse[] }>().items.map((meal) => meal.id)).toContain(clientId);
   });
 
   it('never revives a soft deleted meal for anybody but the account that owned it', async () => {
@@ -429,7 +429,7 @@ describe('deleting a meal', () => {
     const tokenA = fixtures.create.session(fixtures.userA);
     const tokenB = fixtures.create.session(fixtures.userB);
     const { meal: stored } = fixtures.create.meal(fixtures.userA, {
-      items: [{ foodId: food.id }],
+      entries: [{ foodId: food.id }],
     });
 
     const deleted = await app.inject({
@@ -444,7 +444,7 @@ describe('deleting a meal', () => {
       method: 'POST',
       url: MEALS,
       headers: browser(tokenB),
-      payload: { id: stored.id, type: 'dinner', items: [{ foodId: food.id }] },
+      payload: { id: stored.id, type: 'dinner', entries: [{ foodId: food.id }] },
     });
 
     expect(claimed.statusCode).toBe(409);
@@ -507,7 +507,7 @@ describe('browsing meals', () => {
     const first = await app.inject({ url: `${MEALS}?limit=2`, headers: browser(token) });
     const firstPage = first.json<{ items: MealResponse[]; nextCursor: string | null }>();
 
-    expect(firstPage.items.map((item) => item.id)).toEqual(newestFirst.slice(0, 2));
+    expect(firstPage.items.map((meal) => meal.id)).toEqual(newestFirst.slice(0, 2));
     expect(firstPage.nextCursor).toBe(newestFirst[1]);
 
     const last = await app.inject({
@@ -516,7 +516,7 @@ describe('browsing meals', () => {
     });
     const lastPage = last.json<{ items: MealResponse[]; nextCursor: string | null }>();
 
-    expect(lastPage.items.map((item) => item.id)).toEqual(newestFirst.slice(2));
+    expect(lastPage.items.map((meal) => meal.id)).toEqual(newestFirst.slice(2));
     expect(lastPage.nextCursor).toBeNull();
   });
 
@@ -542,7 +542,7 @@ describe('one local day', () => {
     const loggedAt = new Date('2026-04-10T08:00:00.000Z');
     fixtures.create.meal(fixtures.userA, {
       loggedAt,
-      items: [{ foodId: green.id }, { foodId: orange.id }, { foodId: unclassified.id }],
+      entries: [{ foodId: green.id }, { foodId: orange.id }, { foodId: unclassified.id }],
     });
     const token = fixtures.create.session(fixtures.userA);
 
@@ -552,7 +552,7 @@ describe('one local day', () => {
     const body = response.json<DayResponse>();
     expect(body.date).toBe('2026-04-10');
     expect(body.meals).toHaveLength(1);
-    expect(body.meals[0]?.items).toHaveLength(3);
+    expect(body.meals[0]?.entries).toHaveLength(3);
     expect(body.weightEntry).toBeNull();
     expect(body.colourCounts).toEqual({ green: 1, yellow: 0, orange: 1, unclassified: 1 });
 
@@ -572,12 +572,12 @@ describe('one local day', () => {
     fixtures.create.meal(fixtures.userA, {
       loggedAt,
       type: 'breakfast',
-      items: [{ foodId: food.id }, { foodId: food.id }],
+      entries: [{ foodId: food.id }, { foodId: food.id }],
     });
     fixtures.create.meal(fixtures.userA, {
       loggedAt: new Date('2026-04-10T12:00:00.000Z'),
       type: 'lunch',
-      items: [{ foodId: food.id }],
+      entries: [{ foodId: food.id }],
     });
     const token = fixtures.create.session(fixtures.userA);
 
@@ -635,7 +635,7 @@ describe('one local day', () => {
       method: 'POST',
       url: MEALS,
       headers: browser(token),
-      payload: { type: 'breakfast', items: [{ foodId: food.id }] },
+      payload: { type: 'breakfast', entries: [{ foodId: food.id }] },
     });
     const localDate = created.json<MealResponse>().localDate;
 
@@ -652,7 +652,7 @@ describe('repeating a meal with fromMealId', () => {
     const token = fixtures.create.session(fixtures.userA);
     const { meal: original } = fixtures.create.meal(fixtures.userA, {
       type: 'breakfast',
-      items: [{ foodId: food.id, quantity: 150 }],
+      entries: [{ foodId: food.id, quantity: 150 }],
     });
 
     const response = await app.inject({
@@ -665,12 +665,12 @@ describe('repeating a meal with fromMealId', () => {
     expect(response.statusCode).toBe(201);
     const body = response.json<MealResponse>();
     expect(body.id).not.toBe(original.id);
-    expect(body.items).toEqual([
+    expect(body.entries).toEqual([
       expect.objectContaining({ foodId: food.id, quantity: 150, position: 0 }) as MealResponse,
     ]);
   });
 
-  it('refuses items and fromMealId together rather than picking one silently', async () => {
+  it('refuses entries and fromMealId together rather than picking one silently', async () => {
     const { app, fixtures } = await buildTestApp();
     const food = fixtures.create.food();
     const token = fixtures.create.session(fixtures.userA);
@@ -680,12 +680,12 @@ describe('repeating a meal with fromMealId', () => {
       method: 'POST',
       url: MEALS,
       headers: browser(token),
-      payload: { type: 'lunch', fromMealId: original.id, items: [{ foodId: food.id }] },
+      payload: { type: 'lunch', fromMealId: original.id, entries: [{ foodId: food.id }] },
     });
 
     expect(response.statusCode).toBe(422);
     expect(problem(response.payload).type).toBe(
-      'https://portionium.dev/problems/meal-from-id-with-items',
+      'https://portionium.dev/problems/meal-from-id-with-entries',
     );
   });
 
@@ -730,13 +730,13 @@ describe('meal suggestions', () => {
       fixtures.create.meal(fixtures.userA, {
         type: 'breakfast',
         loggedAt: new Date(2026, 3, day, 8),
-        items: [{ foodId: skyr.id }],
+        entries: [{ foodId: skyr.id }],
       });
     }
     fixtures.create.meal(fixtures.userA, {
       type: 'breakfast',
       loggedAt: new Date(2026, 3, 4, 8),
-      items: [{ foodId: croissant.id }],
+      entries: [{ foodId: croissant.id }],
     });
 
     const response = await app.inject({
@@ -745,7 +745,7 @@ describe('meal suggestions', () => {
     });
 
     const body = response.json<MealSuggestionResponse[]>();
-    expect(body[0]?.items).toEqual([{ foodId: skyr.id, category: 'green' }]);
+    expect(body[0]?.entries).toEqual([{ foodId: skyr.id, category: 'green' }]);
     expect(body[0]?.mealId).toEqual(expect.any(String) as string);
   });
 
@@ -757,11 +757,11 @@ describe('meal suggestions', () => {
 
     fixtures.create.meal(fixtures.userA, {
       type: 'lunch',
-      items: [{ foodId: a.id }, { foodId: b.id }],
+      entries: [{ foodId: a.id }, { foodId: b.id }],
     });
     fixtures.create.meal(fixtures.userA, {
       type: 'lunch',
-      items: [{ foodId: b.id }, { foodId: a.id }],
+      entries: [{ foodId: b.id }, { foodId: a.id }],
     });
 
     const response = await app.inject({
@@ -801,14 +801,14 @@ describe('pinning a favourite', () => {
       payload: {
         name: 'Standard Frühstück',
         type: 'breakfast',
-        items: [{ foodId: skyr.id, quantity: 200 }],
+        entries: [{ foodId: skyr.id, quantity: 200 }],
       },
     });
 
     expect(response.statusCode).toBe(201);
     const body = response.json<FavouriteResponse>();
     expect(body).toMatchObject({ name: 'Standard Frühstück', type: 'breakfast' });
-    expect(body.items).toEqual([{ foodId: skyr.id, quantity: 200, category: 'green' }]);
+    expect(body.entries).toEqual([{ foodId: skyr.id, quantity: 200, category: 'green' }]);
   });
 
   it('rejects an empty favourite as a domain error rather than an empty row', async () => {
@@ -819,12 +819,12 @@ describe('pinning a favourite', () => {
       method: 'POST',
       url: FAVOURITES,
       headers: browser(token),
-      payload: { name: 'Nothing', type: 'snack', items: [] },
+      payload: { name: 'Nothing', type: 'snack', entries: [] },
     });
 
     expect(response.statusCode).toBe(422);
     expect(problem(response.payload).type).toBe(
-      'https://portionium.dev/problems/favourite-has-no-items',
+      'https://portionium.dev/problems/favourite-has-no-entries',
     );
   });
 
@@ -839,25 +839,25 @@ describe('pinning a favourite', () => {
       method: 'POST',
       url: FAVOURITES,
       headers: browser(tokenA),
-      payload: { name: 'First', type: 'breakfast', items: [{ foodId: foodA.id }] },
+      payload: { name: 'First', type: 'breakfast', entries: [{ foodId: foodA.id }] },
     });
     await app.inject({
       method: 'POST',
       url: FAVOURITES,
       headers: browser(tokenB),
-      payload: { name: 'Not yours', type: 'breakfast', items: [{ foodId: foodB.id }] },
+      payload: { name: 'Not yours', type: 'breakfast', entries: [{ foodId: foodB.id }] },
     });
     const second = await app.inject({
       method: 'POST',
       url: FAVOURITES,
       headers: browser(tokenA),
-      payload: { name: 'Second', type: 'breakfast', items: [{ foodId: foodA.id }] },
+      payload: { name: 'Second', type: 'breakfast', entries: [{ foodId: foodA.id }] },
     });
 
     const response = await app.inject({ url: FAVOURITES, headers: browser(tokenA) });
 
     const body = response.json<{ items: FavouriteResponse[] }>();
-    expect(body.items.map((item) => item.name)).toEqual(['Second', 'First']);
+    expect(body.items.map((favourite) => favourite.name)).toEqual(['Second', 'First']);
     expect(body.items[0]?.id).toBe(second.json<FavouriteResponse>().id);
   });
 
@@ -871,7 +871,7 @@ describe('pinning a favourite', () => {
       method: 'POST',
       url: FAVOURITES,
       headers: browser(tokenA),
-      payload: { name: 'Mine', type: 'lunch', items: [{ foodId: food.id }] },
+      payload: { name: 'Mine', type: 'lunch', entries: [{ foodId: food.id }] },
     });
     const id = created.json<FavouriteResponse>().id;
 
@@ -891,5 +891,393 @@ describe('pinning a favourite', () => {
 
     const list = await app.inject({ url: FAVOURITES, headers: browser(tokenA) });
     expect(list.json<{ items: FavouriteResponse[] }>().items).toEqual([]);
+  });
+});
+
+/**
+ * The half of "an entry is a colour" that the rest of this file only sees the shadow of: when
+ * the colour is decided, and what can and cannot change it afterwards. See
+ * docs/adr/011-an-entry-is-a-colour.md.
+ */
+describe('an entry carries the colour it was logged with', () => {
+  it('stamps a food entry from the verdict standing at the moment it was logged', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const skyr = fixtures.create.food();
+    fixtures.create.classification(skyr, { category: 'green' });
+    const token = fixtures.create.session(fixtures.userA);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: MEALS,
+      headers: browser(token),
+      payload: { type: 'lunch', entries: [{ foodId: skyr.id }] },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json<MealResponse>().entries[0]?.category).toBe('green');
+  });
+
+  it('keeps the colour a bare entry named, and takes no food id with it', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: MEALS,
+      headers: browser(token),
+      payload: { type: 'lunch', entries: [{ category: 'orange' }] },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json<MealResponse>().entries[0]).toMatchObject({
+      foodId: null,
+      category: 'orange',
+    });
+  });
+
+  it('takes both kinds in one meal, and counts them together on the day', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const skyr = fixtures.create.food();
+    fixtures.create.classification(skyr, { category: 'green' });
+    const unjudged = fixtures.create.food();
+    const token = fixtures.create.session(fixtures.userA);
+
+    const created = await app.inject({
+      method: 'POST',
+      url: MEALS,
+      headers: browser(token),
+      payload: {
+        type: 'lunch',
+        loggedAt: '2026-04-01T10:00:00.000Z',
+        entries: [{ foodId: skyr.id }, { category: 'orange' }, { foodId: unjudged.id }],
+      },
+    });
+
+    expect(created.statusCode).toBe(201);
+    expect(created.json<MealResponse>().entries.map((entry) => entry.category)).toEqual([
+      'green',
+      'orange',
+      null,
+    ]);
+
+    const day = await app.inject({ url: days('2026-04-01'), headers: browser(token) });
+    expect(day.json<DayResponse>().colourCounts).toEqual({
+      green: 1,
+      yellow: 0,
+      orange: 1,
+      unclassified: 1,
+    });
+  });
+
+  it('counts the same mixture over a stats range', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const skyr = fixtures.create.food();
+    fixtures.create.classification(skyr, { category: 'green' });
+    const token = fixtures.create.session(fixtures.userA);
+
+    await app.inject({
+      method: 'POST',
+      url: MEALS,
+      headers: browser(token),
+      payload: {
+        type: 'lunch',
+        loggedAt: '2026-04-01T10:00:00.000Z',
+        entries: [{ foodId: skyr.id }, { category: 'orange' }],
+      },
+    });
+
+    const stats = await app.inject({
+      url: `${API_PREFIX}/stats/days?from=2026-04-01&to=2026-04-01`,
+      headers: browser(token),
+    });
+
+    expect(stats.json<{ days: { counts: Record<string, number> }[] }>().days[0]?.counts).toEqual({
+      green: 1,
+      yellow: 0,
+      orange: 1,
+      unclassified: 0,
+    });
+  });
+
+  it('refuses an entry naming neither a food nor a colour, before it reaches the CHECK', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: MEALS,
+      headers: browser(token),
+      payload: { type: 'lunch', entries: [{}] },
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  it('lets an explicit colour beside a food win, and keeps the food as provenance', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const skyr = fixtures.create.food();
+    fixtures.create.classification(skyr, { category: 'green' });
+    const token = fixtures.create.session(fixtures.userA);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: MEALS,
+      headers: browser(token),
+      payload: { type: 'lunch', entries: [{ foodId: skyr.id, category: 'orange' }] },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json<MealResponse>().entries[0]).toMatchObject({
+      foodId: skyr.id,
+      category: 'orange',
+    });
+  });
+
+  it('leaves the day a meal was logged on alone when the food is recoloured afterwards', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const skyr = fixtures.create.food();
+    fixtures.create.classification(skyr, { category: 'green' });
+    const token = fixtures.create.session(fixtures.userA);
+
+    await app.inject({
+      method: 'POST',
+      url: MEALS,
+      headers: browser(token),
+      payload: {
+        type: 'lunch',
+        loggedAt: '2026-04-01T10:00:00.000Z',
+        entries: [{ foodId: skyr.id }],
+      },
+    });
+
+    const overridden = await app.inject({
+      method: 'PUT',
+      url: `${API_PREFIX}/foods/${skyr.id}/classification`,
+      headers: browser(token),
+      payload: { category: 'orange' },
+    });
+    expect(overridden.statusCode).toBe(200);
+
+    const day = await app.inject({ url: days('2026-04-01'), headers: browser(token) });
+    const body = day.json<DayResponse>();
+
+    // The entry keeps what it was logged with; the catalog entry beside it carries the new
+    // verdict, which is the trap this story names out loud.
+    expect(body.meals[0]?.entries[0]?.category).toBe('green');
+    expect(body.foods[0]?.category).toBe('orange');
+    expect(body.colourCounts).toMatchObject({ green: 1, orange: 0 });
+  });
+
+  it('colours the entries that were waiting when their owner gives the food a verdict', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const unjudged = fixtures.create.food();
+    const token = fixtures.create.session(fixtures.userA);
+
+    await app.inject({
+      method: 'POST',
+      url: MEALS,
+      headers: browser(token),
+      payload: {
+        type: 'lunch',
+        loggedAt: '2026-04-01T10:00:00.000Z',
+        entries: [{ foodId: unjudged.id }],
+      },
+    });
+
+    await app.inject({
+      method: 'PUT',
+      url: `${API_PREFIX}/foods/${unjudged.id}/classification`,
+      headers: browser(token),
+      payload: { category: 'yellow' },
+    });
+
+    const day = await app.inject({ url: days('2026-04-01'), headers: browser(token) });
+    expect(day.json<DayResponse>().meals[0]?.entries[0]?.category).toBe('yellow');
+  });
+
+  it('never reaches the other account, whose waiting entries stay waiting', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const unjudged = fixtures.create.food();
+    const tokenA = fixtures.create.session(fixtures.userA);
+    const tokenB = fixtures.create.session(fixtures.userB);
+
+    for (const token of [tokenA, tokenB]) {
+      await app.inject({
+        method: 'POST',
+        url: MEALS,
+        headers: browser(token),
+        payload: {
+          type: 'lunch',
+          loggedAt: '2026-04-01T10:00:00.000Z',
+          entries: [{ foodId: unjudged.id }],
+        },
+      });
+    }
+
+    await app.inject({
+      method: 'PUT',
+      url: `${API_PREFIX}/foods/${unjudged.id}/classification`,
+      headers: browser(tokenA),
+      payload: { category: 'yellow' },
+    });
+
+    // userB is America/New_York, so 10:00 UTC is still the 1st there too.
+    const dayB = await app.inject({ url: days('2026-04-01'), headers: browser(tokenB) });
+    expect(dayB.json<DayResponse>().meals[0]?.entries[0]?.category).toBeNull();
+  });
+
+  it('leaves an entry that already has a colour alone, whoever says otherwise', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const skyr = fixtures.create.food();
+    fixtures.create.classification(skyr, { category: 'green' });
+    const token = fixtures.create.session(fixtures.userA);
+
+    await app.inject({
+      method: 'POST',
+      url: MEALS,
+      headers: browser(token),
+      payload: {
+        type: 'lunch',
+        loggedAt: '2026-04-01T10:00:00.000Z',
+        entries: [{ foodId: skyr.id }],
+      },
+    });
+
+    await app.inject({
+      method: 'PUT',
+      url: `${API_PREFIX}/foods/${skyr.id}/classification`,
+      headers: browser(token),
+      payload: { category: 'orange' },
+    });
+
+    const day = await app.inject({ url: days('2026-04-01'), headers: browser(token) });
+    expect(day.json<DayResponse>().meals[0]?.entries[0]?.category).toBe('green');
+  });
+
+  it('is not touched by a seed or an AI verdict, only by the account speaking for itself', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const unjudged = fixtures.create.food();
+    const token = fixtures.create.session(fixtures.userA);
+
+    await app.inject({
+      method: 'POST',
+      url: MEALS,
+      headers: browser(token),
+      payload: {
+        type: 'lunch',
+        loggedAt: '2026-04-01T10:00:00.000Z',
+        entries: [{ foodId: unjudged.id }],
+      },
+    });
+
+    // Both written straight through the log, which is the door an AI adapter will come in by.
+    fixtures.create.classification(unjudged, { category: 'green', source: 'seed' });
+    fixtures.create.classification(unjudged, { category: 'yellow', source: 'ai_text' });
+
+    const day = await app.inject({ url: days('2026-04-01'), headers: browser(token) });
+    expect(day.json<DayResponse>().meals[0]?.entries[0]?.category).toBeNull();
+  });
+
+  it('does not un-colour an entry when its owner withdraws the verdict that coloured it', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const skyr = fixtures.create.food();
+    const token = fixtures.create.session(fixtures.userA);
+
+    await app.inject({
+      method: 'POST',
+      url: MEALS,
+      headers: browser(token),
+      payload: {
+        type: 'lunch',
+        loggedAt: '2026-04-01T10:00:00.000Z',
+        entries: [{ foodId: skyr.id }],
+      },
+    });
+    await app.inject({
+      method: 'PUT',
+      url: `${API_PREFIX}/foods/${skyr.id}/classification`,
+      headers: browser(token),
+      payload: { category: 'yellow' },
+    });
+    await app.inject({
+      method: 'DELETE',
+      url: `${API_PREFIX}/foods/${skyr.id}/classification`,
+      headers: browser(token),
+    });
+
+    const day = await app.inject({ url: days('2026-04-01'), headers: browser(token) });
+    expect(day.json<DayResponse>().meals[0]?.entries[0]?.category).toBe('yellow');
+  });
+
+  it('restamps a repeat from the food as it stands now, and copies a bare colour as it was', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const skyr = fixtures.create.food();
+    fixtures.create.classification(skyr, { category: 'green' });
+    const token = fixtures.create.session(fixtures.userA);
+
+    const original = await app.inject({
+      method: 'POST',
+      url: MEALS,
+      headers: browser(token),
+      payload: { type: 'lunch', entries: [{ foodId: skyr.id }, { category: 'orange' }] },
+    });
+
+    await app.inject({
+      method: 'PUT',
+      url: `${API_PREFIX}/foods/${skyr.id}/classification`,
+      headers: browser(token),
+      payload: { category: 'yellow' },
+    });
+
+    const repeat = await app.inject({
+      method: 'POST',
+      url: MEALS,
+      headers: browser(token),
+      payload: { type: 'dinner', fromMealId: original.json<MealResponse>().id },
+    });
+
+    expect(repeat.statusCode).toBe(201);
+    expect(repeat.json<MealResponse>().entries.map((entry) => entry.category)).toEqual([
+      'yellow',
+      'orange',
+    ]);
+  });
+
+  it('restamps a replaced entry list on a PATCH, and leaves one it does not name', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const skyr = fixtures.create.food();
+    fixtures.create.classification(skyr, { category: 'green' });
+    const token = fixtures.create.session(fixtures.userA);
+
+    const created = await app.inject({
+      method: 'POST',
+      url: MEALS,
+      headers: browser(token),
+      payload: { type: 'lunch', entries: [{ foodId: skyr.id }] },
+    });
+    const id = created.json<MealResponse>().id;
+
+    await app.inject({
+      method: 'PUT',
+      url: `${API_PREFIX}/foods/${skyr.id}/classification`,
+      headers: browser(token),
+      payload: { category: 'orange' },
+    });
+
+    const renamed = await app.inject({
+      method: 'PATCH',
+      url: meal(id),
+      headers: browser(token),
+      payload: { notes: 'at the desk' },
+    });
+    expect(renamed.json<MealResponse>().entries[0]?.category).toBe('green');
+
+    const replaced = await app.inject({
+      method: 'PATCH',
+      url: meal(id),
+      headers: browser(token),
+      payload: { entries: [{ foodId: skyr.id }] },
+    });
+    expect(replaced.json<MealResponse>().entries[0]?.category).toBe('orange');
   });
 });

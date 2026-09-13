@@ -110,6 +110,16 @@ docker compose up -d
 Restore before rolling the image back, not after: the old build refuses to start against a
 schema newer than the migrations it ships, which is `/ready` doing its job.
 
+A migration that rewrites data rather than only adding to the schema is the case this matters
+most for, because there is nothing to roll forward to either: the rows it changed are changed.
+`0009_rename_meal_item_to_entry_and_stamp_category` is the first of those, and it stamps a colour
+onto every entry ever logged. **Take a backup immediately before deploying one**, not only on
+the usual schedule:
+
+```sh
+pnpm --filter @portionium/api backup create
+```
+
 ## What is in an archive
 
 Every account's food and weight history, and the credential rows: password hashes, session token

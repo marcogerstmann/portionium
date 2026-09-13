@@ -211,14 +211,14 @@ export function shiftDate(date: LocalDate, days: number): LocalDate {
  *
  * Derived here rather than carried over from the cached copy, because an optimistic meal has to
  * change the summary the moment it is logged. The server computes the same four numbers from
- * the same items, so the copy this produces is replaced by an identical one on the next refresh.
+ * the same entries, so the copy this produces is replaced by an identical one on the next refresh.
  */
 export function countColours(meals: readonly MealResponse[]): ColourCounts {
   const counts: ColourCounts = { green: 0, yellow: 0, orange: 0, unclassified: 0 };
 
   for (const meal of meals) {
-    for (const item of meal.items) {
-      counts[item.category ?? 'unclassified'] += 1;
+    for (const entry of meal.entries) {
+      counts[entry.category ?? 'unclassified'] += 1;
     }
   }
 
@@ -239,12 +239,12 @@ export function withMeal(
 ): DayResponse {
   const meals = [...day.meals, meal];
   const known = new Set(day.foods.map((food) => food.id));
-  const added = foods.filter((food) => meal.items.some((item) => item.foodId === food.id));
+  const added = foods.filter((food) => meal.entries.some((entry) => entry.foodId === food.id));
 
   return {
     ...day,
     meals,
-    // The names this meal's items need, so the optimistic copy renders as words rather than as
+    // The names this meal's entries need, so the optimistic copy renders as words rather than as
     // identifiers. A food the device has never seen is simply absent, which the screen renders
     // the same way the server's answer would if the catalog entry had gone: see foodNames.
     foods: [...day.foods, ...added.filter((food) => !known.has(food.id))],
@@ -267,9 +267,14 @@ export function withoutMeal(day: DayResponse, mealId: string): DayResponse {
 
 /**
  * A day in which one food has been given a colour, the optimistic half of classifying one from
- * this screen. Every item naming that food takes the colour, which is what makes the dot, the
- * name beside it and the summary row at the top all change together on the tap rather than on
- * the refresh that follows it.
+ * this screen. Every entry naming that food and still waiting for a colour takes it, which is
+ * what makes the dot, the name beside it and the summary row at the top all change together on
+ * the tap rather than on the refresh that follows it.
+ *
+ * "Still waiting" is the half that matters: the server colours exactly those and leaves an entry
+ * that already carries a colour as history, see insertClassifications in
+ * api/src/db/classification.ts. A copy that recoloured them all would disagree with the refresh
+ * that follows it.
  */
 export function withClassification(
   day: DayResponse,
@@ -278,7 +283,9 @@ export function withClassification(
 ): DayResponse {
   const meals = day.meals.map((meal) => ({
     ...meal,
-    items: meal.items.map((item) => (item.foodId === foodId ? { ...item, category } : item)),
+    entries: meal.entries.map((entry) =>
+      entry.foodId === foodId && entry.category === null ? { ...entry, category } : entry,
+    ),
   }));
 
   return {

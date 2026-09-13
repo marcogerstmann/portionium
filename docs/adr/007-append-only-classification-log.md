@@ -109,6 +109,14 @@ file on one machine. See ADR 001 and ADR 005 for the same instinct applied elsew
 cost ever shows up, this is the design to reach for, and nothing here has to change to allow it,
 because the log is already the source of truth.
 
+## A later record that draws a line against this one
+
+[ADR 011](./011-an-entry-is-a-colour.md) gives a logged entry its own `category`, stamped when it
+is written. That is not the materialised projection rejected above and it does not make this log
+mutable: this log remains the only source of a **food's** colour, and an entry's colour is a fact
+about something that happened rather than a cache of a projection that can go stale. Read it
+before reaching for a colour on a read path.
+
 ## What would make us revisit this
 
 A profile showing resolution on the hot path, which today would mean the day view or the search

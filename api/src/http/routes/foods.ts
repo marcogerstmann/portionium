@@ -120,7 +120,7 @@ const noContentResponse = { 204: z.null().describe('Deleted') } as const;
  * schema says a food looks like. `category` is the exception and is null on purpose: a food
  * nobody has judged yet is a state the client renders, not a field it has to feel around for.
  *
- * Exported because GET /days/{date} answers with the foods its items name and has to spell them
+ * Exported because GET /days/{date} answers with the foods its entries name and has to spell them
  * the same way the catalog does, see api/src/http/routes/meals.ts. A second copy of this would
  * be a second set of fields to keep in step, which is exactly what the paragraph above warns
  * about.
@@ -655,7 +655,7 @@ export const foodRoutes: FastifyPluginCallbackZod<FoodRouteOptions> = (app, opti
 
       requireAuthorOrAdmin(food, userId, scopes);
 
-      // The soft delete would leave the meal_item rows pointing at something no read path
+      // The soft delete would leave the entry rows pointing at something no read path
       // returns, so a history that was right when it was written would grow holes. Renaming is
       // the way out, which is why PATCH does not ask this question.
       if (countMealsUsingFood(db, food.id) > 0) {

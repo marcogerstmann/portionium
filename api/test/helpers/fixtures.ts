@@ -1,26 +1,28 @@
-import type { Scope } from '@portionium/schemas';
+import type { EntryInput, Scope } from '@portionium/schemas';
 
+import { findClassificationsForFoods } from '../../src/db/classification.js';
 import type { Db } from '../../src/db/client.js';
 import {
   apiTokenTable,
   foodClassificationTable,
   foodTable,
-  mealItemTable,
+  entryTable,
   mealTable,
   sessionTable,
   userTable,
   weightEntryTable,
 } from '../../src/db/schema/index.js';
 import { createApiToken, createSessionToken } from '../../src/domain/auth.js';
+import { resolveClassifications } from '../../src/domain/classification.js';
 import { resolveLocalDate } from '../../src/domain/local-date.js';
-import { createMeal, type NewMealItem } from '../../src/domain/meal.js';
+import { createMeal } from '../../src/domain/meal.js';
 import { createTestDatabase, type TestDatabase } from './database.js';
 
 /**
  * Rows to write tests against, built the way the application builds them.
  *
  * Everything with a derived field goes through the domain function that derives it, so a meal
- * made here carries the local date resolveLocalDate would have given it and item positions
+ * made here carries the local date resolveLocalDate would have given it and entry positions
  * createMeal would have assigned. A factory that invented those itself would let a test pass
  * against a meal the application could never have produced.
  *
@@ -33,7 +35,7 @@ export type UserRow = typeof userTable.$inferSelect;
 export type FoodRow = typeof foodTable.$inferSelect;
 export type FoodClassificationRow = typeof foodClassificationTable.$inferSelect;
 export type MealRow = typeof mealTable.$inferSelect;
-export type MealItemRow = typeof mealItemTable.$inferSelect;
+export type EntryRow = typeof entryTable.$inferSelect;
 export type WeightEntryRow = typeof weightEntryTable.$inferSelect;
 export type SessionRow = typeof sessionTable.$inferSelect;
 export type ApiTokenRow = typeof apiTokenTable.$inferSelect;
@@ -59,7 +61,7 @@ export interface MealOverrides {
   loggedAt?: Date;
   notes?: string;
   /** Left out means one food is created for the meal, which is what most tests want. */
-  items?: readonly NewMealItem[];
+  entries?: readonly EntryInput[];
 }
 
 export interface SessionOverrides {
@@ -111,7 +113,7 @@ export interface Factories {
    * The user is a parameter rather than an override because a meal needs one for two separate
    * reasons: it is the owner, and its timezone and boundary hour are what date the meal.
    */
-  meal(user: UserRow, overrides?: MealOverrides): { meal: MealRow; items: MealItemRow[] };
+  meal(user: UserRow, overrides?: MealOverrides): { meal: MealRow; entries: EntryRow[] };
   weightEntry(
     user: UserRow,
     overrides?: Partial<Pick<WeightEntryRow, 'weightGrams' | 'recordedAt'>>,
@@ -189,7 +191,27 @@ export function createFactories(db: Db): Factories {
   }
 
   function meal(owner: UserRow, overrides: MealOverrides = {}) {
-    const items = overrides.items ?? [{ foodId: food().id }];
+    const inputs = overrides.entries ?? [{ foodId: food().id }];
+
+    // The colour is stamped here the way POST /meals stamps it, from the same resolution the
+    // route would have run for this owner at this moment, so a meal made here is one the
+    // application could have produced. An entry that names a colour of its own keeps it, which
+    // is what a test about an explicit colour or a bare one passes.
+    const resolved = resolveClassifications(
+      findClassificationsForFoods(
+        db,
+        inputs.flatMap((entry) => (entry.foodId === undefined ? [] : [entry.foodId])),
+        owner.id,
+      ),
+      owner.id,
+    );
+    const entries = inputs.map((entry) => ({
+      foodId: entry.foodId ?? null,
+      category:
+        entry.category ??
+        (entry.foodId === undefined ? null : (resolved.get(entry.foodId)?.category ?? null)),
+      ...(entry.quantity === undefined ? {} : { quantity: entry.quantity }),
+    }));
 
     const validated = createMeal(
       {
@@ -197,19 +219,19 @@ export function createFactories(db: Db): Factories {
         type: overrides.type ?? 'lunch',
         loggedAt: overrides.loggedAt ?? new Date(),
         ...(overrides.notes === undefined ? {} : { notes: overrides.notes }),
-        items,
+        entries,
       },
       owner,
     );
 
     const stored = db.insert(mealTable).values(validated.meal).returning().get();
-    const storedItems = db
-      .insert(mealItemTable)
-      .values(validated.items.map((item) => ({ ...item, mealId: stored.id })))
+    const storedEntries = db
+      .insert(entryTable)
+      .values(validated.entries.map((entry) => ({ ...entry, mealId: stored.id })))
       .returning()
       .all();
 
-    return { meal: stored, items: storedItems };
+    return { meal: stored, entries: storedEntries };
   }
 
   function weightEntry(

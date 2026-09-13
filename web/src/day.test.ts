@@ -17,7 +17,7 @@ function meal(type: MealType, loggedAt: string): MealResponse {
     type,
     loggedAt,
     localDate: '2026-09-13',
-    items: [],
+    entries: [],
   };
 }
 

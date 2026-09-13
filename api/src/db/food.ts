@@ -3,7 +3,7 @@ import { and, count, eq, gt, inArray, isNull, notExists, or, sql } from 'drizzle
 
 import { normalizeFoodName } from '../domain/food.js';
 import type { Db } from './client.js';
-import { foodClassificationTable, foodTable, mealItemTable } from './schema/index.js';
+import { entryTable, foodClassificationTable, foodTable } from './schema/index.js';
 
 /**
  * Every query the catalog needs.
@@ -169,7 +169,7 @@ export function softDeleteFood(db: Db, id: string): boolean {
 /**
  * Which of these ids are live entries in the catalog, as a set for an O(1) membership check.
  *
- * One query for a whole meal's worth of items, so a request naming a dozen foods costs the same
+ * One query for a whole meal's worth of entries, so a request naming a dozen foods costs the same
  * as one naming a single food, and the caller is left to say which of the ids it asked about
  * were missing rather than just that some were. See createMeal's caller in
  * api/src/http/routes/meals.ts, which is what turns the gap into a clear validation problem
@@ -191,11 +191,11 @@ export function findExistingFoodIds(db: Db, ids: readonly string[]): Set<string>
 
 /**
  * These ids as live catalog rows, for a caller that needs the entries themselves rather than
- * just which of them exist. One query for a whole day's worth of items, the same shape and the
+ * just which of them exist. One query for a whole day's worth of entries, the same shape and the
  * same reason findExistingFoodIds is one, see GET /days/{date} in
  * api/src/http/routes/meals.ts, which reads a day's food names with it.
  *
- * The order is the caller's, not the database's: a day lists its foods in the order its items
+ * The order is the caller's, not the database's: a day lists its foods in the order its entries
  * first name them, and an `IN` clause has no order of its own to rely on.
  */
 export function findFoodsByIds(db: Db, ids: readonly string[]): FoodRecord[] {
@@ -219,13 +219,13 @@ export function findFoodsByIds(db: Db, ids: readonly string[]): FoodRecord[] {
 }
 
 /**
- * How many meal items name this food. Soft deleted meals are counted too: their items are still
+ * How many entries name this food. Soft deleted meals are counted too: their entries are still
  * rows pointing here, and a meal that can be looked at in a history is a meal whose foods have
  * to still resolve.
  */
 export function countMealsUsingFood(db: Db, foodId: string): number {
   return (
-    db.select({ value: count() }).from(mealItemTable).where(eq(mealItemTable.foodId, foodId)).get()
+    db.select({ value: count() }).from(entryTable).where(eq(entryTable.foodId, foodId)).get()
       ?.value ?? 0
   );
 }

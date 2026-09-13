@@ -76,16 +76,29 @@ describe('the test fixtures', () => {
     );
   });
 
-  it('assigns dense zero based positions in the order the items were given', () => {
+  it('assigns dense zero based positions in the order the entries were given', () => {
     const first = fixtures.create.food();
     const second = fixtures.create.food();
 
-    const { items } = fixtures.create.meal(fixtures.userA, {
-      items: [{ foodId: second.id }, { foodId: first.id }],
+    const { entries } = fixtures.create.meal(fixtures.userA, {
+      entries: [{ foodId: second.id }, { foodId: first.id }],
     });
 
-    expect(items.map((item) => item.position)).toEqual([0, 1]);
-    expect(items.map((item) => item.foodId)).toEqual([second.id, first.id]);
+    expect(entries.map((entry) => entry.position)).toEqual([0, 1]);
+    expect(entries.map((entry) => entry.foodId)).toEqual([second.id, first.id]);
+  });
+
+  it('stamps the colour the route would have stamped, and leaves an unjudged food waiting', () => {
+    const judged = fixtures.create.food();
+    fixtures.create.classification(judged, { category: 'orange' });
+    const unjudged = fixtures.create.food();
+
+    const { entries } = fixtures.create.meal(fixtures.userA, {
+      entries: [{ foodId: judged.id }, { foodId: unjudged.id }, { category: 'green' }],
+    });
+
+    expect(entries.map((entry) => entry.category)).toEqual(['orange', null, 'green']);
+    expect(entries[2]?.foodId).toBeNull();
   });
 
   it('scopes a meal to its owner, so a query that forgets the user is visible', () => {

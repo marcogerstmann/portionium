@@ -33,12 +33,15 @@ descriptive label, nothing branches on it, and it exists so a list can be groupe
 can narrow. A dish is a flat catalog entry with a name and its own colour, exactly like an
 ingredient.
 
-`meal_item` therefore points at `food` with a plain foreign key, and there is no recipe table,
-no parent food, and no composition of any kind.
+`entry` therefore points at `food` with a plain foreign key, and there is no recipe table, no
+parent food, and no composition of any kind. (That table was called `meal_item` when this was
+written; [ADR 011](./011-an-entry-is-a-colour.md) renamed it and made its `food_id` nullable, so
+an entry can also be a bare colour naming no catalog row at all. Nothing else here changes: a
+food is still one flat row, and an entry that does name one still names exactly one.)
 
 ## Consequences
 
-A meal item is one column pointing at one table. Every read path, the day view, the streaks,
+An entry's food is one column pointing at one table. Every read path, the day view, the streaks,
 the search and the classifier, deals with one kind of row, so none of them carries a branch for
 "is this a dish". The classifier is asked one question per food and gives one answer, which is
 also what makes the append only classification log tractable: a verdict is about a row, not
@@ -71,7 +74,7 @@ whoever asks, see the `food-in-use` problem type.
 
 ## Options considered
 
-**A separate `dish` entity, with `meal_item` referencing either it or `food`.** Rejected because
+**A separate `dish` entity, with `entry` referencing either it or `food`.** Rejected because
 the reference has to be polymorphic: either two nullable foreign key columns with a check
 constraint saying exactly one is set, or a type discriminator plus an untyped id, which gives up
 referential integrity outright. Both make every join in the application a two case join, and

@@ -744,9 +744,27 @@ Which verdict wins is `resolveClassification` in
 [`api/src/domain/classification.ts`](./api/src/domain/classification.ts), and that is the only
 place the order is written down: the caller's own most recent verdict, then the most recent model
 verdict, then the one that shipped, then no colour, which is a state rather than a failure. Every
-read path goes through it, so a list and a detail view cannot disagree about what somebody is
-looking at. `resolveClassifications` does the same for a whole page from one query, which is why
-fifty foods are two statements and not fifty one.
+path that asks what colour a **food** is goes through it, so a list and a detail view cannot
+disagree about what somebody is looking at. `resolveClassifications` does the same for a whole
+page from one query, which is why fifty foods are two statements and not fifty one.
+
+That log answers what colour a food is. It does not answer what colour an **entry** is, and the
+difference is the whole of [ADR 011](./docs/adr/011-an-entry-is-a-colour.md). An entry carries a
+`category` of its own, stamped when it was logged, and no read recomputes it. So resolution
+belongs to the preset half of the application and nowhere else: food search, `GET /foods`,
+`GET /foods/{id}`, the review queue, the `foods` list on a day response, and the favourite and
+suggestion previews, which are compositions rather than history. Reaching for it to draw a logged
+entry is the bug that story exists to remove.
+
+The one thing that moves a colour after the fact goes through this module too. When a row with
+`source = 'user'` is written, the same transaction gives every entry belonging to that user, naming
+that food and still holding `category IS NULL` the colour it was waiting for, see
+`colourWaitingEntries`. It lives inside `insertClassifications` rather than in the three routes
+that write such a verdict, so `PUT /foods/{id}/classification`, `POST /foods/unclassified/confirm`
+and the AI confirm and reject to come cannot forget it. An entry that already carries a colour is
+never rewritten, a `seed` or `ai_*` verdict never touches one, and withdrawing an override never
+un-colours one. Isolation holds by construction: the update is correlated on the meal's owner, so
+the other account's waiting entries are not in range.
 
 `GET /api/v1/foods/{id}/classification/history` is the log itself, unresolved and newest first.
 It carries the shared rows and the caller's own, never another account's.
@@ -881,10 +899,17 @@ fetches and overwrites, and a screen renders the first and then the second. The 
 source of truth for every read, without exception: nothing on the device ever wins an argument
 with it, which is what keeps this a cache rather than a replica.
 
-A cached day carries the foods its items name, because `GET /days/{date}` sends them: an item
+A cached day carries the foods its entries name, because `GET /days/{date}` sends them: an entry
 carries a `foodId` and a colour, which is what a count needs, and not the name, which is what a
 person reads. Denormalising it into the day payload rather than looking names up separately is
 what lets a day open with no network at all, see `dayResponseSchema`.
+
+The colour on that entry is the one it was logged with and the colour on the `foods` list beside
+it is the food's as it stands now, see [ADR 011](./docs/adr/011-an-entry-is-a-colour.md). The two
+can differ on one response and the entry's is the one to render. `withClassification` in
+`db.ts` follows the server's rule rather than its own: the optimistic copy colours the entries
+naming that food whose `category` is still null, and leaves an entry that already has one alone,
+which is exactly what the refresh behind it will report.
 
 `localDateFor` is the client side twin of `resolveLocalDate` in `api/src/domain/local-date.ts`
 and has to agree with it, or an offline meal is filed under one date locally and another on the
@@ -945,6 +970,10 @@ read from the device and rendered, and the server's answer replaces it whenever 
 day that is not cached yet renders as an empty day rather than as a spinner. That is the right
 answer for the common case, a day with nothing on it, and a brief understatement for the rest.
 
+Each dot is one entry, in the order they were eaten, and reads `entry.category` and nothing
+else. Nothing on this screen resolves a colour, and nothing should: recolouring a food changes
+what logging it again gives you and leaves the day it was eaten on as it was.
+
 Each dot is a coloured point with an `aria-label`, and the letter that used to sit inside it
 went on WEB 8. No visual channel replaced it: the day is a row of uniform points and hue alone
 separates the four on screen, which is a deliberate deviation from that story's own criterion
@@ -1001,6 +1030,13 @@ server has a trigram index and a Damerau walk for that, see `api/src/domain/food
 two implementations of a ranking are two different answers to one search box. What is scanned
 here is fifty names out of somebody's own diet, where a typo is visibly a typo.
 
+What the composer sends is a food id and nothing else. The server stamps the colour that food
+resolves to for this caller at that moment, see
+[ADR 011](./docs/adr/011-an-entry-is-a-colour.md), and the optimistic copy in `logMeal` carries
+the colour the search result already had for exactly that reason: it is the row that is about to
+come back. A bare colour, an entry naming no food at all, is expressible on the wire and is not
+composable here yet, which is WEB 13.
+
 Three smaller decisions are worth knowing. The meal type is pre-selected from the clock in the
 user's own timezone by `mealTypeAt`, and the hours between meals are snacks rather than a guess
 at the nearest one, because being wrong costs the tap this exists to save. A food the catalog
@@ -1012,9 +1048,10 @@ it resolves to no colour, which is what puts it in the review queue.
 
 There is no quantity field and there will not be one. The product's claim is that nobody weighs
 their food, and the moment portions become enterable this turns back into the calorie tracker it
-exists to replace. `mealItemSchema.quantity` exists on the wire and stays unused.
+exists to replace. `entrySchema.quantity` exists on the wire and stays unused, and a bare colour
+is the opposite of a portion rather than a step towards one.
 
-Favourites and meal suggestions are not here, though the API answers both. A favourite's items
+Favourites and meal suggestions are not here, though the API answers both. A favourite's entries
 carry a `foodId` and no name, so a preview needs a lookup per food that no endpoint offers, and
 nothing in this client can pin a favourite in the first place, so the list would be empty for
 everybody. Both are worth building once the API answers with names.
