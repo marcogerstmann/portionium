@@ -81,6 +81,23 @@ test('pages between days with the arrow keys and stops at today', async ({ page 
   await expect(page.getByRole('button', { name: 'Next day' })).toBeDisabled();
 });
 
+test('jumps back to today in one tap, disabled once already there', async ({ page }) => {
+  await signIn(page);
+  await expect(page.getByRole('button', { name: 'Back to today' })).toBeDisabled();
+
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.getByRole('heading', { name: 'Today' })).not.toBeVisible();
+
+  const backToToday = page.getByRole('button', { name: 'Back to today' });
+  await expect(backToToday).toBeEnabled();
+  await backToToday.click();
+
+  await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
+  await expect(backToToday).toBeDisabled();
+});
+
 test('pages back through the cached week with no network at all', async ({ page }) => {
   await signIn(page);
 

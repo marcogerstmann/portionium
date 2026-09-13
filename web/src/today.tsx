@@ -10,6 +10,7 @@ import {
   type UserResponse,
 } from '@portionium/schemas';
 import {
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
   Plus,
@@ -506,6 +507,13 @@ export function Today({
     [today],
   );
 
+  /** POR-66: one tap home from anywhere in the cached window, the same reset `page` does. */
+  const goToday = useCallback(() => {
+    setOpened(undefined);
+    setUndoable(undefined);
+    setDate(today);
+  }, [today]);
+
   /**
    * Arrow keys move between days, unless something is being typed into. Without that guard a
    * left arrow inside the weight field would page the day instead of moving the caret.
@@ -574,8 +582,22 @@ export function Today({
 
   return (
     <main onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-      <header>
+      <header className="flex items-center justify-between gap-2">
         <h1>{dayLabel(date, today, locale)}</h1>
+
+        {/* A calendar face rather than the word "today", so it reads as a jump home wherever the
+            day label already says which day this is. Disabled rather than hidden while it is
+            today, the same reasoning as the chevrons: the header must not reflow as somebody
+            pages. */}
+        <button
+          type="button"
+          className="shrink-0 disabled:text-muted"
+          onClick={goToday}
+          disabled={date === today}
+        >
+          <CalendarDays aria-hidden="true" className="size-5" />
+          <span className="sr-only">{t('todayBackToToday')}</span>
+        </button>
       </header>
 
       {/* Visually an arrow, still read aloud. `sr-only` is Tailwind's own, which is what the

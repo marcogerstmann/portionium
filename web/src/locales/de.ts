@@ -50,6 +50,7 @@ export const de: typeof en = {
   todayDayNav: 'Tag',
   todayPreviousDay: 'Vorheriger Tag',
   todayNextDay: 'Nächster Tag',
+  todayBackToToday: 'Zurück zu heute',
   todayAddMeal: 'Mahlzeit hinzufügen',
   todayMealsLabel: 'Mahlzeiten',
   todayMealDeleted: '{mealType} gelöscht.',

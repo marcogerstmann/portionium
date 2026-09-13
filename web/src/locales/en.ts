@@ -50,6 +50,7 @@ export const en = {
   todayDayNav: 'Day',
   todayPreviousDay: 'Previous day',
   todayNextDay: 'Next day',
+  todayBackToToday: 'Back to today',
   todayAddMeal: 'Add a meal',
   todayMealsLabel: 'Meals',
   todayMealDeleted: '{mealType} deleted.',
