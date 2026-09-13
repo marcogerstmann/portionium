@@ -10,6 +10,7 @@ import {
   type WeeklySummaryWeek,
   type WeightTrendDay,
 } from '@portionium/schemas';
+import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { z } from 'zod';
 
@@ -153,30 +154,33 @@ const BAR_ORDER: DotCategory[] = [...CATEGORIES, UNCLASSIFIED];
 /**
  * A colour distribution as one bar.
  *
- * The letter inside each part is what stops this being a picture only some people can read,
- * the same rule the dots follow: roughly one man in twelve cannot tell this palette's green
- * from its orange. A part with nothing in it is left out rather than drawn at zero width, and
- * the whole bar is one image to a screen reader, which gets the counts as a sentence.
+ * Colour and nothing else, the same as the dots on the day: the letter each part used to carry
+ * went with POR-63 and no visual channel replaced it, so `aria-label` is what is left for a
+ * reader who cannot separate this palette's green from its orange. A part with nothing in it is
+ * left out rather than drawn at zero width, and the whole bar is one image to a screen reader,
+ * which gets the counts as a sentence.
  */
 function ColourBar({ counts }: { counts: ColourCounts }) {
   const total = counts.green + counts.yellow + counts.orange + counts.unclassified;
 
   if (total === 0) {
-    return <span className="hint">Nothing logged</span>;
+    return <span className="text-sm text-muted">Nothing logged</span>;
   }
 
   return (
-    <span className="bar" role="img" aria-label={spokenCounts(counts)}>
+    <span
+      className="flex min-w-24 flex-1 gap-px overflow-hidden rounded-md"
+      role="img"
+      aria-label={spokenCounts(counts)}
+    >
       {BAR_ORDER.map(
         (category) =>
           counts[category] > 0 && (
             <span
               key={category}
-              className={`bar__part bar__part--${category}`}
+              className={`min-w-0 py-2.5 ${DOTS[category].fill}`}
               style={{ flexGrow: counts[category] }}
-            >
-              {DOTS[category].letter}
-            </span>
+            />
           ),
       )}
     </span>
@@ -198,17 +202,20 @@ function WeightChart({ days, line }: { days: readonly WeightTrendDay[]; line: bo
 
   return (
     <svg
-      className="chart"
+      className="my-2 block h-auto w-full"
       viewBox={`0 0 ${geometry.width} ${geometry.height}`}
       // A drawing, and the text around it carries the numbers, so it is labelled rather than
       // described: announcing 90 coordinates is not a summary of anything.
       role="img"
       aria-label={`Weight over ${days.length} days, ${geometry.raw.length} readings.`}
     >
+      {/* What was on the scale. Small and grey on purpose: these are the numbers the product
+          exists to stop people reading as progress, and they are here because somebody wants to
+          see the dot they stood on the scale for, not because they are the answer. */}
       {geometry.raw.map((point) => (
         <circle
           key={`${point.x},${point.y}`}
-          className="chart__raw"
+          className="fill-muted opacity-50"
           cx={point.x}
           cy={point.y}
           r={CHART.step / 4}
@@ -217,8 +224,10 @@ function WeightChart({ days, line }: { days: readonly WeightTrendDay[]; line: bo
 
       {line && geometry.line !== '' && (
         <polyline
-          className="chart__line"
+          className="fill-none stroke-brand stroke-[2.5]"
           points={geometry.line}
+          strokeLinecap="round"
+          strokeLinejoin="round"
           vectorEffect="non-scaling-stroke"
         />
       )}
@@ -229,15 +238,22 @@ function WeightChart({ days, line }: { days: readonly WeightTrendDay[]; line: bo
 /** One ISO week: how it was eaten, and what the scale did across it. */
 function WeekRow({ week }: { week: WeeklySummaryWeek }) {
   return (
-    <p className="row week">
-      <span className="week__label">
+    <p className="row">
+      {/* The label the bars line up after, so the weeks read as one comparison rather than as a
+          list of separate pictures. */}
+      <span className="w-30 shrink-0">
         {weekLabel(week)}
-        {week.sparse && <span className="hint"> {week.daysLogged} of 7 days</span>}
+        {/* Its own line rather than trailing the date, which at this column width wraps into a
+            ragged second one and makes every row a different height. */}
+        {week.sparse && (
+          <span className="block text-sm text-muted">{week.daysLogged} of 7 days</span>
+        )}
       </span>
 
       <ColourBar counts={week.counts} />
 
-      <span className="week__weight">{changeLabel(week.weight.changeKg)}</span>
+      {/* Right aligned and fixed, so a column of weekly changes reads down rather than across. */}
+      <span className="w-22 shrink-0 text-right">{changeLabel(week.weight.changeKg)}</span>
     </p>
   );
 }
@@ -271,10 +287,11 @@ export function Stats({
   const versus = weight === undefined ? undefined : versusSentence(weight.versusPrevious);
 
   return (
-    <main className="wide">
-      <header>
+    <main className="max-w-3xl">
+      <header className="flex items-center justify-between gap-4">
         <h1>Statistics</h1>
-        <button type="button" onClick={onDone}>
+        <button type="button" className="flex shrink-0 items-center gap-2 text-sm" onClick={onDone}>
+          <ArrowLeft aria-hidden="true" className="size-4" />
           Back
         </button>
       </header>
@@ -283,14 +300,16 @@ export function Stats({
         {weight !== undefined && caveat === undefined ? (
           <>
             {/* The trend, and it is the largest thing on the screen on purpose. */}
-            <p className="headline">{latest?.trendKg?.toFixed(1)} kg</p>
-            <p>
+            <p className="mt-2 mb-1 text-4xl leading-tight font-bold">
+              {latest?.trendKg?.toFixed(1)} kg
+            </p>
+            <p className="text-muted">
               {changeSentence(weight.change, chartDays)}
               {versus !== undefined && ` ${versus}`}
             </p>
           </>
         ) : (
-          <p className="notice">{caveat}</p>
+          <p className="my-2 text-muted">{caveat}</p>
         )}
 
         <WeightChart days={days} line={caveat === undefined} />
@@ -301,7 +320,7 @@ export function Stats({
 
         {COLOUR_WINDOWS.map((window) => (
           <p key={window} className="row">
-            <span className="window">Last {window} days</span>
+            <span className="w-30 shrink-0">Last {window} days</span>
             <ColourBar counts={totalColours(colours?.days ?? [], window)} />
           </p>
         ))}

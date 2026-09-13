@@ -945,11 +945,19 @@ read from the device and rendered, and the server's answer replaces it whenever 
 day that is not cached yet renders as an empty day rather than as a spinner. That is the right
 answer for the common case, a day with nothing on it, and a brief understatement for the rest.
 
-Colour never carries a meaning alone. Each dot is a letter in a coloured disc with an
-`aria-label`, three channels for one fact, because roughly one man in twelve cannot tell this
-palette's green from its orange. The unsent mark follows the same rule and is a ring rather than
-a dimmed fill: fading a traffic light changes which light it looks like, and a screen reader
-cannot hear faintness either, so it is announced.
+Each dot is a coloured point with an `aria-label`, and the letter that used to sit inside it
+went on WEB 8. No visual channel replaced it: the day is a row of uniform points and hue alone
+separates the four on screen, which is a deliberate deviation from that story's own criterion
+that the states stay separable in greyscale. `aria-label` is therefore the only channel left for
+a reader who cannot tell this palette's green from its orange, and roughly one man in twelve
+cannot. The colour bars on the statistics screen dropped their letters for the same reason and
+carry their counts as a sentence. If a second channel is ever restored it belongs in `DOTS` in
+[`web/src/dot.tsx`](./web/src/dot.tsx), which both surfaces already read.
+
+The unsent mark is the one thing that is not colour: a ring rather than a dimmed fill, because
+fading a traffic light changes which light it looks like, and a screen reader cannot hear
+faintness either, so it is announced. It is a border inside the dot rather than an outline around
+it, so a queued meal takes exactly the width of a sent one.
 
 Paging is bounded on both sides by the same promise. Forward stops at today, and back stops at
 the edge of the cache, so the screen can only show days that are actually on the device.
@@ -1107,11 +1115,36 @@ and the worker revalidated every time.
 browser under storage pressure may evict it without asking, which for this app is a queue of
 meals somebody logged offline disappearing.
 
-Light and dark follow the system setting and nothing else is themed. `color-scheme: light dark`
-plus `light-dark()` in [`web/src/styles.css`](./web/src/styles.css) is the whole of it, which is
-also what makes form controls, scrollbars and the canvas follow the system without a rule each.
-There is no toggle and no stored preference: a design system invented around one login form is
-one the first real screen throws away.
+### The design system
+
+Tailwind v4 through `@tailwindcss/vite`, which is the whole of its configuration: v4 reads the
+theme out of the stylesheet and finds class names by scanning the project, so there is no
+`tailwind.config.js` and no PostCSS config. [`web/src/styles.css`](./web/src/styles.css) is the
+system, and it is short on purpose.
+
+A scale rather than a component library. Every component a library would supply here is either
+already built or native: the combobox in `compose.tsx` is hand written around
+`aria-activedescendant` and replacing it is a regression risk for no gain, dialogs would be
+`<dialog>`, the charts are hand written SVG by the decision above. What was missing was never
+components, it was that the screens had twelve custom properties and all twelve were colours, so
+spacing, type, radius and elevation were decided per element by eye.
+
+Three parts, and nothing else. `@theme` carries the half Tailwind cannot know, the palette and
+`--spacing-touch`, the latter on the spacing scale rather than beside it so a control asks for
+the floor as `min-h-touch`. `@layer base` decides what a bare `button`, `input`, `main` or
+heading looks like, because preflight strips every browser default and a rule written there is
+one a control added next week cannot forget, which is exactly what the 44px floor needs. And two
+`@utility` rules, `row` for the list row all three screens are built from and `primary` for the
+one action that ends a screen.
+
+Icons are `lucide-react`, imported by name at each use so the bundle carries only those. The
+whole pass cost about 5 kB gzipped over both files.
+
+Light and dark still follow the system setting and nothing else is themed. `color-scheme: light
+dark` plus `light-dark()` is the whole of it, which is also what makes form controls, scrollbars
+and the canvas follow the system without a rule each, and it survived the move into `@theme`
+untouched because Tailwind never parses a theme value, it only hands `bg-green` a
+`var(--color-green)`. There is still no toggle and no stored preference.
 
 ### Tests
 

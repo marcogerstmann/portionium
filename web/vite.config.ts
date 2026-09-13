@@ -1,3 +1,4 @@
+import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -15,6 +16,12 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig({
   plugins: [
     react(),
+
+    // Tailwind as a Vite plugin, which is the whole of its configuration. v4 reads the theme out
+    // of the stylesheet's own @theme block and finds the class names by scanning the project, so
+    // there is no tailwind.config.js and no PostCSS config to keep in step with either of them.
+    tailwindcss(),
+
     VitePWA({
       // The browser fetches the new service worker, installs it and takes over. The alternative,
       // prompting, is a dialog asking a person to approve a decision they have no information

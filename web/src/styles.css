@@ -1,578 +1,160 @@
+@import 'tailwindcss';
+
 /*
- * Light and dark follow the system setting and nothing else is themed. There is no toggle and no
- * stored preference, and the palette is still only what the screens actually use.
+ * The design system, which is this file and nothing else.
  *
- * `color-scheme` is what does the work. It tells the browser both schemes are supported, which
- * makes form controls, scrollbars and the canvas itself follow the system on their own, and it
- * is what `light-dark()` reads to pick between the two values below.
+ * Tailwind supplies the scales, which is the reason it is here: the screens had twelve custom
+ * properties and all twelve were colours, so spacing, type, radius and elevation were decided
+ * per element by eye, and that is what made them read as bare rather than as designed. What
+ * `@theme` adds is the half Tailwind cannot know, the palette and the one measurement this
+ * product has an opinion about. Everything else is Tailwind's own scale, used as it ships.
+ *
+ * A scale rather than a component library, on purpose. Every component a library would supply
+ * here is either already built or native: the combobox in compose.tsx is hand written around
+ * `aria-activedescendant` and replacing it is a regression risk for no gain, the charts are hand
+ * written SVG by the decision on WEB 5, and the rest is flexbox. What was missing was a scale.
+ *
+ * Light and dark follow the system setting and nothing else is themed. There is no toggle and no
+ * stored preference. `color-scheme` is what does the work: it tells the browser both schemes are
+ * supported, which makes form controls, scrollbars and the canvas itself follow the system on
+ * their own, and it is what `light-dark()` reads to pick between the two values below.
  */
 
-:root {
-  color-scheme: light dark;
-
-  --background: light-dark(#ffffff, #14161a);
-  --text: light-dark(#14161a, #eceef2);
-  --muted: light-dark(#5a616b, #a2a9b4);
-  --line: light-dark(#d5d9df, #333840);
-  --brand: light-dark(#2f7a37, #6bcf78);
-  --danger: light-dark(#b3261e, #ff8a80);
+@theme {
+  --color-background: light-dark(#ffffff, #14161a);
+  --color-text: light-dark(#14161a, #eceef2);
+  --color-muted: light-dark(#5a616b, #a2a9b4);
+  --color-line: light-dark(#d5d9df, #333840);
+  --color-brand: light-dark(#2f7a37, #6bcf78);
+  --color-danger: light-dark(#b3261e, #ff8a80);
 
   /*
    * The traffic light, which is the only thing this product says. Each pair is darkened for
-   * light mode and lightened for dark so the letter inside the disc keeps its contrast against
-   * the fill in both, and grey is a real fourth value rather than a faded green: "nobody has
-   * judged this yet" is a state, not a weaker verdict.
+   * light mode and lightened for dark so a mark drawn on the disc keeps its contrast against the
+   * fill in both, and grey is a real fourth value rather than a faded green: "nobody has judged
+   * this yet" is a state, not a weaker verdict.
    */
-  --green: light-dark(#2f9e44, #51cf66);
-  --yellow: light-dark(#e8a33d, #ffd43b);
-  --orange: light-dark(#e8590c, #ff922b);
-  --unclassified: light-dark(#adb5bd, #5c636a);
-  --on-colour: light-dark(#ffffff, #14161a);
+  --color-green: light-dark(#2f9e44, #51cf66);
+  --color-yellow: light-dark(#e8a33d, #ffd43b);
+  --color-orange: light-dark(#e8590c, #ff922b);
+  --color-unclassified: light-dark(#adb5bd, #5c636a);
+  --color-on-colour: light-dark(#ffffff, #14161a);
+
+  /* Where the arrow keys are in the composer's list. A position, not focus, see compose.tsx. */
+  --color-active: light-dark(#eef3ee, #1e2a20);
 
   /*
    * The smallest anything tappable may be. The WCAG target size minimum, and on a phone it is
    * also just the width of a thumb: a control smaller than this is one people miss and stop
-   * using.
+   * using. On the spacing scale rather than beside it, so a control asks for it as `min-h-touch`
+   * and the floor is spelled the way every other measurement on these screens is.
    */
-  --touch: 2.75rem;
-
-  font-family: system-ui, sans-serif;
-  line-height: 1.5;
-}
-
-body {
-  margin: 0;
-  background: var(--background);
-  color: var(--text);
-}
-
-main {
-  margin: 0 auto;
-  max-width: 30rem;
-  padding: 1.5rem;
-}
-
-.centred {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-height: 100dvh;
+  --spacing-touch: 2.75rem;
 }
 
 /*
- * The mark and the wordmark under it, centred over the form.
+ * The defaults, which is where the consistency actually comes from.
  *
- * Scoped to `.centred` rather than set on `h1`, because the same element is a heading on the day
- * and on the composer, where it shares a row with a button and belongs against the left edge.
+ * Tailwind's preflight strips every browser default, so what a bare `<button>` or `<h1>` looks
+ * like is a decision this file has to make rather than one it can decline. Making it here rather
+ * than as a string of utilities per element is the point: a control added next week is on the
+ * scale before anybody styles it, and the alternative is a floor somebody eventually omits. The
+ * screens below override these where they mean something different, and nowhere else.
+ */
+@layer base {
+  :root {
+    color-scheme: light dark;
+  }
+
+  body {
+    background: var(--color-background);
+    color: var(--color-text);
+  }
+
+  /*
+   * One column that widens, and no second layout. The content is a list of short rows, so a
+   * phone and a desktop want the same thing and the desktop simply has more room around it; a
+   * media query here would be a second arrangement to keep working for no gain. This is the
+   * whole of the responsive story, and the statistics screen widens it by one step.
+   */
+  main {
+    margin-inline: auto;
+    max-width: var(--container-lg);
+    padding: --spacing(6);
+  }
+
+  h1 {
+    color: var(--color-brand);
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    line-height: var(--text-2xl--line-height);
+  }
+
+  h2 {
+    font-size: var(--text-base);
+    font-weight: 700;
+    margin-block: --spacing(6) --spacing(2);
+  }
+
+  /*
+   * Every button, not just the ones on a phone screen. A target floor set here is one no control
+   * added later can forget, and the pointer a desktop aims with is not the reason the floor
+   * exists: a 44px row is easier to hit with a mouse too.
+   */
+  button {
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    min-height: var(--spacing-touch);
+    padding: --spacing(2.5);
+  }
+
+  input {
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    padding: --spacing(2.5);
+  }
+}
+
+/*
+ * One row of a list: a label on the left, the thing it is about on the right.
  *
- * `align-self` on the disc because its parent is a flex column: left alone the container would
- * stretch it to the full width and the border radius would draw a pill rather than a circle.
+ * The one primitive worth a name of its own. A button, a paragraph and a form all take it, so a
+ * tappable row and a static one line up exactly, which is what keeps the eye on the column
+ * rather than on which rows happen to be interactive. It unsets the button defaults above for
+ * the same reason it exists: a row is a row whichever element it turns out to be.
  */
-.centred h1 {
-  text-align: center;
-}
-
-.mark {
-  align-self: center;
-  background: var(--green);
-  border-radius: 50%;
-  height: 4rem;
-  width: 4rem;
-}
-
-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-h1 {
-  color: var(--brand);
-}
-
-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-label {
-  margin-top: 0.75rem;
-}
-
-input {
-  border: 1px solid var(--line);
-  border-radius: 0.375rem;
-  font: inherit;
-  padding: 0.625rem;
-}
-
-/*
- * Every button, not just the ones on a phone screen. A target floor set here is one no control
- * added later can forget, and the pointer a desktop aims with is not the reason the floor
- * exists: a 44px row is easier to hit with a mouse too.
- */
-button {
-  border: 1px solid var(--line);
-  border-radius: 0.375rem;
-  cursor: pointer;
-  font: inherit;
-  margin-top: 1rem;
-  min-height: var(--touch);
-  padding: 0.625rem;
-}
-
-p {
-  color: var(--muted);
-}
-
-.error {
-  color: var(--danger);
-  /* Reserved whether or not there is a failure, so the form does not jump when one arrives. */
-  min-height: 1.5rem;
-}
-
-/*
- * Everything below is the Today screen, see src/today.tsx.
- *
- * One column that widens, and no second layout. The content is a list of short rows, so a phone
- * and a desktop want the same thing and the desktop simply has more room around it; a media
- * query here would be a second arrangement to keep working for no gain. `main`'s max-width above
- * is the whole of the responsive story.
- */
-
-nav {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: space-between;
-}
-
-nav button {
-  flex: 1;
-  margin-top: 0;
-}
-
-/*
- * Visually gone, still read aloud. The navigation arrows need a name a screen reader can
- * announce, and "Previous day" beside an arrow is noise to everyone who can see the arrow.
- */
-.away {
-  clip-path: inset(50%);
-  height: 1px;
-  overflow: hidden;
-  position: absolute;
-  white-space: nowrap;
-  width: 1px;
-}
-
-/*
- * One row of the day: a label on the left, the thing it is about on the right. A button and a
- * paragraph share it so that a tappable row and a static one line up exactly, which is what
- * keeps the eye on the column rather than on which rows happen to be interactive.
- */
-.row {
+@utility row {
   align-items: center;
-  border-bottom: 1px solid var(--line);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-line);
+  border-radius: 0;
   box-sizing: border-box;
+  color: inherit;
   display: flex;
-  gap: 0.75rem;
+  gap: --spacing(3);
   justify-content: space-between;
   margin: 0;
-  min-height: var(--touch);
-  padding: 0.5rem 0;
+  min-height: var(--spacing-touch);
+  padding: --spacing(2) 0;
   text-align: left;
   width: 100%;
 }
 
-button.row {
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--line);
-  border-radius: 0;
-  color: inherit;
-}
-
-.meal__type {
-  color: var(--text);
-}
-
-.dots {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  margin: 0;
-}
-
-.dots--summary {
-  gap: 0.375rem;
-  margin: 1rem 0 1.5rem;
-}
-
 /*
- * The dot itself. The letter inside is what makes the four states tell each other apart without
- * hue, so it is sized to be legible rather than hinted at, and centred with flex so it sits on
- * the disc's middle whatever the font.
- */
-.dot {
-  align-items: center;
-  border-radius: 50%;
-  color: var(--on-colour);
-  display: inline-flex;
-  flex: none;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  height: 1.375rem;
-  justify-content: center;
-  line-height: 1;
-  width: 1.375rem;
-}
-
-.dot--green {
-  background: var(--green);
-}
-
-.dot--yellow {
-  background: var(--yellow);
-}
-
-.dot--orange {
-  background: var(--orange);
-}
-
-.dot--unclassified {
-  background: var(--unclassified);
-}
-
-/*
- * Not sent yet. A ring around the dot rather than a faded fill: fading a traffic light changes
- * which light it looks like, and this has to say "on its way" without saying anything about the
- * colour. `outline` rather than a border so the disc does not change size as an entry drains.
- */
-.dot--pending {
-  outline: 2px solid var(--muted);
-  outline-offset: 2px;
-}
-
-.meal__detail ul {
-  list-style: none;
-  margin: 0;
-  padding: 0 0 0 1rem;
-}
-
-.item {
-  justify-content: flex-start;
-}
-
-.hint {
-  color: var(--muted);
-  margin-left: auto;
-}
-
-.pending {
-  color: var(--muted);
-}
-
-/* The three verdicts, side by side, each a whole touch target rather than a word to aim at. */
-.choices {
-  display: flex;
-  gap: 0.5rem;
-  margin: 0 0 0.5rem;
-  padding-left: 1rem;
-}
-
-.choices button {
-  align-items: center;
-  display: flex;
-  flex: 1;
-  gap: 0.5rem;
-  margin-top: 0;
-  min-height: var(--touch);
-}
-
-.danger {
-  border-color: var(--danger);
-  color: var(--danger);
-  width: 100%;
-}
-
-/*
- * The undo and the refusals both sit in the flow rather than floating over the screen. A toast
- * that fades is a control somebody has to catch; these stay until they are used or the day
- * changes, which is what makes "with undo" a promise rather than a race.
- */
-/* Its own padding, because unlike .rejected this box is the row rather than wrapping one. */
-.undo {
-  border: 1px solid var(--line);
-  border-bottom-color: var(--line);
-  border-radius: 0.375rem;
-  margin-top: 1rem;
-  padding: 0.5rem 0.75rem;
-}
-
-.undo button,
-.rejected button {
-  flex: none;
-  margin-top: 0;
-}
-
-.rejected {
-  border: 1px solid var(--danger);
-  border-radius: 0.375rem;
-  margin: 1rem 0;
-  padding: 0 0.75rem;
-}
-
-.rejected .row:last-child {
-  border-bottom: none;
-}
-
-/*
- * Everything below is the composer, see src/compose.tsx.
+ * The one action that ends a screen: sign in, add a meal, log the meal.
  *
- * The same column and the same rows as the day, because it is the same app and a second visual
- * language for the second screen would be two things to keep in step for no gain.
+ * A fill rather than a border, which is the other half of what this story is for. Every control
+ * looking identical is not restraint, it is the absence of a decision: a screen where the thing
+ * somebody came to do looks exactly like the thing that cancels it costs a read of every label.
+ * There is one of these per screen and never two, which is what keeps it meaning anything.
  */
-
-/* The four meal types, each a whole target rather than a word to aim at. One tap to correct. */
-.types {
-  display: flex;
-  gap: 0.5rem;
-  margin: 1rem 0;
-}
-
-.types button {
-  flex: 1;
-  margin-top: 0;
-  padding: 0.625rem 0.25rem;
-}
-
-/*
- * The chosen one, marked with a fill rather than only a border. A border alone is the weakest
- * signal a design has, and this is the field somebody checks at a glance before saving.
- */
-.types button[aria-pressed='true'] {
-  background: var(--brand);
-  border-color: var(--brand);
-  color: var(--on-colour);
+@utility primary {
+  background: var(--color-brand);
+  border-color: var(--color-brand);
+  box-shadow: var(--shadow-sm);
+  color: var(--color-on-colour);
   font-weight: 700;
-}
-
-/*
- * The field is a block of its own rather than a label sitting beside an input. A `label` is
- * inline by default, which would put the two on one line and leave the field as wide as its
- * default size rather than as wide as the results underneath it.
- */
-label[for='food'] {
-  display: block;
-}
-
-.search {
-  box-sizing: border-box;
   width: 100%;
-}
-
-.chosen,
-.results {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.chosen {
-  margin-bottom: 1rem;
-}
-
-/* The remove control sits in its row rather than a button's own top margin below it. */
-.chosen button {
-  margin-top: 0;
-}
-
-/*
- * A result row. Not a button, because it is an `option` inside a `listbox` and the keyboard
- * reaches it through the field above rather than by tabbing onto it, which is the ARIA combobox
- * pattern. The touch floor still applies: it is tapped like anything else.
- */
-.option {
-  cursor: pointer;
-  justify-content: flex-start;
-  min-height: var(--touch);
-  padding: 0.5rem;
-}
-
-/*
- * Where the arrow keys are. A background rather than an outline, so it reads as a position in a
- * list rather than as focus, which is still in the field where the caret is.
- */
-.option--active {
-  background: light-dark(#eef3ee, #1e2a20);
-}
-
-/*
- * The one control that ends the screen, so it is the full width and sits below the list rather
- * than floating over it: a button that overlaps the results is a button that covers the thing
- * somebody is reaching for.
- */
-.save {
-  width: 100%;
-}
-
-.save:disabled {
-  color: var(--muted);
-  cursor: not-allowed;
-}
-
-/*
- * The weight field, laid out as the row it replaces rather than as a form of its own. The
- * generic `form` rule above is a column, which is right for the login screen and wrong here:
- * opening this must not push everything under it down the screen, because what tapped it is a
- * thumb that is already over the row.
- */
-form.row {
-  flex-direction: row;
-}
-
-form.row label,
-form.row button {
-  flex: none;
-  margin-top: 0;
-}
-
-form.row input {
-  flex: 1;
-  min-width: 0;
-}
-
-/*
- * The day's weight, which answers with the trend and keeps the reading underneath it. A column
- * rather than a row, so the two stack against the right edge and the trend is plainly the line
- * being read: this is the whole product principle expressed in a flex direction.
- */
-.weight {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.weight__trend {
-  color: var(--text);
-}
-
-/*
- * Everything below is the statistics screen, see src/statistics.tsx.
- *
- * The same column and the same rows as the other two screens. A wider viewport gets a wider
- * column and a longer range inside it, never a second arrangement: the content is a line and
- * three lists, which read top to bottom identically on a phone and on a desktop, so the extra
- * room is worth more as more days than as columns. The range itself is chosen in TypeScript,
- * because it decides what is requested and not only what is drawn, see CHART_DAYS.
- */
-main.wide {
-  max-width: 46rem;
-}
-
-h2 {
-  font-size: 1rem;
-  margin: 1.5rem 0 0.5rem;
-}
-
-/* The trend, and the largest thing on the screen. Nothing else here competes with it. */
-.headline {
-  color: var(--text);
-  font-size: 2.5rem;
-  font-weight: 700;
-  line-height: 1.1;
-  margin: 0.5rem 0 0.25rem;
-}
-
-/* What the screen does not know yet, said where the headline would have been. */
-.notice {
-  margin: 0.5rem 0;
-}
-
-.chart {
-  display: block;
-  height: auto;
-  margin: 0.5rem 0 1rem;
-  width: 100%;
-}
-
-/*
- * What was on the scale. Small and grey on purpose: these are the numbers the product exists to
- * stop people reading as progress, and they are here because somebody wants to see the dot they
- * stood on the scale for, not because they are the answer.
- */
-.chart__raw {
-  fill: var(--muted);
-  opacity: 0.5;
-}
-
-/*
- * The trend. Drawn after the dots, so it passes over them rather than under. The stroke does not
- * scale with the viewBox, which is what keeps a wider chart a longer line rather than a fatter
- * one.
- */
-.chart__line {
-  fill: none;
-  stroke: var(--brand);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 2.5;
-}
-
-/*
- * A colour distribution as one bar. Each part carries its letter for the same reason every dot
- * does: roughly one man in twelve cannot tell this palette's green from its orange, and a bar
- * whose only signal is hue is a bar those people cannot read. A part too narrow for its letter
- * simply clips it, and the bar is labelled with the counts either way.
- */
-.bar {
-  display: flex;
-  border-radius: 0.375rem;
-  flex: 1;
-  gap: 1px;
-  min-width: 6rem;
-  overflow: hidden;
-}
-
-.bar__part {
-  align-items: center;
-  color: var(--on-colour);
-  display: flex;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  justify-content: center;
-  min-width: 0;
-  overflow: hidden;
-  padding: 0.25rem 0;
-}
-
-.bar__part--green {
-  background: var(--green);
-}
-
-.bar__part--yellow {
-  background: var(--yellow);
-}
-
-.bar__part--orange {
-  background: var(--orange);
-}
-
-.bar__part--unclassified {
-  background: var(--unclassified);
-}
-
-/* The label the bars line up after, so three windows read as one comparison rather than three. */
-.window,
-.week__label {
-  flex: none;
-  width: 7.5rem;
-}
-
-/* Right aligned and fixed, so a column of weekly changes can be read down rather than across. */
-.week__weight {
-  flex: none;
-  text-align: right;
-  width: 5.5rem;
 }

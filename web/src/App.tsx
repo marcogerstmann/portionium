@@ -17,7 +17,7 @@ import { Today } from './today';
 
 /** While `GET /me` is in flight. A cookie may or may not be attached and neither answer is in yet. */
 function Loading() {
-  return <p className="centred">Loading</p>;
+  return <p className="flex min-h-dvh items-center justify-center text-muted">Loading</p>;
 }
 
 /**
@@ -57,21 +57,27 @@ function Login({ onSignedIn }: { onSignedIn: (user: UserResponse) => void }) {
   }
 
   return (
-    <main className="centred">
+    <main className="flex min-h-dvh flex-col justify-center">
       {/* The mark, above the wordmark. Drawn rather than fetched: it is one element and a border
           radius, so it costs no request, and taking its colour from `--green` is what makes it
           follow the system's light and dark like the rest of the app, where public/icon.svg
           carries one fixed colour because a browser tab cannot be asked. It carries no label
           because the heading under it is already the name, and announcing "portionium" twice is
-          worse than not drawing it at all. */}
-      <div className="mark" />
-      <h1>portionium</h1>
+          worse than not drawing it at all. `mx-auto` rather than a width, because its parent is
+          a flex column: left alone the column would stretch it and the radius would draw a pill
+          rather than a circle. */}
+      <div className="mx-auto size-16 rounded-full bg-green shadow-sm" />
+      <h1 className="mt-4 mb-6 text-center text-4xl">portionium</h1>
 
-      <form onSubmit={(event) => void submit(event)}>
-        <label htmlFor="email">Email</label>
+      <form className="flex flex-col gap-1" onSubmit={(event) => void submit(event)}>
+        <label htmlFor="email" className="mt-3">
+          Email
+        </label>
         <input id="email" name="email" type="email" autoComplete="username" required autoFocus />
 
-        <label htmlFor="password">Password</label>
+        <label htmlFor="password" className="mt-3">
+          Password
+        </label>
         <input
           id="password"
           name="password"
@@ -80,13 +86,13 @@ function Login({ onSignedIn }: { onSignedIn: (user: UserResponse) => void }) {
           required
         />
 
-        <button type="submit" disabled={busy}>
+        <button type="submit" className="primary mt-6" disabled={busy}>
           {busy ? 'Signing in' : 'Sign in'}
         </button>
 
         {/* Rendered into a live region that is always in the tree, so a screen reader announces
             the failure rather than finding out about it only if it happens to look again. */}
-        <p role="alert" className="error">
+        <p role="alert" className="min-h-6 text-danger">
           {error}
         </p>
       </form>

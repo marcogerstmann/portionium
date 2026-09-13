@@ -6,6 +6,7 @@ import {
   type MealType,
   type UserResponse,
 } from '@portionium/schemas';
+import { Check, X } from 'lucide-react';
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { z } from 'zod';
 
@@ -68,14 +69,19 @@ const searchResponseSchema = z.array(foodResponseSchema);
  */
 function MealTypes({ chosen, onChoose }: { chosen: MealType; onChoose: (type: MealType) => void }) {
   return (
-    <div className="types" role="group" aria-label="Meal type">
+    <div className="my-4 flex gap-2" role="group" aria-label="Meal type">
       {MEAL_TYPES.map((type) => (
         <button
           key={type}
           type="button"
           // Pressed rather than a class, so the choice is in the accessibility tree and not only
-          // in the styling. A screen reader says "Lunch, pressed" instead of "Lunch".
+          // in the styling. A screen reader says "Lunch, pressed" instead of "Lunch", and the
+          // fill below is styled off the same attribute, so the two cannot disagree.
+          //
+          // A fill rather than only a border: a border alone is the weakest signal a design has,
+          // and this is the field somebody checks at a glance before saving.
           aria-pressed={type === chosen}
+          className="flex-1 px-1 text-sm aria-pressed:border-brand aria-pressed:bg-brand aria-pressed:font-bold aria-pressed:text-on-colour"
           onClick={() => onChoose(type)}
         >
           {MEAL_TYPE_LABELS[type]}
@@ -249,7 +255,7 @@ export function Compose({
         id={`food-option-${index}`}
         role="option"
         aria-selected={index === active}
-        className={`row option${index === active ? ' option--active' : ''}`}
+        className={`row cursor-pointer justify-start px-2${index === active ? ' bg-active' : ''}`}
         // Before focus can leave the field, so choosing with the mouse does not close the
         // keyboard on a phone and reopen it a moment later.
         onMouseDown={(event) => event.preventDefault()}
@@ -262,9 +268,10 @@ export function Compose({
 
   return (
     <main>
-      <header>
+      <header className="flex items-center justify-between gap-4">
         <h1>Add a meal</h1>
-        <button type="button" onClick={onDone}>
+        <button type="button" className="flex shrink-0 items-center gap-2 text-sm" onClick={onDone}>
+          <X aria-hidden="true" className="size-4" />
           Cancel
         </button>
       </header>
@@ -272,30 +279,36 @@ export function Compose({
       <MealTypes chosen={type} onChoose={setType} />
 
       {chosen.length > 0 && (
-        <ul className="chosen" aria-label="In this meal">
+        <ul className="mb-4" aria-label="In this meal">
           {chosen.map((food, position) => (
             // Position rather than id, because one meal may legitimately name one food twice and
             // React needs the two rows to be different things.
-            <li key={`${food.id}-${position}`} className="row item">
+            <li key={`${food.id}-${position}`} className="row justify-start">
               <Dot category={dotOf(food.category)} />
               <span>{food.name}</span>
               <button
                 type="button"
-                className="hint"
+                className="ml-auto flex shrink-0 items-center gap-1 text-sm text-muted"
                 onClick={() => setChosen((current) => current.filter((_, at) => at !== position))}
               >
-                Remove <span className="away">{food.name}</span>
+                <X aria-hidden="true" className="size-4" />
+                Remove <span className="sr-only">{food.name}</span>
               </button>
             </li>
           ))}
         </ul>
       )}
 
-      <label htmlFor="food">Add a food</label>
+      {/* A block of its own rather than a label sitting beside the input. A `label` is inline by
+          default, which would put the two on one line and leave the field as wide as its default
+          size rather than as wide as the results underneath it. */}
+      <label htmlFor="food" className="block">
+        Add a food
+      </label>
       <input
         ref={field}
         id="food"
-        className="search"
+        className="w-full"
         type="search"
         role="combobox"
         autoComplete="off"
@@ -318,11 +331,11 @@ export function Compose({
 
       {/* Always in the tree, so a screen reader announces a refusal rather than having to look
           again on the off chance. See the same pattern on the login form. */}
-      <p role="alert" className="error">
+      <p role="alert" className="min-h-6 text-danger">
         {error}
       </p>
 
-      <ul id="food-results" role="listbox" aria-label="Foods" className="results">
+      <ul id="food-results" role="listbox" aria-label="Foods">
         {results.map((food, index) =>
           option(
             index,
@@ -345,7 +358,7 @@ export function Compose({
 
       <button
         type="button"
-        className="save"
+        className="primary mt-4 flex items-center justify-center gap-2 disabled:border-line disabled:bg-transparent disabled:text-muted disabled:shadow-none"
         // An empty meal is refused by the server as a domain invariant, see createMeal. Refusing
         // it here means nobody finds that out from a queue entry that could never be sent.
         disabled={chosen.length === 0}
@@ -356,6 +369,7 @@ export function Compose({
           onDone();
         }}
       >
+        <Check aria-hidden="true" className="size-5" />
         Log {MEAL_TYPE_LABELS[type].toLowerCase()}
         {chosen.length > 0 && ` · ${chosen.length}`}
       </button>

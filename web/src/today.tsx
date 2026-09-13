@@ -9,6 +9,17 @@ import {
   type StatsWeightResponse,
   type UserResponse,
 } from '@portionium/schemas';
+import {
+  ChartLine,
+  ChevronLeft,
+  ChevronRight,
+  LogOut,
+  Plus,
+  RefreshCw,
+  Trash2,
+  TriangleAlert,
+  Undo2,
+} from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type FormEvent, type TouchEvent } from 'react';
 import { z } from 'zod';
 
@@ -86,19 +97,19 @@ function Summary({ day }: { day: DayResponse }) {
   const items = orderMeals(day.meals).flatMap((meal) => meal.items);
 
   if (items.length === 0) {
-    return <p>Nothing logged yet.</p>;
+    return <p className="mt-4 mb-6 text-muted">Nothing logged yet.</p>;
   }
 
   return (
     <p
-      className="dots dots--summary"
+      className="mt-4 mb-6 flex flex-wrap gap-1.5"
       role="img"
       aria-label={`This day: ${spokenCounts(day.colourCounts)}.`}
     >
+      {/* Silent, because the row above is already one image with the sentence. Dot rather than a
+          second copy of its markup, so the shapes cannot drift between here and the meals. */}
       {items.map((item) => (
-        <span key={item.id} aria-hidden="true" className={`dot dot--${dotFor(item)}`}>
-          {DOTS[dotFor(item)].letter}
-        </span>
+        <Dot key={item.id} category={dotFor(item)} silent />
       ))}
     </p>
   );
@@ -122,10 +133,12 @@ function MealRow({
   onToggle: () => void;
 }) {
   return (
-    <button type="button" className="row meal" aria-expanded={expanded} onClick={onToggle}>
-      <span className="meal__type">{MEAL_TYPE_LABELS[meal.type]}</span>
+    <button type="button" className="row" aria-expanded={expanded} onClick={onToggle}>
+      <span>{MEAL_TYPE_LABELS[meal.type]}</span>
 
-      <span className="dots">
+      {/* A step wider than the summary's, because these are the dots that can wear the unsent
+          ring and a ring wants a little more air around it. See Dot's `pending`. */}
+      <span className="flex flex-wrap justify-end gap-2">
         {meal.items.map((item) => (
           <Dot key={item.id} category={dotFor(item)} pending={pending} />
         ))}
@@ -158,8 +171,8 @@ function MealDetail({
   const [classifying, setClassifying] = useState<string | undefined>(undefined);
 
   return (
-    <div className="meal__detail">
-      <ul>
+    <div>
+      <ul className="pl-4">
         {meal.items.map((item) => {
           const name = foods.get(item.foodId)?.name ?? 'Unknown food';
 
@@ -168,7 +181,7 @@ function MealDetail({
               {item.category === null ? (
                 <button
                   type="button"
-                  className="row item"
+                  className="row justify-start"
                   aria-expanded={classifying === item.foodId}
                   onClick={() =>
                     setClassifying(classifying === item.foodId ? undefined : item.foodId)
@@ -176,21 +189,22 @@ function MealDetail({
                 >
                   <Dot category={UNCLASSIFIED} />
                   <span>{name}</span>
-                  <span className="hint">Classify</span>
+                  <span className="ml-auto text-sm text-muted">Classify</span>
                 </button>
               ) : (
-                <p className="row item">
+                <p className="row justify-start">
                   <Dot category={item.category} pending={pending.has(foodSubject(item.foodId))} />
                   <span>{name}</span>
                 </p>
               )}
 
               {classifying === item.foodId && (
-                <p className="choices">
+                <p className="mb-2 flex gap-2 pl-4">
                   {CATEGORIES.map((category) => (
                     <button
                       key={category}
                       type="button"
+                      className="flex flex-1 items-center justify-center gap-2 text-sm"
                       onClick={() => {
                         setClassifying(undefined);
                         onClassify(item.foodId, category);
@@ -207,7 +221,12 @@ function MealDetail({
         })}
       </ul>
 
-      <button type="button" className="danger" onClick={onDelete}>
+      <button
+        type="button"
+        className="mt-4 flex w-full items-center justify-center gap-2 border-danger text-danger"
+        onClick={onDelete}
+      >
+        <Trash2 aria-hidden="true" className="size-4" />
         Delete this {MEAL_TYPE_LABELS[meal.type].toLowerCase()}
       </button>
     </div>
@@ -251,11 +270,11 @@ function Weight({
     return (
       <p className="row">
         <span>Weight</span>
-        <span className="weight">
-          <span className="weight__trend">
-            {trend === null ? 'Trend forming' : `Trend ${trend.toFixed(1)} kg`}
-          </span>
-          <span className="hint">
+        {/* A column rather than a row, so the two stack against the right edge and the trend is
+            plainly the line being read: the whole product principle in a flex direction. */}
+        <span className="flex flex-col items-end">
+          <span>{trend === null ? 'Trend forming' : `Trend ${trend.toFixed(1)} kg`}</span>
+          <span className="flex items-center gap-1 text-sm text-muted">
             {day.weightEntry.weightKg.toFixed(1)} kg{pending && <PendingMark />}
           </span>
         </span>
@@ -267,7 +286,10 @@ function Weight({
     return (
       <button type="button" className="row" onClick={() => setEntering(true)}>
         <span>Weight</span>
-        <span className="hint">Add</span>
+        <span className="flex items-center gap-1 text-sm text-muted">
+          <Plus aria-hidden="true" className="size-4" />
+          Add
+        </span>
       </button>
     );
   }
@@ -292,7 +314,12 @@ function Weight({
         }
       }}
     >
-      <label htmlFor="weightKg">Weight in kg</label>
+      {/* The field and its button keep their own size inside the row: the generic column the
+          login form uses is right there and wrong here, because opening this must not push
+          everything under it down the screen, under a thumb that is already over the row. */}
+      <label htmlFor="weightKg" className="shrink-0">
+        Weight in kg
+      </label>
       <input
         id="weightKg"
         name="weightKg"
@@ -303,10 +330,13 @@ function Weight({
         max="1000"
         required
         autoFocus
+        className="min-w-0 flex-1"
         defaultValue={last === undefined ? undefined : last.toFixed(1)}
         onFocus={(event) => event.currentTarget.select()}
       />
-      <button type="submit">Save</button>
+      <button type="submit" className="shrink-0">
+        Save
+      </button>
     </form>
   );
 }
@@ -314,8 +344,8 @@ function Weight({
 /** The unsent mark, wherever it is not a dot. Announced, for the reason Dot's `pending` is. */
 function PendingMark() {
   return (
-    <span className="pending" role="img" aria-label="not sent yet">
-      {' · ↻'}
+    <span role="img" aria-label="not sent yet">
+      <RefreshCw className="size-3.5" />
     </span>
   );
 }
@@ -339,14 +369,18 @@ function Rejected({
   }
 
   return (
-    <section className="rejected" aria-label="Writes the server refused">
+    <section
+      className="my-4 rounded-md border border-danger px-3 shadow-xs"
+      aria-label="Writes the server refused"
+    >
       {entries.map((entry) => (
-        <p key={entry.key} className="row">
-          <span>
+        <p key={entry.key} className="row last:border-b-0">
+          <TriangleAlert aria-hidden="true" className="size-4 shrink-0 text-danger" />
+          <span className="flex-1 text-sm">
             {entry.subject?.startsWith('weight:') === true ? 'A weight entry' : 'A meal'} on{' '}
             {entry.date} was not saved. {entry.failure}
           </span>
-          <button type="button" onClick={() => onDiscard(entry.key)}>
+          <button type="button" className="shrink-0 text-sm" onClick={() => onDiscard(entry.key)}>
             Discard
           </button>
         </p>
@@ -506,28 +540,43 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
 
   return (
     <main onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-      <header>
+      <header className="flex items-center justify-between gap-4">
         <h1>{dayLabel(date, today)}</h1>
         <button
           type="button"
+          className="flex shrink-0 items-center gap-2 text-sm"
           onClick={() => {
             // The row is deleted server side, so the credential is dead whatever this client
             // does next. A failure here is still a sign out locally, for the same reason.
             void request('/auth/logout', z.null(), { method: 'POST' }).finally(onSignedOut);
           }}
         >
+          <LogOut aria-hidden="true" className="size-4" />
           Sign out, {user.displayName}
         </button>
       </header>
 
-      <nav aria-label="Day">
-        <button type="button" onClick={() => page(-1)} disabled={pageTo(date, -1, today) === date}>
-          <span aria-hidden="true">←</span>
-          <span className="away">Previous day</span>
+      {/* Visually an arrow, still read aloud. `sr-only` is Tailwind's own, which is what the
+          hand written `.away` was: "Previous day" beside a chevron is noise to everyone who can
+          see the chevron, and the only name the control has to everyone who cannot. */}
+      <nav className="mt-4 flex gap-2" aria-label="Day">
+        <button
+          type="button"
+          className="flex flex-1 items-center justify-center disabled:text-muted"
+          onClick={() => page(-1)}
+          disabled={pageTo(date, -1, today) === date}
+        >
+          <ChevronLeft aria-hidden="true" className="size-6" />
+          <span className="sr-only">Previous day</span>
         </button>
-        <button type="button" onClick={() => page(1)} disabled={date === today}>
-          <span className="away">Next day</span>
-          <span aria-hidden="true">→</span>
+        <button
+          type="button"
+          className="flex flex-1 items-center justify-center disabled:text-muted"
+          onClick={() => page(1)}
+          disabled={date === today}
+        >
+          <span className="sr-only">Next day</span>
+          <ChevronRight aria-hidden="true" className="size-6" />
         </button>
       </nav>
 
@@ -535,7 +584,12 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
 
       <Rejected entries={queue.failed} onDiscard={(key) => void discardWrite(key)} />
 
-      <button type="button" className="save" onClick={() => setScreen('compose')}>
+      <button
+        type="button"
+        className="primary mb-2 flex items-center justify-center gap-2"
+        onClick={() => setScreen('compose')}
+      >
+        <Plus aria-hidden="true" className="size-5" />
         Add a meal
       </button>
 
@@ -569,15 +623,23 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
       </section>
 
       {undoable !== undefined && (
-        <p className="row undo" role="status">
-          <span>{MEAL_TYPE_LABELS[undoable.type]} deleted.</span>
+        /* Its own box rather than the row the refusals are wrapped in, and in the flow rather
+           than floating over the screen: a toast that fades is a control somebody has to catch,
+           and this one stays until it is used or the day changes. */
+        <p
+          className="mt-4 flex min-h-touch items-center justify-between gap-3 rounded-md border border-line px-3 py-2 shadow-xs"
+          role="status"
+        >
+          <span className="text-sm">{MEAL_TYPE_LABELS[undoable.type]} deleted.</span>
           <button
             type="button"
+            className="flex shrink-0 items-center gap-2 text-sm"
             onClick={() => {
               void restoreMeal(undoable);
               setUndoable(undefined);
             }}
           >
+            <Undo2 aria-hidden="true" className="size-4" />
             Undo
           </button>
         </p>
@@ -593,10 +655,9 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
       {/* The way to the other screen, as a row like the one above it rather than a tab bar: two
           screens do not need a permanent bar taking a thumb's worth of every day. */}
       <button type="button" className="row" onClick={() => setScreen('stats')}>
-        <span>Statistics</span>
-        <span className="hint" aria-hidden="true">
-          →
-        </span>
+        <ChartLine aria-hidden="true" className="size-4 text-muted" />
+        <span className="flex-1">Statistics</span>
+        <ChevronRight aria-hidden="true" className="size-4 text-muted" />
       </button>
     </main>
   );
