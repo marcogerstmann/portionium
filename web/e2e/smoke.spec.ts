@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test';
 
-import { ACCOUNT } from '../playwright.config';
+import { ACCOUNTS } from '../playwright.config';
+
+/** This file's own account, so nothing another spec logs is visible here. See ACCOUNTS. */
+const ACCOUNT = ACCOUNTS.smoke;
 
 /**
  * The whole of the client: it loads, it signs in, and what is behind the gate renders.
@@ -8,11 +11,11 @@ import { ACCOUNT } from '../playwright.config';
  * Thin on purpose. This is the harness proving itself, and a smoke test that asserts a lot is a
  * test that fails for a dozen reasons that are not the one it is named after.
  *
- * The empty day it checks is yesterday rather than today, and that is the one thing here worth
- * knowing. One database serves the whole run and the specs share an account, so today is a day
- * every other spec logs meals into, see the note on claiming foods in compose.spec.ts. Yesterday
- * is nobody's, and it is the same claim either way: a day with nothing on it renders as an empty
- * day rather than as a spinner, which is what the cache in src/db.ts exists for.
+ * The empty day it checks is yesterday rather than today. This file has an account to itself so
+ * today would be empty too, but yesterday is the honest target: it is empty because nothing has
+ * been logged into it rather than because nothing has run yet, and the claim is the same either
+ * way. A day with nothing on it renders as an empty day rather than as a spinner, which is what
+ * the cache in src/db.ts exists for.
  */
 test('loads, signs in, and renders a day with nothing on it', async ({ page }) => {
   await page.goto('/');

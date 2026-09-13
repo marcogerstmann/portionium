@@ -1120,7 +1120,7 @@ Unit tests are `*.test.ts` beside the code, run by Vitest, and `vite.config.ts` 
 
 The browser tests are in `web/e2e/`, configured by
 [`web/playwright.config.ts`](./web/playwright.config.ts), and the configuration is the harness:
-it deletes the temporary database, creates an account through the `user` CLI with the password
+it deletes the temporary database, creates the accounts through the `user` CLI with the password
 piped in, and starts the API with `WEB_ROOT` pointing at the bundle just built, in one shell so
 there is no question of what ran first. Chromium, one origin, and a database that did not exist
 a moment earlier.
@@ -1130,13 +1130,25 @@ testing end to end are exactly the two a second origin changes: the `SameSite=La
 the `Origin` check. A harness that quietly ran on two origins would either fail for reasons that
 have nothing to do with the app or pass with those checks turned off.
 
+One account per spec file, `ACCOUNTS`, and that is the whole isolation story. Spec files run in
+parallel and everything they write lands on one shared thing, today, so a single account made
+every spec's meals visible to every other spec's locators: a row matched by type resolved to
+somebody else's meal, and which worker finished first decided whether the run passed. The
+convention that grew around that, claim a meal type nobody else logs, cannot hold. There are
+four types and more spec files than that, and the composer pre-selects the type from the clock,
+so what the offline spec writes is not knowable when it is written, only when it runs. An
+account each removes the sharing rather than rationing it, and it costs nothing the application
+does not already guarantee: a repository read takes a `userId` and a foreign row is not
+returned, see [ADR 003](./docs/adr/003-multi-user-authorization.md). Claiming still applies
+inside a file, where the tests do share an account and a day.
+
 ```sh
 pnpm --filter @portionium/web exec playwright install chromium   # once
 pnpm --filter @portionium/web e2e
 ```
 
-The `e2e` job in CI runs the same command on every push. The account it creates lives for the
-length of one run in a database under the system temporary directory, which is why its password
+The `e2e` job in CI runs the same command on every push. The accounts it creates live for the
+length of one run in a database under the system temporary directory, which is why the password
 is written down in the config rather than injected: it is a fixture, not a credential.
 
 Installability is checked by hand against a deployed instance with Lighthouse, because the audit

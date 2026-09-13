@@ -24,28 +24,58 @@ const ORIGIN = `http://localhost:${PORT}`;
 const DATABASE_PATH = join(tmpdir(), 'portionium-e2e.db');
 
 /**
- * The account the run creates for itself. Not a credential: it exists for the lifetime of a
- * database in a temporary directory, on an instance listening on localhost, and the next run
- * deletes both. It is written down here rather than generated so that the spec and the command
- * that seeds it cannot disagree about what it is.
+ * Not a credential: it exists for the lifetime of a database in a temporary directory, on an
+ * instance listening on localhost, and the next run deletes both. Written down here rather than
+ * generated so that a spec and the command that seeds it cannot disagree about what it is.
  */
-export const ACCOUNT = {
-  email: 'e2e@portionium.test',
-  displayName: 'Ada',
-  password: 'correct horse battery staple',
+const PASSWORD = 'correct horse battery staple';
+
+function fixture(name: string) {
+  return { email: `${name}@portionium.test`, displayName: 'Ada', password: PASSWORD };
+}
+
+/**
+ * One account per spec file, and that is the whole isolation story.
+ *
+ * Spec files run in parallel, and everything a spec writes lands on one shared thing: today. On
+ * one account that made every spec's meals visible to every other spec's locators, so a row
+ * matched by type resolved to somebody else's meal and the run failed on whichever worker
+ * happened to finish first. The convention that grew around it, claim a meal type nobody else
+ * logs, cannot actually hold: there are four types and more specs than that, and the composer
+ * pre-selects the type from the clock, so what the offline spec writes is not knowable when it
+ * is written, only when it runs.
+ *
+ * An account each removes the sharing instead of rationing it. A repository read takes a
+ * `userId` and a foreign row is not returned, see ADR 003, so one spec cannot see another's
+ * meals, weight or history at all, whatever it logs and whenever it runs.
+ *
+ * Claiming still matters inside a file, where the specs do share an account and a day, and
+ * compose.spec.ts says so where it claims its foods.
+ */
+export const ACCOUNTS = {
+  smoke: fixture('smoke'),
+  today: fixture('today'),
+  compose: fixture('compose'),
+  statistics: fixture('statistics'),
 };
 
 /**
- * Delete the database, create the account, start the server, in that order and in one shell, so
+ * Delete the database, create the accounts, start the server, in that order and in one shell, so
  * there is no question of which ran first. `user create` opens the database the same way the
  * server does, which is what applies the migrations and loads the seed catalog before the first
  * request arrives. The password is piped rather than passed as an argument, because an argument
  * is in the process list of everybody on the machine, see api/src/cli/prompt.ts.
+ *
+ * The first account created is an admin because there is nobody to have granted it one, and the
+ * rest are not. Nothing in these specs needs the difference.
  */
 const SERVE_FRESHLY_SEEDED = [
   `rm -f '${DATABASE_PATH}' '${DATABASE_PATH}-wal' '${DATABASE_PATH}-shm'`,
-  `printf %s '${ACCOUNT.password}' | pnpm --filter @portionium/api user create` +
-    ` --email '${ACCOUNT.email}' --name '${ACCOUNT.displayName}' --timezone Europe/Berlin`,
+  ...Object.values(ACCOUNTS).map(
+    (account) =>
+      `printf %s '${account.password}' | pnpm --filter @portionium/api user create` +
+      ` --email '${account.email}' --name '${account.displayName}' --timezone Europe/Berlin`,
+  ),
   'pnpm --filter @portionium/api exec tsx src/index.ts',
 ].join(' && ');
 

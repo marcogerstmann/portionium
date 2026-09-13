@@ -1,6 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { ACCOUNT } from '../playwright.config';
+import { ACCOUNTS } from '../playwright.config';
+
+/** This file's own account, so nothing another spec logs is visible here. See ACCOUNTS. */
+const ACCOUNT = ACCOUNTS.compose;
 
 /**
  * Composing a meal, in a browser, against the real API.
@@ -18,13 +21,13 @@ import { ACCOUNT } from '../playwright.config';
 const API = '/api/v1';
 
 /**
- * The seed foods each spec below claims, and no other spec names.
+ * The seed foods each test below claims, and no other test in this file names.
  *
- * One database serves the whole run and every spec shares an account, which is the convention
- * today.spec.ts states as "a type no other spec logs". Claiming foods is the same idea one level
- * down, and it is what these specs need instead: they count the meals they made, and a meal row
- * on screen says only its type, so "the lunch" is not something the screen can point at when
- * another spec has logged one too.
+ * The specs here share an account and a today, so they can see each other's meals. They count
+ * the meals they made, and a meal row on screen says only its type, so "the lunch" is not
+ * something the screen can point at once a neighbour has logged one too. Claiming a food is what
+ * makes "mine" expressible, see mealsOf. Another file's meals are on another account and cannot
+ * be here at all, see ACCOUNTS.
  *
  * They are also early in the alphabet on purpose. The cached catalog is what GET /foods/search
  * answers an empty query with, which for an account with little history degrades to the catalog
@@ -35,11 +38,10 @@ const OFFLINE_FOODS = ['Aubergine', 'Blumenkohl', 'Brokkoli'];
 const KEYBOARD_FOODS = ['Camembert', 'Couscous'];
 
 /**
- * The weight the offline spec records, and no other spec types.
- *
- * The same claiming convention as the foods above, one dimension across. Every spec shares an
- * account and today.spec.ts records a weight of its own, so "the reading on today" is not
- * something a count can point at; a value nobody else uses is.
+ * The weight the offline test records. Nothing else in this file records one, so the count below
+ * would hold either way; it is named for the same reason the foods are, so that adding a second
+ * weight-writing test here is a claim somebody has to make rather than a count that quietly
+ * starts passing for the wrong reason.
  */
 const OFFLINE_WEIGHT = 79.3;
 

@@ -1,6 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { ACCOUNT } from '../playwright.config';
+import { ACCOUNTS } from '../playwright.config';
+
+/** This file's own account, so nothing another spec logs is visible here. See ACCOUNTS. */
+const ACCOUNT = ACCOUNTS.today;
 
 /**
  * The Today screen, in a browser, against the real API.
@@ -137,19 +140,16 @@ test('deletes a meal and puts it back with undo', async ({ page }) => {
 });
 
 /*
- * Recording a weight offline is no longer here, it is the offline spec in compose.spec.ts.
- *
- * Not because this file stopped caring, but because a day holds one reading and every spec in
- * this run shares an account and a today: two specs recording a weight is two specs racing over
- * which one the day shows, which is the same reason the specs here claim a meal type nobody else
- * logs. The claims this test made, durable and marked offline, unmarked once drained, and the
- * server's copy after a reload, all moved with it, and it gained the one POR-44 asks for.
+ * Recording a weight offline is not here, it is the offline spec in compose.spec.ts, where the
+ * story that asks for it put it. The claims this file used to make about it, durable and marked
+ * offline, unmarked once drained, and the server's copy after a reload, moved with it.
  */
 
 test('gives every tappable row at least a 44 pixel target', async ({ page }) => {
   await signIn(page);
-  // A type no other spec logs. One database serves the whole run, so two specs using one type
-  // would have each other's meals in their way.
+  // A type no other test in this file logs. The specs here share an account and a today, so two
+  // of them using one type would have each other's meals in their way; another file's meals
+  // cannot be here at all, see ACCOUNTS.
   await logMeal(page, { type: 'snack', foodNames: ['Skyr'] });
   await page.reload();
 
