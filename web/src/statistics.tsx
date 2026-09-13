@@ -270,22 +270,28 @@ function WeekRow({ week }: { week: WeeklySummaryWeek }) {
   );
 }
 
-export function Stats({ user }: { user: UserResponse }) {
+export function Stats({ user, active }: { user: UserResponse; active: boolean }) {
   const t = useT();
   const locale = useLocale();
   const today: LocalDate = localDateFor(new Date(), user.timezone, user.dayBoundaryHour);
-  const { weight, days: chartDays } = useWeightStats(today);
+  // This screen stays mounted behind the tab bar even while another tab is showing, see App, so
+  // fetching once at mount would freeze it on whatever the day looked like at sign in. `active`
+  // is the tab becoming this one, and passing it as the reload trigger is what makes opening the
+  // tab ask the server again rather than repeat a number from hours ago.
+  const { weight, days: chartDays } = useWeightStats(today, active);
 
   const colours = useStatistic(
     'days',
     `/stats/days?${new URLSearchParams(rangeEnding(today, COLOUR_DAYS)).toString()}`,
     statsDaysResponseSchema,
+    active,
   );
 
   const weekly = useStatistic(
     'weekly',
     `/stats/weekly?weeks=${SUMMARY_WEEKS}`,
     statsWeeklyResponseSchema,
+    active,
   );
 
   const days = weight?.days ?? [];

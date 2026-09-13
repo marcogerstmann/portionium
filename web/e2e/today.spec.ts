@@ -126,7 +126,7 @@ test('deletes a meal and puts it back with undo', async ({ page }) => {
 
   const meals = page.getByRole('region', { name: 'Meals' });
   await meals.getByRole('button', { name: /Dinner/ }).click();
-  await page.getByRole('button', { name: /Delete this dinner/ }).click();
+  await page.getByRole('button', { name: /Delete this Dinner/ }).click();
 
   await expect(meals.getByRole('button', { name: /Dinner/ })).toHaveCount(0);
 

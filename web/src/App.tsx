@@ -237,7 +237,7 @@ export function App() {
         <Today user={user} onComposingChange={setComposing} />
       </div>
       <div hidden={tab !== 'stats'} className={CLEAR_TAB_BAR}>
-        <Stats user={user} />
+        <Stats user={user} active={tab === 'stats'} />
       </div>
       <div hidden={tab !== 'settings'} className={CLEAR_TAB_BAR}>
         <Settings user={user} onSignedOut={() => applyUser(undefined)} />

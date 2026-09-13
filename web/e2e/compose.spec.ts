@@ -178,7 +178,7 @@ test('logs a meal from the keyboard alone: type, arrow down, enter, repeat', asy
   await expect(page.getByLabel('Add a food')).toBeFocused();
   await expect(page.getByLabel('Add a food')).toHaveValue('');
 
-  await page.getByRole('button', { name: /^Log lunch/ }).click();
+  await page.getByRole('button', { name: /^Log Lunch/ }).click();
   await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
 
   // Read back from the server, which is what proves the keyboard built the meal rather than just
