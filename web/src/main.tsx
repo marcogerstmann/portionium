@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { App } from './App';
+import { startDraining } from './outbox';
 import './styles.css';
 
 const container = document.querySelector('#root');
@@ -20,6 +21,16 @@ if (!container) {
  * nothing to remember about having asked.
  */
 void navigator.storage?.persist();
+
+/**
+ * Start replaying whatever is queued, and listen for the moments worth trying again.
+ *
+ * Outside React on purpose. The queue belongs to the device rather than to a screen, it may
+ * hold meals logged before the last time this app was closed, and nothing that renders needs to
+ * have mounted for them to be sent. An empty queue makes no requests, so this costs nothing on
+ * a launch with nothing to do, signed in or not.
+ */
+startDraining();
 
 createRoot(container).render(
   <StrictMode>

@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { z } from 'zod';
 
 import { ApiError, request, session, UNAUTHENTICATED_EVENT } from './api';
+import { drain } from './outbox';
 
 /**
  * The shell, which today is one gate and two screens behind it.
@@ -85,7 +86,7 @@ function Login({ onSignedIn }: { onSignedIn: (user: UserResponse) => void }) {
   );
 }
 
-/** Everything behind the gate, which is nothing yet. The screens arrive with WEB 2. */
+/** Everything behind the gate, which is nothing yet. The screens arrive with WEB 3. */
 function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: () => void }) {
   return (
     <main>
@@ -121,8 +122,8 @@ export function App() {
   }, []);
 
   // An expired or revoked session, noticed by whichever request ran into it. Nothing is cleared
-  // beyond this state: the outbox WEB 2 adds belongs to the user and survives to be sent once
-  // they sign back in. See UNAUTHENTICATED_EVENT.
+  // beyond this state: the outbox in ./outbox.ts belongs to the user and survives to be sent
+  // once they sign back in. See UNAUTHENTICATED_EVENT.
   useEffect(() => {
     const signedOut = () => setUser(undefined);
     session.addEventListener(UNAUTHENTICATED_EVENT, signedOut);
@@ -135,7 +136,16 @@ export function App() {
   }
 
   return user === undefined ? (
-    <Login onSignedIn={setUser} />
+    <Login
+      onSignedIn={(signedIn) => {
+        setUser(signedIn);
+
+        // The other half of the outbox's `paused` outcome: a drain that ran into an expired
+        // session stopped rather than burning a retry on every queued entry, and this is the
+        // moment it becomes worth trying again. See classifyAttempt in ./outbox.ts.
+        void drain();
+      }}
+    />
   ) : (
     <Today user={user} onSignedOut={() => setUser(undefined)} />
   );

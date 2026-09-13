@@ -52,8 +52,13 @@ export default defineConfig({
 
       workbox: {
         // The app shell and everything it loads, precached on install, so a cold launch with no
-        // network still renders. What that shell then shows offline is WEB 2's problem.
+        // network still renders. What that shell shows once it is running comes from IndexedDB,
+        // see src/db.ts.
         globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
+        // The one listener Workbox does not generate: Background Sync, which wakes the app to
+        // drain the outbox once the connection is genuinely back. See public/sw-drain.js for
+        // why it forwards to the page instead of sending anything itself.
+        importScripts: ['/sw-drain.js'],
         // A client route asked for with no network resolves to the shell, exactly as the API's
         // not found handler resolves it when there is one. The API's own paths are excluded:
         // answering a navigation to /api/v1/docs with this app would be a worse failure than

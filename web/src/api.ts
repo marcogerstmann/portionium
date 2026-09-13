@@ -55,6 +55,15 @@ export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   /** Serialised as JSON. Absent for a request that carries nothing. */
   body?: unknown;
+  /**
+   * Sent as `Idempotency-Key`, which makes a retried write run once however many times it is
+   * sent. Minted at enqueue and reused on every attempt, never regenerated, see ./outbox.ts and
+   * docs/adr/004-idempotency-keys.md.
+   *
+   * Absent for a request nobody retries. A write sent without one runs every time it arrives,
+   * which is the right behaviour for a call a person made and is waiting on.
+   */
+  idempotencyKey?: string;
 }
 
 /**
@@ -66,14 +75,23 @@ export interface RequestOptions {
 export async function request<T extends z.ZodType>(
   path: string,
   schema: T,
-  { method = 'GET', body }: RequestOptions = {},
+  { method = 'GET', body, idempotencyKey }: RequestOptions = {},
 ): Promise<z.infer<T>> {
+  const headers: Record<string, string> = {};
+
+  if (body !== undefined) {
+    headers['content-type'] = 'application/json';
+  }
+
+  if (idempotencyKey !== undefined) {
+    headers['idempotency-key'] = idempotencyKey;
+  }
+
   const response = await fetch(`${API_PREFIX}${path}`, {
     method,
     credentials: 'same-origin',
-    ...(body === undefined
-      ? {}
-      : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }),
+    headers,
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 
   const payload: unknown = response.status === 204 ? null : await response.json();

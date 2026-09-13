@@ -216,12 +216,18 @@ importers:
       '@portionium/schemas':
         specifier: workspace:*
         version: link:../packages/schemas
+      dexie:
+        specifier: 4.4.6
+        version: 4.4.6
       react:
         specifier: 19.2.8
         version: 19.2.8
       react-dom:
         specifier: 19.2.8
         version: 19.2.8(react@19.2.8)
+      uuidv7:
+        specifier: 1.2.1
+        version: 1.2.1
       zod:
         specifier: 4.5.4
         version: 4.5.4
@@ -2173,6 +2179,9 @@ packages:
   detect-libc@2.1.2:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
+
+  dexie@4.4.6:
+    resolution: {integrity: sha512-hJP/BO6mjB+tX6hToIO1kmxYLNmun90wYbfcoAoLpKEyDYal/k33dg0TAfoUe2TDsbbLoVIzljJ3BN2UbR5EOg==}
 
   drizzle-kit@0.31.10:
     resolution: {integrity: sha512-7OZcmQUrdGI+DUNNsKBn1aW8qSoKuTH7d0mYgSP8bAzdFzKoovxEFnoGQp2dVs82EOJeYycqRtciopszwUf8bw==}
@@ -5502,6 +5511,8 @@ snapshots:
   dequal@2.0.3: {}
 
   detect-libc@2.1.2: {}
+
+  dexie@4.4.6: {}
 
   drizzle-kit@0.31.10:
     dependencies:

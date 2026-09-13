@@ -41,5 +41,13 @@ export default tseslint.config(
     languageOptions: { sourceType: 'commonjs' },
   },
 
+  // The one file that runs in a service worker rather than in Node or in the page. Workbox
+  // imports it into the worker it generates, so it has `self` and `clients` and none of the
+  // DOM, see web/public/sw-drain.js.
+  {
+    files: ['web/public/*.js'],
+    languageOptions: { globals: globals.serviceworker },
+  },
+
   eslintConfigPrettier,
 );

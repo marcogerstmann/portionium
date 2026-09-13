@@ -856,6 +856,64 @@ through the tree, because whatever notices is a fetch buried somewhere, what rea
 and the outbox is a third party to the same fact. Reacting is deliberately only that: nothing
 stored is cleared, so a queue of meals written on a train survives signing back in.
 
+### What the device keeps
+
+One IndexedDB database, opened in exactly one place,
+[`web/src/db.ts`](./web/src/db.ts), through Dexie. Three tables, and each is there for a
+different reason. `days` is what makes a cold launch with no network render something instead of
+a spinner, capped at `CACHED_DAYS`. `foods` is what makes logging possible with no network at
+all, because a meal references a food by id and a client with no catalog has no id to reference;
+it holds the caller's most eaten entries with the colour already resolved for them, which is the
+same answer `GET /foods/search` gives an autocomplete before anything is typed. `outbox` is the
+queue below.
+
+Reads are cache first and then replaced. `cachedDay` answers from the device, `refreshDay`
+fetches and overwrites, and a screen renders the first and then the second. The server is the
+source of truth for every read, without exception: nothing on the device ever wins an argument
+with it, which is what keeps this a cache rather than a replica.
+
+`localDateFor` is the client side twin of `resolveLocalDate` in `api/src/domain/local-date.ts`
+and has to agree with it, or an offline meal is filed under one date locally and another on the
+server. It is built on `Intl.DateTimeFormat`, which is the browser's own IANA database, so the
+Temporal polyfill does not enter the bundle.
+
+### The outbox
+
+[`web/src/outbox.ts`](./web/src/outbox.ts), and the reasoning is
+[ADR 010](./docs/adr/010-pwa-and-offline-outbox.md). It is one directional and it is not a sync
+engine.
+
+A write is durable before any request is made, so `logMeal` and `logWeight` return as soon as
+IndexedDB has the entry and the optimistic copy of the row is in the cached day. Nothing waits on
+the network, which is the whole point: the canteen with no signal is not an edge case in a food
+diary, it is lunch.
+
+Nothing is duplicated, because every attempt at one entry carries the same `Idempotency-Key`,
+minted once at enqueue and never regenerated. A meal additionally carries a client minted UUIDv7
+in its body, so a retry hands the server the same meal rather than asking for a second one, see
+`createMealRequestSchema`. That key is also the queue order, since a UUIDv7 sorts by the moment
+it was made, so draining in order is reading the table by its primary key.
+
+`classifyAttempt` is the one piece of judgement in the module and the place to be careful.
+Anything that is not an `ApiError` is a retry, because that is what being offline looks like. A
+429 or a 5xx is a retry. A meal id conflict is a **success**: the id was minted on this device,
+so the only thing that can already hold it is an earlier attempt at this same entry whose
+response was lost and whose key has since aged out of the server's table. Unauthenticated pauses
+the drain rather than failing the entry, because the session expiring is not this meal's fault
+and burning a backoff on every queued entry would be. Everything else is permanent, leaves the
+retry loop and waits for a person, see `failedWrites` and `discardWrite`.
+
+Five triggers, because no single one is enough on a phone: app start, `visibilitychange` to
+visible, `online`, immediately after a successful enqueue, and a timer at the next entry's
+backoff. Background Sync is a sixth where it exists and is deliberately not load bearing:
+[`web/public/sw-drain.js`](./web/public/sw-drain.js) forwards the event to the page and sends
+nothing itself, because draining in the worker would mean a second copy of the request layer and
+the schemas inside it.
+
+Two tabs are handled with one Web Lock around the drain. That is an optimisation rather than the
+correctness property, which is why a browser without Web Locks drains anyway: the idempotency
+key already makes a double send harmless, and the lock only saves the wasted request.
+
 ### One origin, in both directions
 
 In development the client runs on the Vite dev server and `server.proxy` in
