@@ -11,10 +11,11 @@ import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 
 import { z } from 'zod';
 
 import { ApiError, request } from './api';
-import { MEAL_TYPE_LABELS, mealTypeAt } from './day';
+import { mealTypeAt, mealTypeLabel } from './day';
 import { cachedFoods } from './db';
 import { Dot, dotOf } from './dot';
 import { isNewName, matchFoods } from './food-search';
+import { useLocale, useT } from './i18n';
 import { logMeal } from './outbox';
 
 /**
@@ -68,8 +69,11 @@ const searchResponseSchema = z.array(foodResponseSchema);
  * where it was right.
  */
 function MealTypes({ chosen, onChoose }: { chosen: MealType; onChoose: (type: MealType) => void }) {
+  const t = useT();
+  const locale = useLocale();
+
   return (
-    <div className="my-4 flex gap-2" role="group" aria-label="Meal type">
+    <div className="my-4 flex gap-2" role="group" aria-label={t('composeMealTypeGroup')}>
       {MEAL_TYPES.map((type) => (
         <button
           key={type}
@@ -84,7 +88,7 @@ function MealTypes({ chosen, onChoose }: { chosen: MealType; onChoose: (type: Me
           className="flex-1 px-1 text-sm aria-pressed:border-brand aria-pressed:bg-brand aria-pressed:font-bold aria-pressed:text-on-colour"
           onClick={() => onChoose(type)}
         >
-          {MEAL_TYPE_LABELS[type]}
+          {mealTypeLabel(type, locale)}
         </button>
       ))}
     </div>
@@ -110,6 +114,8 @@ export function Compose({
   const [active, setActive] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
+  const t = useT();
+  const locale = useLocale();
 
   const field = useRef<HTMLInputElement>(null);
 
@@ -194,11 +200,7 @@ export function Compose({
       // harmless anyway, the server answers the second with the entry the first made.
       add(await request('/foods', foodResponseSchema, { method: 'POST', body: { name } }));
     } catch (cause) {
-      setError(
-        cause instanceof ApiError
-          ? cause.problem.detail
-          : 'A new food needs a connection. Anything already in the list can be logged now.',
-      );
+      setError(cause instanceof ApiError ? cause.problem.detail : t('composeCreateError'));
     } finally {
       setBusy(false);
     }
@@ -269,17 +271,17 @@ export function Compose({
   return (
     <main>
       <header className="flex items-center justify-between gap-4">
-        <h1>Add a meal</h1>
+        <h1>{t('composeTitle')}</h1>
         <button type="button" className="flex shrink-0 items-center gap-2 text-sm" onClick={onDone}>
           <X aria-hidden="true" className="size-4" />
-          Cancel
+          {t('composeCancel')}
         </button>
       </header>
 
       <MealTypes chosen={type} onChoose={setType} />
 
       {chosen.length > 0 && (
-        <ul className="mb-4" aria-label="In this meal">
+        <ul className="mb-4" aria-label={t('composeInThisMeal')}>
           {chosen.map((food, position) => (
             // Position rather than id, because one meal may legitimately name one food twice and
             // React needs the two rows to be different things.
@@ -292,7 +294,7 @@ export function Compose({
                 onClick={() => setChosen((current) => current.filter((_, at) => at !== position))}
               >
                 <X aria-hidden="true" className="size-4" />
-                Remove <span className="sr-only">{food.name}</span>
+                {t('composeRemove')} <span className="sr-only">{food.name}</span>
               </button>
             </li>
           ))}
@@ -303,7 +305,7 @@ export function Compose({
           default, which would put the two on one line and leave the field as wide as its default
           size rather than as wide as the results underneath it. */}
       <label htmlFor="food" className="block">
-        Add a food
+        {t('composeAddFoodLabel')}
       </label>
       <input
         ref={field}
@@ -335,7 +337,7 @@ export function Compose({
         {error}
       </p>
 
-      <ul id="food-results" role="listbox" aria-label="Foods">
+      <ul id="food-results" role="listbox" aria-label={t('composeFoodsLabel')}>
         {results.map((food, index) =>
           option(
             index,
@@ -351,7 +353,9 @@ export function Compose({
             results.length,
             <>
               <Dot category={dotOf(null)} silent />
-              <span>{busy ? `Adding ${typed}` : `Add ${typed} as a new food`}</span>
+              <span>
+                {busy ? t('composeAdding', { name: typed }) : t('composeAddAsNew', { name: typed })}
+              </span>
             </>,
           )}
       </ul>
@@ -370,7 +374,7 @@ export function Compose({
         }}
       >
         <Check aria-hidden="true" className="size-5" />
-        Log {MEAL_TYPE_LABELS[type].toLowerCase()}
+        {t('composeLog', { mealType: mealTypeLabel(type, locale) })}
         {chosen.length > 0 && ` · ${chosen.length}`}
       </button>
     </main>

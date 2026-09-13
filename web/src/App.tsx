@@ -2,6 +2,7 @@ import { loginResponseSchema, userResponseSchema, type UserResponse } from '@por
 import { useEffect, useState, type FormEvent } from 'react';
 
 import { ApiError, request, session, UNAUTHENTICATED_EVENT } from './api';
+import { setLocale, useT } from './i18n';
 import { drain } from './outbox';
 import { Today } from './today';
 
@@ -17,7 +18,9 @@ import { Today } from './today';
 
 /** While `GET /me` is in flight. A cookie may or may not be attached and neither answer is in yet. */
 function Loading() {
-  return <p className="flex min-h-dvh items-center justify-center text-muted">Loading</p>;
+  const t = useT();
+
+  return <p className="flex min-h-dvh items-center justify-center text-muted">{t('appLoading')}</p>;
 }
 
 /**
@@ -30,6 +33,7 @@ function Loading() {
 function Login({ onSignedIn }: { onSignedIn: (user: UserResponse) => void }) {
   const [error, setError] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
+  const t = useT();
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -49,9 +53,7 @@ function Login({ onSignedIn }: { onSignedIn: (user: UserResponse) => void }) {
       // The API's own sentence, which is deliberately the same one for a wrong password and an
       // address with no account, and is safe to show. Anything else is not: a network failure
       // or a contract mismatch says nothing a person can act on.
-      setError(
-        cause instanceof ApiError ? cause.problem.detail : 'Could not reach the server. Try again.',
-      );
+      setError(cause instanceof ApiError ? cause.problem.detail : t('loginNetworkError'));
       setBusy(false);
     }
   }
@@ -62,21 +64,21 @@ function Login({ onSignedIn }: { onSignedIn: (user: UserResponse) => void }) {
           radius, so it costs no request, and taking its colour from `--green` is what makes it
           follow the system's light and dark like the rest of the app, where public/icon.svg
           carries one fixed colour because a browser tab cannot be asked. It carries no label
-          because the heading under it is already the name, and announcing "portionium" twice is
+          because the heading under it is already the name, and announcing "Portionium" twice is
           worse than not drawing it at all. `mx-auto` rather than a width, because its parent is
           a flex column: left alone the column would stretch it and the radius would draw a pill
           rather than a circle. */}
       <div className="mx-auto size-16 rounded-full bg-green shadow-sm" />
-      <h1 className="mt-4 mb-6 text-center text-4xl">portionium</h1>
+      <h1 className="mt-4 mb-6 text-center text-4xl">Portionium</h1>
 
       <form className="flex flex-col gap-1" onSubmit={(event) => void submit(event)}>
         <label htmlFor="email" className="mt-3">
-          Email
+          {t('loginEmail')}
         </label>
         <input id="email" name="email" type="email" autoComplete="username" required autoFocus />
 
         <label htmlFor="password" className="mt-3">
-          Password
+          {t('loginPassword')}
         </label>
         <input
           id="password"
@@ -87,7 +89,7 @@ function Login({ onSignedIn }: { onSignedIn: (user: UserResponse) => void }) {
         />
 
         <button type="submit" className="primary mt-6" disabled={busy}>
-          {busy ? 'Signing in' : 'Sign in'}
+          {busy ? t('loginSigningIn') : t('loginSignIn')}
         </button>
 
         {/* Rendered into a live region that is always in the tree, so a screen reader announces
@@ -104,11 +106,23 @@ export function App() {
   const [user, setUser] = useState<UserResponse | undefined>(undefined);
   const [ready, setReady] = useState(false);
 
+  /**
+   * `setUser` and the one thing that has to happen alongside every call to it: a stored account
+   * locale wins over the browser, see POR-64. `user.locale` is null for an account that has
+   * never chosen one, the same `null` that means "follow the browser" wherever it crosses the
+   * wire, see updateProfileRequestSchema, and signing out goes back to it too, so the next
+   * person at this device is not left on a language the last one picked.
+   */
+  function applyUser(next: UserResponse | undefined): void {
+    setUser(next);
+    setLocale(next?.locale ?? null);
+  }
+
   // Whether there is a session is the server's answer, not a flag this app stored. A cookie it
   // cannot read is the only thing it has, so the only way to ask is to make a request.
   useEffect(() => {
     request('/me', userResponseSchema)
-      .then(setUser, () => setUser(undefined))
+      .then(applyUser, () => applyUser(undefined))
       .finally(() => setReady(true));
   }, []);
 
@@ -116,7 +130,7 @@ export function App() {
   // beyond this state: the outbox in ./outbox.ts belongs to the user and survives to be sent
   // once they sign back in. See UNAUTHENTICATED_EVENT.
   useEffect(() => {
-    const signedOut = () => setUser(undefined);
+    const signedOut = () => applyUser(undefined);
     session.addEventListener(UNAUTHENTICATED_EVENT, signedOut);
 
     return () => session.removeEventListener(UNAUTHENTICATED_EVENT, signedOut);
@@ -129,7 +143,7 @@ export function App() {
   return user === undefined ? (
     <Login
       onSignedIn={(signedIn) => {
-        setUser(signedIn);
+        applyUser(signedIn);
 
         // The other half of the outbox's `paused` outcome: a drain that ran into an expired
         // session stopped rather than burning a retry on every queued entry, and this is the
@@ -138,6 +152,6 @@ export function App() {
       }}
     />
   ) : (
-    <Today user={user} onSignedOut={() => setUser(undefined)} />
+    <Today user={user} onSignedOut={() => applyUser(undefined)} />
   );
 }

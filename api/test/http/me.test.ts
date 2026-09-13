@@ -75,6 +75,7 @@ describe('reading the profile', () => {
       role: 'user',
       timezone: 'Europe/Berlin',
       dayBoundaryHour: 4,
+      locale: null,
     });
   });
 
@@ -174,6 +175,48 @@ describe('changing the profile', () => {
     expect(response.statusCode).toBe(400);
     expect(problem(response.payload).type).toBe(PROBLEM.validationFailed);
     expect(storedUser(fixtures, fixtures.userA)?.timezone).toBe('Europe/Berlin');
+  });
+
+  it('stores a chosen locale, and null as the choice to follow the browser again', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+
+    const chosen = await app.inject({
+      method: 'PATCH',
+      url: ME,
+      headers: browser(token),
+      payload: { locale: 'de' },
+    });
+
+    expect(chosen.statusCode).toBe(200);
+    expect(chosen.json<UserResponse>().locale).toBe('de');
+    expect(storedUser(fixtures, fixtures.userA)?.locale).toBe('de');
+
+    const reset = await app.inject({
+      method: 'PATCH',
+      url: ME,
+      headers: browser(token),
+      payload: { locale: null },
+    });
+
+    expect(reset.statusCode).toBe(200);
+    expect(reset.json<UserResponse>().locale).toBeNull();
+    expect(storedUser(fixtures, fixtures.userA)?.locale).toBeNull();
+  });
+
+  it('rejects a locale outside English and German', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: ME,
+      headers: browser(token),
+      payload: { locale: 'fr' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(problem(response.payload).type).toBe(PROBLEM.validationFailed);
   });
 
   it('rejects a day boundary hour that is not an hour', async () => {

@@ -69,6 +69,7 @@ describe('signing in', () => {
       role: 'user',
       timezone: 'Europe/Berlin',
       dayBoundaryHour: 4,
+      locale: null,
     });
     expect(new Date(body.expiresAt).getTime()).toBeGreaterThan(Date.now());
   });

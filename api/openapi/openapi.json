@@ -735,6 +735,20 @@
                           "type": "integer",
                           "minimum": 0,
                           "maximum": 23
+                        },
+                        "locale": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "en-US",
+                                "de"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -743,7 +757,8 @@
                         "displayName",
                         "role",
                         "timezone",
-                        "dayBoundaryHour"
+                        "dayBoundaryHour",
+                        "locale"
                       ],
                       "additionalProperties": false
                     }
@@ -22749,6 +22764,20 @@
                       "type": "integer",
                       "minimum": 0,
                       "maximum": 23
+                    },
+                    "locale": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "en-US",
+                            "de"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
@@ -22757,7 +22786,8 @@
                     "displayName",
                     "role",
                     "timezone",
-                    "dayBoundaryHour"
+                    "dayBoundaryHour",
+                    "locale"
                   ],
                   "additionalProperties": false
                 }
@@ -23192,7 +23222,7 @@
         }
       },
       "patch": {
-        "summary": "Change the display name, timezone or day boundary hour",
+        "summary": "Change the display name, timezone, day boundary hour or locale",
         "requestBody": {
           "required": true,
           "content": {
@@ -23212,6 +23242,20 @@
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 23
+                  },
+                  "locale": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "en-US",
+                          "de"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "additionalProperties": false
@@ -23256,6 +23300,20 @@
                       "type": "integer",
                       "minimum": 0,
                       "maximum": 23
+                    },
+                    "locale": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "en-US",
+                            "de"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
@@ -23264,7 +23322,8 @@
                     "displayName",
                     "role",
                     "timezone",
-                    "dayBoundaryHour"
+                    "dayBoundaryHour",
+                    "locale"
                   ],
                   "additionalProperties": false
                 }

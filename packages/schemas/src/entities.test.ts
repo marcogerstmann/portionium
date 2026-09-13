@@ -19,6 +19,7 @@ const user = {
   role: 'user',
   timezone: 'Europe/Berlin',
   dayBoundaryHour: 4,
+  locale: null,
   createdAt: new Date('2026-09-06T08:00:00.000Z'),
 };
 
@@ -63,6 +64,13 @@ describe('userSchema', () => {
     expect(userSchema.safeParse({ ...user, dayBoundaryHour: 24 }).success).toBe(false);
     expect(userSchema.safeParse({ ...user, dayBoundaryHour: -1 }).success).toBe(false);
     expect(userSchema.safeParse({ ...user, dayBoundaryHour: 4.5 }).success).toBe(false);
+  });
+
+  it('accepts a supported locale or null for a user who has never chosen one', () => {
+    expect(userSchema.safeParse({ ...user, locale: 'de' }).success).toBe(true);
+    expect(userSchema.safeParse({ ...user, locale: 'en-US' }).success).toBe(true);
+    expect(userSchema.safeParse({ ...user, locale: null }).success).toBe(true);
+    expect(userSchema.safeParse({ ...user, locale: 'fr' }).success).toBe(false);
   });
 });
 

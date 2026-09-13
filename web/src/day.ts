@@ -1,5 +1,6 @@
 import {
   MEAL_TYPES,
+  type Locale,
   type LocalDate,
   type MealResponse,
   type MealType,
@@ -7,6 +8,7 @@ import {
 } from '@portionium/schemas';
 
 import { CACHED_DAYS, shiftDate } from './db';
+import { translate, type TranslationKey } from './i18n';
 
 /**
  * The arithmetic the Today screen does before it renders anything: what order a day's meals go
@@ -37,13 +39,18 @@ export function orderMeals(meals: readonly MealResponse[]): MealResponse[] {
   );
 }
 
-/** What a meal type is called on screen. Listed, so a new type is a compile error here. */
-export const MEAL_TYPE_LABELS: Record<MealType, string> = {
-  breakfast: 'Breakfast',
-  lunch: 'Lunch',
-  dinner: 'Dinner',
-  snack: 'Snack',
+/** Translated via ./i18n.ts, so a new type is a compile error in both this and the dictionaries. */
+const MEAL_TYPE_KEYS: Record<MealType, TranslationKey> = {
+  breakfast: 'mealTypeBreakfast',
+  lunch: 'mealTypeLunch',
+  dinner: 'mealTypeDinner',
+  snack: 'mealTypeSnack',
 };
+
+/** What a meal type is called on screen, in the given language. */
+export function mealTypeLabel(type: MealType, locale: Locale): string {
+  return translate(locale, MEAL_TYPE_KEYS[type]);
+}
 
 /**
  * Which meal somebody is most likely logging at this moment, so the composer opens on it.
@@ -110,17 +117,22 @@ export function pageTo(date: LocalDate, days: number, today: LocalDate): LocalDa
  * Formatted in UTC on purpose. A LocalDate has already had a timezone applied to it and carries
  * none of its own, so parsing it as an instant and rendering that instant anywhere but UTC would
  * put a day either side of a boundary back on the wrong date.
+ *
+ * `locale` is explicit rather than read from ./i18n.ts, the same reason it is explicit on
+ * weekLabel in ./stats.ts: this is a plain function Intl needs a BCP47 tag handed to directly,
+ * not a translated word, and passing it is what makes a language change reach this with no
+ * reload, the caller having read it with useLocale().
  */
-export function dayLabel(date: LocalDate, today: LocalDate): string {
+export function dayLabel(date: LocalDate, today: LocalDate, locale: Locale): string {
   if (date === today) {
-    return 'Today';
+    return translate(locale, 'dayToday');
   }
 
   if (date === shiftDate(today, -1)) {
-    return 'Yesterday';
+    return translate(locale, 'dayYesterday');
   }
 
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(locale, {
     timeZone: 'UTC',
     weekday: 'long',
     day: 'numeric',

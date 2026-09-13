@@ -1,4 +1,4 @@
-import { emailSchema, type Scope } from '@portionium/schemas';
+import { emailSchema, type Locale, type Scope } from '@portionium/schemas';
 import { and, count, desc, eq, gt, isNull, or } from 'drizzle-orm';
 
 import type { Db } from './client.js';
@@ -74,6 +74,8 @@ export interface ProfileChanges {
   displayName?: string | undefined;
   timezone?: string | undefined;
   dayBoundaryHour?: number | undefined;
+  /** Absent is untouched. Null is a choice: go back to following the browser's own language. */
+  locale?: Locale | null | undefined;
 }
 
 export function updateUserProfile(

@@ -1,6 +1,7 @@
 import type {
   ColourCounts,
   DayColourStats,
+  Locale,
   LocalDate,
   WeightTrendChange,
   WeightTrendComparison,
@@ -8,6 +9,7 @@ import type {
 } from '@portionium/schemas';
 
 import { shiftDate } from './db';
+import { translate } from './i18n';
 
 /**
  * The arithmetic behind the statistics screen: which range to ask for, what the numbers add up
@@ -41,6 +43,26 @@ export const COLOUR_DAYS = COLOUR_WINDOWS.at(-1) ?? 90;
 
 /** How many ISO weeks the summary lists. Two months, which is where a habit becomes visible. */
 export const SUMMARY_WEEKS = 8;
+
+/**
+ * A weight in kilograms, formatted with the active language's own decimal separator rather than
+ * a hand written period, see POR-64. `signed` is `Intl`'s own `signDisplay: 'exceptZero'`, which
+ * puts the `+` wherever a language's own number formatting puts it rather than this file
+ * prepending one that happens to be right for English.
+ */
+export function formatKg(
+  value: number,
+  locale: Locale,
+  options: { signed?: boolean; digits?: number } = {},
+): string {
+  const { signed = false, digits = 1 } = options;
+
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+    ...(signed && { signDisplay: 'exceptZero' }),
+  }).format(value);
+}
 
 /** The `from` and `to` of a window of days ending today, both inclusive as the API takes them. */
 export function rangeEnding(today: LocalDate, days: number): { from: LocalDate; to: LocalDate } {
@@ -76,12 +98,14 @@ export function totalColours(days: readonly DayColourStats[], window: number): C
  * this is for whoever is not looking at it at all. The unclassified count is named only when
  * there is one, because "0 not classified yet" is a fact nobody needed.
  */
-export function spokenCounts(counts: ColourCounts): string {
+export function spokenCounts(counts: ColourCounts, locale: Locale): string {
   return [
-    `${counts.green} green`,
-    `${counts.yellow} yellow`,
-    `${counts.orange} orange`,
-    ...(counts.unclassified > 0 ? [`${counts.unclassified} not classified yet`] : []),
+    translate(locale, 'statsSpokenGreen', { count: counts.green }),
+    translate(locale, 'statsSpokenYellow', { count: counts.yellow }),
+    translate(locale, 'statsSpokenOrange', { count: counts.orange }),
+    ...(counts.unclassified > 0
+      ? [translate(locale, 'statsSpokenUnclassified', { count: counts.unclassified })]
+      : []),
   ].join(', ');
 }
 
@@ -99,16 +123,14 @@ export function spokenCounts(counts: ColourCounts): string {
  * that matters is today's. A range that opens with nothing and fills up later is a screen that
  * has enough data, and one that ends in three weeks of silence is not.
  */
-export function trendCaveat(days: readonly WeightTrendDay[]): string | undefined {
+export function trendCaveat(days: readonly WeightTrendDay[], locale: Locale): string | undefined {
   const latest = days.at(-1);
 
   if (latest === undefined || latest.trendKg === null) {
-    return 'No weight recorded yet. Record one and the trend starts here.';
+    return translate(locale, 'statsNoTrend');
   }
 
-  return latest.lowConfidence
-    ? 'Not enough readings yet for a meaningful trend. The dots are what was on the scale.'
-    : undefined;
+  return latest.lowConfidence ? translate(locale, 'statsLowConfidence') : undefined;
 }
 
 /** The most recent thing that was actually on the scale, which is what an entry field offers. */
@@ -117,13 +139,10 @@ export function lastReading(days: readonly WeightTrendDay[]): number | undefined
 }
 
 /** A signed weight movement, or the honest absence of one. Never an em dash, never a zero. */
-export function changeLabel(changeKg: number | null): string {
-  if (changeKg === null) {
-    return 'no trend yet';
-  }
-
-  // toFixed on a negative already carries the sign, so only the upward case needs one added.
-  return `${changeKg > 0 ? '+' : ''}${changeKg.toFixed(1)} kg`;
+export function changeLabel(changeKg: number | null, locale: Locale): string {
+  return changeKg === null
+    ? translate(locale, 'statsNoTrendYet')
+    : `${formatKg(changeKg, locale, { signed: true })} kg`;
 }
 
 /**
@@ -133,17 +152,29 @@ export function changeLabel(changeKg: number | null): string {
  * the difference between the first and last day of the range that carry a trend at all, so this
  * sentence cannot swing on whether the last day happened to be a salty one.
  */
-export function changeSentence(change: WeightTrendChange, days: number): string {
+export function changeSentence(change: WeightTrendChange, days: number, locale: Locale): string {
   if (change.changeKg === null) {
-    return `Nothing to report over ${days} days yet.`;
+    return translate(locale, 'statsNothingToReport', { days });
   }
 
-  const direction = change.changeKg < 0 ? 'Down' : change.changeKg > 0 ? 'Up' : 'Level over';
-  const moved = `${direction} ${Math.abs(change.changeKg).toFixed(1)} kg over ${days} days`;
+  const amount = formatKg(Math.abs(change.changeKg), locale);
+  const movedKey =
+    change.changeKg < 0
+      ? 'statsMovedDown'
+      : change.changeKg > 0
+        ? 'statsMovedUp'
+        : 'statsMovedLevel';
+  const moved = translate(locale, movedKey, { amount, days });
 
-  return change.changePerWeekKg === null
-    ? `${moved}.`
-    : `${moved}, ${Math.abs(change.changePerWeekKg).toFixed(2)} kg a week.`;
+  if (change.changePerWeekKg === null) {
+    return `${moved}.`;
+  }
+
+  const rate = translate(locale, 'statsRatePerWeek', {
+    amount: formatKg(Math.abs(change.changePerWeekKg), locale, { digits: 2 }),
+  });
+
+  return `${moved}, ${rate}.`;
 }
 
 /**
@@ -155,27 +186,30 @@ export function changeSentence(change: WeightTrendChange, days: number): string 
  * weightTrendComparisonSchema. Negative is downward against the period before, a loss that got
  * faster or a gain that slowed.
  */
-export function versusSentence(versus: WeightTrendComparison): string | undefined {
+export function versusSentence(versus: WeightTrendComparison, locale: Locale): string | undefined {
   const difference = versus.differencePerWeekKg;
 
   if (difference === null || difference === 0) {
-    return difference === 0 ? 'The same rate as the period before.' : undefined;
+    return difference === 0 ? translate(locale, 'statsSameRate') : undefined;
   }
 
-  const rate = `${Math.abs(difference).toFixed(2)} kg a week`;
+  const rate = translate(locale, 'statsRatePerWeek', {
+    amount: formatKg(Math.abs(difference), locale, { digits: 2 }),
+  });
 
-  return difference < 0
-    ? `${rate} further down than the period before.`
-    : `${rate} further up than the period before.`;
+  return translate(locale, difference < 0 ? 'statsFurtherDown' : 'statsFurtherUp', { rate });
 }
 
 /** What one ISO week is called on screen. */
-export function weekLabel(week: { startDate: LocalDate; endDate: LocalDate }): string {
+export function weekLabel(
+  week: { startDate: LocalDate; endDate: LocalDate },
+  locale: Locale,
+): string {
   // In UTC, the same rule dayLabel follows: a LocalDate has already had a timezone applied to
   // it and carries none of its own, so rendering it anywhere else moves it across a boundary.
   // formatRange is the platform's own range formatting, which collapses a shared month by
-  // itself and orders the parts the way the reader's locale does.
-  return new Intl.DateTimeFormat(undefined, {
+  // itself and orders the parts the way the active language does.
+  return new Intl.DateTimeFormat(locale, {
     timeZone: 'UTC',
     day: 'numeric',
     month: 'short',

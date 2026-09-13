@@ -116,6 +116,12 @@ describe('updateProfileRequestSchema', () => {
     expect(updateProfileRequestSchema.safeParse({ role: 'admin' }).success).toBe(false);
     expect(updateProfileRequestSchema.safeParse({ email: 'a@b.de' }).success).toBe(false);
   });
+
+  it('accepts a locale, and null as the deliberate choice to follow the browser again', () => {
+    expect(updateProfileRequestSchema.safeParse({ locale: 'de' }).success).toBe(true);
+    expect(updateProfileRequestSchema.safeParse({ locale: null }).success).toBe(true);
+    expect(updateProfileRequestSchema.safeParse({ locale: 'fr' }).success).toBe(false);
+  });
 });
 
 describe('paging', () => {

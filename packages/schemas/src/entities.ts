@@ -7,6 +7,7 @@ import {
   foodKindSchema,
   idSchema,
   localDateSchema,
+  localeSchema,
   mealTypeSchema,
   timestampSchema,
   timezoneSchema,
@@ -32,6 +33,15 @@ export const userSchema = z.object({
   timezone: timezoneSchema,
   /** The local hour this user's day rolls over at. Applied with `timezone`, never alone. */
   dayBoundaryHour: dayBoundaryHourSchema,
+  /**
+   * The chosen interface language, or null for a user who has never chosen one. Null is a state
+   * rather than an absent value: it is what lets the client keep following `navigator.languages`
+   * for this account instead of pinning it to whatever the browser said the first time they
+   * signed in, see resolveLocale in web/src/i18n.ts. No default, the same reason timezone has
+   * none: a row always carries one or the other explicitly, there is nothing sensible to fall
+   * back to here.
+   */
+  locale: localeSchema.nullable(),
   createdAt: timestampSchema,
 });
 

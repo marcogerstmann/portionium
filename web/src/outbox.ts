@@ -27,6 +27,7 @@ import {
   withWeight,
   type OutboxEntry,
 } from './db';
+import { t } from './i18n';
 
 /**
  * The queue of writes that have not reached the server yet, and the routine that replays it.
@@ -551,7 +552,7 @@ async function attempt(entry: OutboxEntry): Promise<AttemptOutcome> {
     outcome = classifyAttempt(cause);
     // The API writes `detail` to be shown to a person and it is the only part safe to show,
     // see ./api.ts. Anything else that got this far has no sentence worth quoting.
-    detail = cause instanceof ApiError ? cause.problem.detail : 'The write could not be sent.';
+    detail = cause instanceof ApiError ? cause.problem.detail : t('outboxWriteFailed');
   }
 
   if (outcome === 'sent') {

@@ -84,7 +84,7 @@ export const meRoutes: FastifyPluginCallbackZod<MeRouteOptions> = (app, options,
     {
       config: { auth: 'write' },
       schema: {
-        summary: 'Change the display name, timezone or day boundary hour',
+        summary: 'Change the display name, timezone, day boundary hour or locale',
         body: updateProfileRequestSchema,
         response: {
           200: userResponseSchema,

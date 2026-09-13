@@ -1,5 +1,7 @@
 import type { Category } from '@portionium/schemas';
 
+import { t, type TranslationKey } from './i18n';
+
 /**
  * The traffic light, as a component, because it is the one thing this product says and three
  * screens now say it. Its own module rather than an export from ./today.tsx so that the
@@ -12,24 +14,39 @@ export const UNCLASSIFIED = 'unclassified';
 export type DotCategory = Category | typeof UNCLASSIFIED;
 
 /**
- * What each colour is called and how it is filled.
+ * How each colour is filled.
  *
- * The label is what a screen reader announces and is the channel that does not depend on seeing
+ * A literal class rather than `bg-${category}`, because Tailwind finds class names by scanning
+ * this file as text and an interpolated one produces no CSS at all.
+ */
+export const DOTS: Record<DotCategory, { fill: string }> = {
+  green: { fill: 'bg-green' },
+  yellow: { fill: 'bg-yellow' },
+  orange: { fill: 'bg-orange' },
+  [UNCLASSIFIED]: { fill: 'bg-unclassified' },
+};
+
+/** Translated via ./i18n.ts, so a new category is a compile error in both this and the dictionaries. */
+const CATEGORY_KEYS: Record<DotCategory, TranslationKey> = {
+  green: 'categoryGreen',
+  yellow: 'categoryYellow',
+  orange: 'categoryOrange',
+  [UNCLASSIFIED]: 'categoryUnclassified',
+};
+
+/**
+ * What each colour is called, in the active language.
+ *
+ * This is what a screen reader announces and the channel that does not depend on seeing
  * anything at all. It is now also the only channel besides the colour: the letter that used to
  * sit inside the disc is gone on POR-63, and the shape that briefly replaced it was dropped
  * deliberately, so every dot is a point and hue alone separates the four on screen. That is a
  * known deviation from this story's own greyscale criterion, and the thing to restore if it ever
  * needs restoring is a second channel here rather than a second component somewhere else.
- *
- * The fill is a literal class rather than `bg-${category}`, because Tailwind finds class names by
- * scanning this file as text and an interpolated one produces no CSS at all.
  */
-export const DOTS: Record<DotCategory, { fill: string; label: string }> = {
-  green: { fill: 'bg-green', label: 'green' },
-  yellow: { fill: 'bg-yellow', label: 'yellow' },
-  orange: { fill: 'bg-orange', label: 'orange' },
-  [UNCLASSIFIED]: { fill: 'bg-unclassified', label: 'not classified yet' },
-};
+export function categoryLabel(category: DotCategory): string {
+  return t(CATEGORY_KEYS[category]);
+}
 
 /** A colour as a dot takes it: null on the wire is a state, not a missing value. */
 export function dotOf(category: Category | null): DotCategory {
@@ -61,13 +78,14 @@ export function Dot({
   pending?: boolean;
   silent?: boolean;
 }) {
-  const { fill, label } = DOTS[category];
+  const { fill } = DOTS[category];
+  const label = categoryLabel(category);
 
   return (
     <span
       {...(silent
         ? { 'aria-hidden': true }
-        : { role: 'img', 'aria-label': pending ? `${label}, not sent yet` : label })}
+        : { role: 'img', 'aria-label': pending ? t('dotPending', { label }) : label })}
       className={`inline-block size-5.5 shrink-0 rounded-full ${fill}${
         pending ? ' border-2 border-muted' : ''
       }`}

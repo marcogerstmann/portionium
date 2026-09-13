@@ -25,7 +25,7 @@ import { z } from 'zod';
 
 import { request } from './api';
 import { Compose } from './compose';
-import { dayLabel, MEAL_TYPE_LABELS, orderMeals, pageTo } from './day';
+import { dayLabel, mealTypeLabel, orderMeals, pageTo } from './day';
 import {
   cachedDay,
   emptyDay,
@@ -36,7 +36,8 @@ import {
   refreshRecentDays,
   type OutboxEntry,
 } from './db';
-import { Dot, DOTS, dotOf, UNCLASSIFIED, type DotCategory } from './dot';
+import { Dot, categoryLabel, dotOf, UNCLASSIFIED, type DotCategory } from './dot';
+import { useLocale, useT } from './i18n';
 import {
   classifyFood,
   deleteMeal,
@@ -50,7 +51,7 @@ import {
   restoreMeal,
   weightSubject,
 } from './outbox';
-import { lastReading, spokenCounts, trendCaveat } from './stats';
+import { formatKg, lastReading, spokenCounts, trendCaveat } from './stats';
 import { Stats, useWeightStats } from './statistics';
 
 /**
@@ -91,20 +92,23 @@ function dotFor(item: MealItemResponse): DotCategory {
  * not a summary of anything.
  */
 function Summary({ day }: { day: DayResponse }) {
+  const t = useT();
+  const locale = useLocale();
+
   // The same order as the rows below, so the row of dots reads left to right as the day reads
   // top to bottom. The server lists meals by when they were logged, which is usually the same
   // and is not the same the moment somebody logs a lunch after their dinner.
   const items = orderMeals(day.meals).flatMap((meal) => meal.items);
 
   if (items.length === 0) {
-    return <p className="mt-4 mb-6 text-muted">Nothing logged yet.</p>;
+    return <p className="mt-4 mb-6 text-muted">{t('todayNothingLogged')}</p>;
   }
 
   return (
     <p
       className="mt-4 mb-6 flex flex-wrap gap-1.5"
       role="img"
-      aria-label={`This day: ${spokenCounts(day.colourCounts)}.`}
+      aria-label={t('todayDayImageLabel', { summary: spokenCounts(day.colourCounts, locale) })}
     >
       {/* Silent, because the row above is already one image with the sentence. Dot rather than a
           second copy of its markup, so the shapes cannot drift between here and the meals. */}
@@ -132,9 +136,11 @@ function MealRow({
   expanded: boolean;
   onToggle: () => void;
 }) {
+  const locale = useLocale();
+
   return (
     <button type="button" className="row" aria-expanded={expanded} onClick={onToggle}>
-      <span>{MEAL_TYPE_LABELS[meal.type]}</span>
+      <span>{mealTypeLabel(meal.type, locale)}</span>
 
       {/* A step wider than the summary's, because these are the dots that can wear the unsent
           ring and a ring wants a little more air around it. See Dot's `pending`. */}
@@ -169,12 +175,14 @@ function MealDetail({
   onDelete: () => void;
 }) {
   const [classifying, setClassifying] = useState<string | undefined>(undefined);
+  const t = useT();
+  const locale = useLocale();
 
   return (
     <div>
       <ul className="pl-4">
         {meal.items.map((item) => {
-          const name = foods.get(item.foodId)?.name ?? 'Unknown food';
+          const name = foods.get(item.foodId)?.name ?? t('todayUnknownFood');
 
           return (
             <li key={item.id}>
@@ -189,7 +197,7 @@ function MealDetail({
                 >
                   <Dot category={UNCLASSIFIED} />
                   <span>{name}</span>
-                  <span className="ml-auto text-sm text-muted">Classify</span>
+                  <span className="ml-auto text-sm text-muted">{t('todayClassify')}</span>
                 </button>
               ) : (
                 <p className="row justify-start">
@@ -211,7 +219,7 @@ function MealDetail({
                       }}
                     >
                       <Dot category={category} />
-                      <span>{DOTS[category].label}</span>
+                      <span>{categoryLabel(category)}</span>
                     </button>
                   ))}
                 </p>
@@ -227,7 +235,7 @@ function MealDetail({
         onClick={onDelete}
       >
         <Trash2 aria-hidden="true" className="size-4" />
-        Delete this {MEAL_TYPE_LABELS[meal.type].toLowerCase()}
+        {t('todayDeleteMeal', { mealType: mealTypeLabel(meal.type, locale) })}
       </button>
     </div>
   );
@@ -260,22 +268,28 @@ function Weight({
   onRecord: (weightKg: number) => void;
 }) {
   const [entering, setEntering] = useState(false);
+  const t = useT();
+  const locale = useLocale();
 
   const days = weight?.days ?? [];
   // Null rather than a number whenever the server says there is not enough behind the value to
   // stand on, which is the same judgement the statistics screen refuses to draw a line through.
-  const trend = trendCaveat(days) === undefined ? (days.at(-1)?.trendKg ?? null) : null;
+  const trend = trendCaveat(days, locale) === undefined ? (days.at(-1)?.trendKg ?? null) : null;
 
   if (day.weightEntry !== null) {
     return (
       <p className="row">
-        <span>Weight</span>
+        <span>{t('todayWeightLabel')}</span>
         {/* A column rather than a row, so the two stack against the right edge and the trend is
             plainly the line being read: the whole product principle in a flex direction. */}
         <span className="flex flex-col items-end">
-          <span>{trend === null ? 'Trend forming' : `Trend ${trend.toFixed(1)} kg`}</span>
+          <span>
+            {trend === null
+              ? t('todayTrendForming')
+              : t('todayTrendKg', { trend: formatKg(trend, locale) })}
+          </span>
           <span className="flex items-center gap-1 text-sm text-muted">
-            {day.weightEntry.weightKg.toFixed(1)} kg{pending && <PendingMark />}
+            {formatKg(day.weightEntry.weightKg, locale)} kg{pending && <PendingMark />}
           </span>
         </span>
       </p>
@@ -285,10 +299,10 @@ function Weight({
   if (!entering) {
     return (
       <button type="button" className="row" onClick={() => setEntering(true)}>
-        <span>Weight</span>
+        <span>{t('todayWeightLabel')}</span>
         <span className="flex items-center gap-1 text-sm text-muted">
           <Plus aria-hidden="true" className="size-4" />
-          Add
+          {t('todayAddWeight')}
         </span>
       </button>
     );
@@ -318,7 +332,7 @@ function Weight({
           login form uses is right there and wrong here, because opening this must not push
           everything under it down the screen, under a thumb that is already over the row. */}
       <label htmlFor="weightKg" className="shrink-0">
-        Weight in kg
+        {t('todayWeightKgLabel')}
       </label>
       <input
         id="weightKg"
@@ -331,11 +345,14 @@ function Weight({
         required
         autoFocus
         className="min-w-0 flex-1"
+        // A period decimal separator, whatever the active language: the value attribute of a
+        // number input is parsed by the platform as one regardless of locale, never displayed
+        // text, so this is the one number on this screen formatKg must not touch.
         defaultValue={last === undefined ? undefined : last.toFixed(1)}
         onFocus={(event) => event.currentTarget.select()}
       />
       <button type="submit" className="shrink-0">
-        Save
+        {t('todaySave')}
       </button>
     </form>
   );
@@ -343,8 +360,10 @@ function Weight({
 
 /** The unsent mark, wherever it is not a dot. Announced, for the reason Dot's `pending` is. */
 function PendingMark() {
+  const t = useT();
+
   return (
-    <span role="img" aria-label="not sent yet">
+    <span role="img" aria-label={t('todayNotSentYet')}>
       <RefreshCw className="size-3.5" />
     </span>
   );
@@ -364,6 +383,8 @@ function Rejected({
   entries: OutboxEntry[];
   onDiscard: (key: string) => void;
 }) {
+  const t = useT();
+
   if (entries.length === 0) {
     return null;
   }
@@ -371,17 +392,23 @@ function Rejected({
   return (
     <section
       className="my-4 rounded-md border border-danger px-3 shadow-xs"
-      aria-label="Writes the server refused"
+      aria-label={t('todayRefusedWritesLabel')}
     >
       {entries.map((entry) => (
         <p key={entry.key} className="row last:border-b-0">
           <TriangleAlert aria-hidden="true" className="size-4 shrink-0 text-danger" />
           <span className="flex-1 text-sm">
-            {entry.subject?.startsWith('weight:') === true ? 'A weight entry' : 'A meal'} on{' '}
-            {entry.date} was not saved. {entry.failure}
+            {t('todayNotSaved', {
+              noun:
+                entry.subject?.startsWith('weight:') === true
+                  ? t('todayWeightEntryNoun')
+                  : t('todayMealNoun'),
+              date: entry.date,
+              failure: entry.failure ?? '',
+            })}
           </span>
           <button type="button" className="shrink-0 text-sm" onClick={() => onDiscard(entry.key)}>
-            Discard
+            {t('todayDiscard')}
           </button>
         </p>
       ))}
@@ -390,6 +417,8 @@ function Rejected({
 }
 
 export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: () => void }) {
+  const t = useT();
+  const locale = useLocale();
   const today = localDateFor(new Date(), user.timezone, user.dayBoundaryHour);
 
   const [date, setDate] = useState<LocalDate>(today);
@@ -541,7 +570,7 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
   return (
     <main onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
       <header className="flex items-center justify-between gap-4">
-        <h1>{dayLabel(date, today)}</h1>
+        <h1>{dayLabel(date, today, locale)}</h1>
         <button
           type="button"
           className="flex shrink-0 items-center gap-2 text-sm"
@@ -552,14 +581,14 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
           }}
         >
           <LogOut aria-hidden="true" className="size-4" />
-          Sign out, {user.displayName}
+          {t('todaySignOut', { name: user.displayName })}
         </button>
       </header>
 
       {/* Visually an arrow, still read aloud. `sr-only` is Tailwind's own, which is what the
           hand written `.away` was: "Previous day" beside a chevron is noise to everyone who can
           see the chevron, and the only name the control has to everyone who cannot. */}
-      <nav className="mt-4 flex gap-2" aria-label="Day">
+      <nav className="mt-4 flex gap-2" aria-label={t('todayDayNav')}>
         <button
           type="button"
           className="flex flex-1 items-center justify-center disabled:text-muted"
@@ -567,7 +596,7 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
           disabled={pageTo(date, -1, today) === date}
         >
           <ChevronLeft aria-hidden="true" className="size-6" />
-          <span className="sr-only">Previous day</span>
+          <span className="sr-only">{t('todayPreviousDay')}</span>
         </button>
         <button
           type="button"
@@ -575,7 +604,7 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
           onClick={() => page(1)}
           disabled={date === today}
         >
-          <span className="sr-only">Next day</span>
+          <span className="sr-only">{t('todayNextDay')}</span>
           <ChevronRight aria-hidden="true" className="size-6" />
         </button>
       </nav>
@@ -590,10 +619,10 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
         onClick={() => setScreen('compose')}
       >
         <Plus aria-hidden="true" className="size-5" />
-        Add a meal
+        {t('todayAddMeal')}
       </button>
 
-      <section aria-label="Meals">
+      <section aria-label={t('todayMealsLabel')}>
         {orderMeals(day.meals).map((meal) => (
           <article key={meal.id}>
             <MealRow
@@ -630,7 +659,9 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
           className="mt-4 flex min-h-touch items-center justify-between gap-3 rounded-md border border-line px-3 py-2 shadow-xs"
           role="status"
         >
-          <span className="text-sm">{MEAL_TYPE_LABELS[undoable.type]} deleted.</span>
+          <span className="text-sm">
+            {t('todayMealDeleted', { mealType: mealTypeLabel(undoable.type, locale) })}
+          </span>
           <button
             type="button"
             className="flex shrink-0 items-center gap-2 text-sm"
@@ -640,7 +671,7 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
             }}
           >
             <Undo2 aria-hidden="true" className="size-4" />
-            Undo
+            {t('todayUndo')}
           </button>
         </p>
       )}
@@ -656,7 +687,7 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
           screens do not need a permanent bar taking a thumb's worth of every day. */}
       <button type="button" className="row" onClick={() => setScreen('stats')}>
         <ChartLine aria-hidden="true" className="size-4 text-muted" />
-        <span className="flex-1">Statistics</span>
+        <span className="flex-1">{t('todayStatistics')}</span>
         <ChevronRight aria-hidden="true" className="size-4 text-muted" />
       </button>
     </main>

@@ -81,14 +81,23 @@ describe('pageTo', () => {
 
 describe('dayLabel', () => {
   it('names the two days somebody actually pages between', () => {
-    expect(dayLabel('2026-09-13', '2026-09-13')).toBe('Today');
-    expect(dayLabel('2026-09-12', '2026-09-13')).toBe('Yesterday');
+    expect(dayLabel('2026-09-13', '2026-09-13', 'en-US')).toBe('Today');
+    expect(dayLabel('2026-09-12', '2026-09-13', 'en-US')).toBe('Yesterday');
+  });
+
+  it('names them in German too, the same reason the dictionaries have a parity test', () => {
+    expect(dayLabel('2026-09-13', '2026-09-13', 'de')).toBe('Heute');
+    expect(dayLabel('2026-09-12', '2026-09-13', 'de')).toBe('Gestern');
   });
 
   it('gives anything older a weekday, read in UTC so no zone can move the date', () => {
     // 10 September 2026 is a Thursday. Rendered anywhere but UTC, a date parsed as midnight can
     // land on the day before, which is the bug localDateFor exists to prevent.
-    expect(dayLabel('2026-09-10', '2026-09-13')).toContain('Thursday');
+    expect(dayLabel('2026-09-10', '2026-09-13', 'en-US')).toContain('Thursday');
+  });
+
+  it('reads the weekday in whichever language Intl is handed', () => {
+    expect(dayLabel('2026-09-10', '2026-09-13', 'de')).toContain('Donnerstag');
   });
 });
 

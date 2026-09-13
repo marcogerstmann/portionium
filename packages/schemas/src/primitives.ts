@@ -43,6 +43,21 @@ export const timezoneSchema = z.string().refine(
 export type Timezone = z.infer<typeof timezoneSchema>;
 
 /**
+ * The interface languages this product ships, English (US) and German. A closed union rather
+ * than a bundled list of IANA-style tags, because unlike a timezone there is no runtime database
+ * of "languages this app supports", there is only the dictionary in web/src/i18n, see POR-64.
+ *
+ * Nullable wherever this is stored: null means a user has never chosen one, which is what keeps
+ * them following the browser rather than being pinned to whatever it said the first time they
+ * signed in, see resolveLocale in web/src/i18n.ts.
+ */
+export const LOCALES = ['en-US', 'de'] as const;
+
+export const localeSchema = z.enum(LOCALES);
+
+export type Locale = z.infer<typeof localeSchema>;
+
+/**
  * The local hour a user's day starts at, 0 to 23. Four means a meal logged at 01:00 counts
  * towards the day before, which is how people describe a late evening and not how a clock
  * describes it.

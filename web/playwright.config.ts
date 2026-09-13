@@ -84,7 +84,10 @@ export default defineConfig({
   // A `.only` somebody left in is a suite that silently stopped covering anything.
   forbidOnly: Boolean(process.env.CI),
   reporter: process.env.CI ? 'github' : 'list',
-  use: { baseURL: ORIGIN, trace: 'retain-on-failure' },
+  // Pinned rather than left to the runner's own: POR-64 makes every string on screen locale
+  // dependent, not only the dates it always was, so an assertion that expects "Breakfast" has to
+  // stop being a statement about whoever's machine is running this suite.
+  use: { baseURL: ORIGIN, trace: 'retain-on-failure', locale: 'en-US' },
   projects: [{ name: 'chromium', use: devices['Desktop Chrome'] }],
 
   webServer: {

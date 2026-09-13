@@ -66,32 +66,42 @@ describe('totalColours', () => {
 
 describe('spokenCounts', () => {
   it('names the three colours always and the unclassified count only when there is one', () => {
-    expect(spokenCounts({ green: 4, yellow: 2, orange: 1, unclassified: 0 })).toBe(
+    expect(spokenCounts({ green: 4, yellow: 2, orange: 1, unclassified: 0 }, 'en-US')).toBe(
       '4 green, 2 yellow, 1 orange',
     );
-    expect(spokenCounts({ green: 4, yellow: 2, orange: 1, unclassified: 3 })).toBe(
+    expect(spokenCounts({ green: 4, yellow: 2, orange: 1, unclassified: 3 }, 'en-US')).toBe(
       '4 green, 2 yellow, 1 orange, 3 not classified yet',
+    );
+  });
+
+  it('names them in German too', () => {
+    expect(spokenCounts({ green: 4, yellow: 2, orange: 1, unclassified: 0 }, 'de')).toBe(
+      '4 grün, 2 gelb, 1 orange',
     );
   });
 });
 
 describe('trendCaveat', () => {
   it('says so when nobody has ever weighed', () => {
-    expect(trendCaveat([trendDay('2026-09-13', null, null)])).toMatch(/No weight recorded/);
+    expect(trendCaveat([trendDay('2026-09-13', null, null)], 'en-US')).toMatch(
+      /No weight recorded/,
+    );
   });
 
   it('says so when the value is real but thin, rather than drawing a confident line', () => {
-    expect(trendCaveat([trendDay('2026-09-13', 81.6, 81.4, true)])).toMatch(/Not enough readings/);
+    expect(trendCaveat([trendDay('2026-09-13', 81.6, 81.4, true)], 'en-US')).toMatch(
+      /Not enough readings/,
+    );
   });
 
   it('is silent once the latest day carries a trend the server stands behind', () => {
-    expect(trendCaveat([trendDay('2026-09-13', 81.6, null)])).toBeUndefined();
+    expect(trendCaveat([trendDay('2026-09-13', 81.6, null)], 'en-US')).toBeUndefined();
   });
 
   it('asks the last day rather than the first, because the position that matters is now', () => {
     const days = [trendDay('2026-09-12', null, null), trendDay('2026-09-13', 81.6, 81.4)];
 
-    expect(trendCaveat(days)).toBeUndefined();
+    expect(trendCaveat(days, 'en-US')).toBeUndefined();
   });
 });
 
@@ -113,9 +123,14 @@ describe('lastReading', () => {
 
 describe('changeLabel', () => {
   it('carries the sign in both directions and says nothing rather than zero when there is none', () => {
-    expect(changeLabel(-0.4)).toBe('-0.4 kg');
-    expect(changeLabel(0.3)).toBe('+0.3 kg');
-    expect(changeLabel(null)).toBe('no trend yet');
+    expect(changeLabel(-0.4, 'en-US')).toBe('-0.4 kg');
+    expect(changeLabel(0.3, 'en-US')).toBe('+0.3 kg');
+    expect(changeLabel(null, 'en-US')).toBe('no trend yet');
+  });
+
+  it('formats with the active language, a comma decimal separator in German', () => {
+    expect(changeLabel(0.3, 'de')).toBe('+0,3 kg');
+    expect(changeLabel(null, 'de')).toBe('noch kein Trend');
   });
 });
 
@@ -123,32 +138,36 @@ describe('changeSentence', () => {
   it('names the direction, the amount and the weekly rate', () => {
     const change = { from: '2026-08-15', to: '2026-09-13', changeKg: -0.6, changePerWeekKg: -0.14 };
 
-    expect(changeSentence(change, 30)).toBe('Down 0.6 kg over 30 days, 0.14 kg a week.');
+    expect(changeSentence(change, 30, 'en-US')).toBe('Down 0.6 kg over 30 days, 0.14 kg a week.');
   });
 
   it('leaves the rate out when the stretch measured is a single day', () => {
     const change = { from: '2026-09-13', to: '2026-09-13', changeKg: 0.2, changePerWeekKg: null };
 
-    expect(changeSentence(change, 30)).toBe('Up 0.2 kg over 30 days.');
+    expect(changeSentence(change, 30, 'en-US')).toBe('Up 0.2 kg over 30 days.');
   });
 
   it('says there is nothing yet rather than reporting a change of zero', () => {
     const change = { from: null, to: null, changeKg: null, changePerWeekKg: null };
 
-    expect(changeSentence(change, 30)).toBe('Nothing to report over 30 days yet.');
+    expect(changeSentence(change, 30, 'en-US')).toBe('Nothing to report over 30 days yet.');
   });
 });
 
 describe('versusSentence', () => {
   it('reads the sign the server already subtracted, negative being further down', () => {
-    expect(versusSentence({ differenceKg: -0.2, differencePerWeekKg: -0.05 })).toMatch(
+    expect(versusSentence({ differenceKg: -0.2, differencePerWeekKg: -0.05 }, 'en-US')).toMatch(
       /0.05 kg a week further down/,
     );
-    expect(versusSentence({ differenceKg: 0.2, differencePerWeekKg: 0.05 })).toMatch(/further up/);
+    expect(versusSentence({ differenceKg: 0.2, differencePerWeekKg: 0.05 }, 'en-US')).toMatch(
+      /further up/,
+    );
   });
 
   it('has nothing to say when either period has no trend behind it', () => {
-    expect(versusSentence({ differenceKg: null, differencePerWeekKg: null })).toBeUndefined();
+    expect(
+      versusSentence({ differenceKg: null, differencePerWeekKg: null }, 'en-US'),
+    ).toBeUndefined();
   });
 });
 
@@ -156,7 +175,7 @@ describe('weekLabel', () => {
   it('collapses a shared month into one range', () => {
     // Locale dependent in its separator and its order, so what is asserted is that both days and
     // the month survive and the month is said once.
-    const label = weekLabel({ startDate: '2026-09-07', endDate: '2026-09-13' });
+    const label = weekLabel({ startDate: '2026-09-07', endDate: '2026-09-13' }, 'en-US');
 
     expect(label).toMatch(/7/);
     expect(label).toMatch(/13/);

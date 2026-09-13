@@ -32,8 +32,8 @@ export default defineConfig({
       // name, a start URL, a display mode that is not `browser` and an icon of at least 192px
       // before it will offer to install anything.
       manifest: {
-        name: 'portionium',
-        short_name: 'portionium',
+        name: 'Portionium',
+        short_name: 'Portionium',
         description: 'A food diary that answers in colours rather than numbers.',
         start_url: '/',
         display: 'standalone',

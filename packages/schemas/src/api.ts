@@ -767,6 +767,7 @@ export function toUserResponse(user: User): UserResponse {
     role: user.role,
     timezone: user.timezone,
     dayBoundaryHour: user.dayBoundaryHour,
+    locale: user.locale,
   };
 }
 
@@ -782,9 +783,14 @@ export function toUserResponse(user: User): UserResponse {
  * The timezone is held to timezoneSchema, which asks the runtime's own IANA database rather
  * than a list bundled here. So `Europe/Berlin` is accepted and `CEST` is a 400, before
  * anything tries to derive a local date from it. See resolveLocalDate.
+ *
+ * `locale` can be sent as one of LOCALES or as `null`. Unlike the other three fields, `null` is
+ * not "untouched", it is a meaningful choice: it puts the account back to following the
+ * browser's own language rather than pinning it to whichever one was picked before. Untouched is
+ * the key being absent altogether, which `.partial()` is what allows.
  */
 export const updateProfileRequestSchema = userSchema
-  .pick({ displayName: true, timezone: true, dayBoundaryHour: true })
+  .pick({ displayName: true, timezone: true, dayBoundaryHour: true, locale: true })
   .partial()
   .strict();
 

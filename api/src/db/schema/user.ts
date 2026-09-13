@@ -1,4 +1,4 @@
-import { DEFAULT_DAY_BOUNDARY_HOUR, USER_ROLES } from '@portionium/schemas';
+import { DEFAULT_DAY_BOUNDARY_HOUR, LOCALES, USER_ROLES } from '@portionium/schemas';
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 import { baseColumns } from './base.js';
@@ -33,4 +33,11 @@ export const userTable = sqliteTable('user', {
   role: text('role', { enum: USER_ROLES }).notNull().default('user'),
   timezone: text('timezone').notNull(),
   dayBoundaryHour: integer('day_boundary_hour').notNull().default(DEFAULT_DAY_BOUNDARY_HOUR),
+  /**
+   * The chosen interface language. Nullable with no default: null is what a fresh account has
+   * and means "never chosen", which is what lets the client keep following the browser rather
+   * than pinning it to whatever `navigator.languages` said at signup, see resolveLocale in
+   * web/src/i18n.ts.
+   */
+  locale: text('locale', { enum: LOCALES }),
 });

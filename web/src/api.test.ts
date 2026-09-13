@@ -11,6 +11,7 @@ const USER = {
   role: 'user',
   timezone: 'Europe/Berlin',
   dayBoundaryHour: 4,
+  locale: null,
 };
 
 function answer(status: number, payload: unknown): void {

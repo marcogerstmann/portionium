@@ -57,6 +57,13 @@
       "when": 1789132564617,
       "tag": "0007_add_meal_favourite_table",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1789314736754,
+      "tag": "0008_add_user_locale",
+      "breakpoints": true
     }
   ]
 }

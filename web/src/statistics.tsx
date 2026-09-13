@@ -16,6 +16,7 @@ import type { z } from 'zod';
 
 import { cachedStats, localDateFor, refreshStats } from './db';
 import { DOTS, UNCLASSIFIED, type DotCategory } from './dot';
+import { useLocale, useT } from './i18n';
 import {
   changeLabel,
   changeSentence,
@@ -24,6 +25,7 @@ import {
   CHART_DAYS,
   COLOUR_DAYS,
   COLOUR_WINDOWS,
+  formatKg,
   rangeEnding,
   spokenCounts,
   SUMMARY_WEEKS,
@@ -161,17 +163,19 @@ const BAR_ORDER: DotCategory[] = [...CATEGORIES, UNCLASSIFIED];
  * which gets the counts as a sentence.
  */
 function ColourBar({ counts }: { counts: ColourCounts }) {
+  const t = useT();
+  const locale = useLocale();
   const total = counts.green + counts.yellow + counts.orange + counts.unclassified;
 
   if (total === 0) {
-    return <span className="text-sm text-muted">Nothing logged</span>;
+    return <span className="text-sm text-muted">{t('statsNothingLogged')}</span>;
   }
 
   return (
     <span
       className="flex min-w-24 flex-1 gap-px overflow-hidden rounded-md"
       role="img"
-      aria-label={spokenCounts(counts)}
+      aria-label={spokenCounts(counts, locale)}
     >
       {BAR_ORDER.map(
         (category) =>
@@ -198,6 +202,7 @@ function ColourBar({ counts }: { counts: ColourCounts }) {
  * chart is what it says, and the headline above it already says it in numbers.
  */
 function WeightChart({ days, line }: { days: readonly WeightTrendDay[]; line: boolean }) {
+  const t = useT();
   const geometry = chartGeometry(days);
 
   return (
@@ -207,7 +212,10 @@ function WeightChart({ days, line }: { days: readonly WeightTrendDay[]; line: bo
       // A drawing, and the text around it carries the numbers, so it is labelled rather than
       // described: announcing 90 coordinates is not a summary of anything.
       role="img"
-      aria-label={`Weight over ${days.length} days, ${geometry.raw.length} readings.`}
+      aria-label={t('statsWeightChartLabel', {
+        days: days.length,
+        readings: t('statsReadings', { count: geometry.raw.length }),
+      })}
     >
       {/* What was on the scale. Small and grey on purpose: these are the numbers the product
           exists to stop people reading as progress, and they are here because somebody wants to
@@ -237,23 +245,28 @@ function WeightChart({ days, line }: { days: readonly WeightTrendDay[]; line: bo
 
 /** One ISO week: how it was eaten, and what the scale did across it. */
 function WeekRow({ week }: { week: WeeklySummaryWeek }) {
+  const t = useT();
+  const locale = useLocale();
+
   return (
     <p className="row">
       {/* The label the bars line up after, so the weeks read as one comparison rather than as a
           list of separate pictures. */}
       <span className="w-30 shrink-0">
-        {weekLabel(week)}
+        {weekLabel(week, locale)}
         {/* Its own line rather than trailing the date, which at this column width wraps into a
             ragged second one and makes every row a different height. */}
         {week.sparse && (
-          <span className="block text-sm text-muted">{week.daysLogged} of 7 days</span>
+          <span className="block text-sm text-muted">
+            {t('statsDaysOf7', { count: week.daysLogged })}
+          </span>
         )}
       </span>
 
       <ColourBar counts={week.counts} />
 
       {/* Right aligned and fixed, so a column of weekly changes reads down rather than across. */}
-      <span className="w-22 shrink-0 text-right">{changeLabel(week.weight.changeKg)}</span>
+      <span className="w-22 shrink-0 text-right">{changeLabel(week.weight.changeKg, locale)}</span>
     </p>
   );
 }
@@ -266,6 +279,8 @@ export function Stats({
   /** Back to the day. */
   onDone: () => void;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const today: LocalDate = localDateFor(new Date(), user.timezone, user.dayBoundaryHour);
   const { weight, days: chartDays } = useWeightStats(today);
 
@@ -282,29 +297,32 @@ export function Stats({
   );
 
   const days = weight?.days ?? [];
-  const caveat = trendCaveat(days);
+  const caveat = trendCaveat(days, locale);
   const latest = days.at(-1);
-  const versus = weight === undefined ? undefined : versusSentence(weight.versusPrevious);
+  const versus = weight === undefined ? undefined : versusSentence(weight.versusPrevious, locale);
 
   return (
     <main className="max-w-3xl">
       <header className="flex items-center justify-between gap-4">
-        <h1>Statistics</h1>
+        <h1>{t('statsTitle')}</h1>
         <button type="button" className="flex shrink-0 items-center gap-2 text-sm" onClick={onDone}>
           <ArrowLeft aria-hidden="true" className="size-4" />
-          Back
+          {t('statsBack')}
         </button>
       </header>
 
-      <section aria-label="Weight">
+      <section aria-label={t('todayWeightLabel')}>
         {weight !== undefined && caveat === undefined ? (
           <>
             {/* The trend, and it is the largest thing on the screen on purpose. */}
             <p className="mt-2 mb-1 text-4xl leading-tight font-bold">
-              {latest?.trendKg?.toFixed(1)} kg
+              {latest?.trendKg === null || latest?.trendKg === undefined
+                ? ''
+                : formatKg(latest.trendKg, locale)}{' '}
+              kg
             </p>
             <p className="text-muted">
-              {changeSentence(weight.change, chartDays)}
+              {changeSentence(weight.change, chartDays, locale)}
               {versus !== undefined && ` ${versus}`}
             </p>
           </>
@@ -315,19 +333,19 @@ export function Stats({
         <WeightChart days={days} line={caveat === undefined} />
       </section>
 
-      <section aria-label="Colours">
-        <h2>Colours</h2>
+      <section aria-label={t('statsColoursTitle')}>
+        <h2>{t('statsColoursTitle')}</h2>
 
         {COLOUR_WINDOWS.map((window) => (
           <p key={window} className="row">
-            <span className="w-30 shrink-0">Last {window} days</span>
+            <span className="w-30 shrink-0">{t('statsLastDays', { window })}</span>
             <ColourBar counts={totalColours(colours?.days ?? [], window)} />
           </p>
         ))}
       </section>
 
-      <section aria-label="Weeks">
-        <h2>Weeks</h2>
+      <section aria-label={t('statsWeeksTitle')}>
+        <h2>{t('statsWeeksTitle')}</h2>
 
         {/* Newest first, where the API answers oldest first: this is a list somebody reads from
             the top, and the top is the week they are in. */}

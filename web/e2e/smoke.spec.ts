@@ -20,7 +20,7 @@ const ACCOUNT = ACCOUNTS.smoke;
 test('loads, signs in, and renders a day with nothing on it', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { name: 'portionium' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Portionium' })).toBeVisible();
 
   await page.getByLabel('Email').fill(ACCOUNT.email);
   await page.getByLabel('Password').fill(ACCOUNT.password);
