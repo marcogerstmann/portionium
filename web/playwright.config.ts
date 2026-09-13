@@ -78,6 +78,13 @@ export default defineConfig({
       // Off, so the run writes nothing outside the temporary database.
       BACKUP_DIR: '',
       LOG_LEVEL: 'warn',
+      // Every browser in the run shares one address, which is the case the per-address limit
+      // exists to catch: a handful of specs in parallel look exactly like one client flooding
+      // the instance. Raised rather than switched off, so the hooks still run on every request
+      // and a change that made them refuse the wrong thing still fails here.
+      RATE_LIMIT_READ_PER_MINUTE: '2000',
+      RATE_LIMIT_WRITE_PER_MINUTE: '500',
+      RATE_LIMIT_AUTH_PER_MINUTE: '200',
     },
   },
 });

@@ -1,7 +1,17 @@
-import { type MealResponse } from '@portionium/schemas';
+import { type FoodResponse, type MealResponse } from '@portionium/schemas';
 import { describe, expect, it } from 'vitest';
 
-import { countColours, emptyDay, localDateFor, withMeal, withWeight } from './db';
+import {
+  countColours,
+  emptyDay,
+  foodNames,
+  localDateFor,
+  shiftDate,
+  withClassification,
+  withMeal,
+  withoutMeal,
+  withWeight,
+} from './db';
 
 /**
  * The pure half of the store. The Dexie half needs a real IndexedDB and is covered by the
@@ -84,9 +94,14 @@ describe('countColours', () => {
   });
 });
 
+/** A catalog entry the way the day carries one, since only the id and the name are read here. */
+function food(id: string, name: string): FoodResponse {
+  return { id, name, kind: 'ingredient', category: 'green' };
+}
+
 describe('withMeal', () => {
   it('appends the meal and recounts the day', () => {
-    const day = withMeal(emptyDay('2026-09-13'), meal('green', 'yellow'));
+    const day = withMeal(emptyDay('2026-09-13'), meal('green', 'yellow'), []);
 
     expect(day.meals).toHaveLength(1);
     expect(day.colourCounts).toEqual({ green: 1, yellow: 1, orange: 0, unclassified: 0 });
@@ -96,7 +111,7 @@ describe('withMeal', () => {
     const first = meal('green');
     const second = { ...meal('orange'), id: '01930000-0000-7000-8000-000000000002' };
 
-    const day = withMeal(withMeal(emptyDay('2026-09-13'), first), second);
+    const day = withMeal(withMeal(emptyDay('2026-09-13'), first, []), second, []);
 
     expect(day.meals.map((entry) => entry.id)).toEqual([first.id, second.id]);
   });
@@ -104,9 +119,85 @@ describe('withMeal', () => {
   it('leaves the day it was given alone, so a render holding the old one is unaffected', () => {
     const before = emptyDay('2026-09-13');
 
-    withMeal(before, meal('green'));
+    withMeal(before, meal('green'), []);
 
     expect(before.meals).toEqual([]);
+  });
+
+  it('carries in the names the new items need, and only those', () => {
+    const added = meal('green');
+    const eaten = added.items[0]?.foodId ?? '';
+
+    const day = withMeal(emptyDay('2026-09-13'), added, [
+      food(eaten, 'Skyr'),
+      food('01930000-0000-7000-8000-0000000009ff', 'Something else'),
+    ]);
+
+    // Without this an offline meal renders as an identifier: the day it is cached under is the
+    // only place its name can come from until the server answers, see dayResponseSchema.
+    expect(foodNames(day).get(eaten)?.name).toBe('Skyr');
+    expect(day.foods).toHaveLength(1);
+  });
+
+  it('names a food once when a second meal eats it again', () => {
+    const first = meal('green');
+    const eaten = first.items[0]?.foodId ?? '';
+    const second = { ...first, id: '01930000-0000-7000-8000-000000000002' };
+    const catalog = [food(eaten, 'Skyr')];
+
+    const day = withMeal(withMeal(emptyDay('2026-09-13'), first, catalog), second, catalog);
+
+    expect(day.foods).toHaveLength(1);
+  });
+});
+
+describe('withoutMeal', () => {
+  it('takes the meal off the day and recounts what is left', () => {
+    const kept = meal('green');
+    const removed = { ...meal('orange', 'orange'), id: '01930000-0000-7000-8000-000000000002' };
+    const day = withMeal(withMeal(emptyDay('2026-09-13'), kept, []), removed, []);
+
+    const after = withoutMeal(day, removed.id);
+
+    expect(after.meals.map((entry) => entry.id)).toEqual([kept.id]);
+    expect(after.colourCounts).toEqual({ green: 1, yellow: 0, orange: 0, unclassified: 0 });
+  });
+
+  it('leaves a day alone when the meal is not on it', () => {
+    const day = withMeal(emptyDay('2026-09-13'), meal('green'), []);
+
+    expect(withoutMeal(day, 'nothing-like-this').meals).toHaveLength(1);
+  });
+});
+
+describe('withClassification', () => {
+  it('colours every item naming the food, and the summary with them', () => {
+    const eaten = meal(null, null);
+    const foodId = eaten.items[0]?.foodId ?? '';
+    // Both items of this meal name different foods, so only the first should change colour.
+    const day = withMeal(emptyDay('2026-09-13'), eaten, [
+      { ...food(foodId, 'Mystery item'), category: null },
+    ]);
+
+    const after = withClassification(day, foodId, 'orange');
+
+    expect(after.meals[0]?.items.map((item) => item.category)).toEqual(['orange', null]);
+    expect(after.colourCounts).toEqual({ green: 0, yellow: 0, orange: 1, unclassified: 1 });
+    expect(after.foods[0]?.category).toBe('orange');
+  });
+});
+
+describe('shiftDate', () => {
+  it('moves whole calendar days, across a month and a year boundary', () => {
+    expect(shiftDate('2026-09-13', -1)).toBe('2026-09-12');
+    expect(shiftDate('2026-03-01', -1)).toBe('2026-02-28');
+    expect(shiftDate('2025-12-31', 1)).toBe('2026-01-01');
+  });
+
+  it('is unmoved by a daylight saving transition, since the date carries no zone', () => {
+    // Europe/Berlin loses an hour overnight on 29 March 2026. A day is still a day here.
+    expect(shiftDate('2026-03-28', 1)).toBe('2026-03-29');
+    expect(shiftDate('2026-03-29', 1)).toBe('2026-03-30');
   });
 });
 

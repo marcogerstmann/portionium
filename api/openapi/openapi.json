@@ -15924,13 +15924,72 @@
                         "unclassified"
                       ],
                       "additionalProperties": false
+                    },
+                    "foods": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "ingredient",
+                              "dish",
+                              "branded"
+                            ]
+                          },
+                          "energyDensity": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 900
+                          },
+                          "createdBy": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+                          },
+                          "category": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "green",
+                                  "yellow",
+                                  "orange"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "kind",
+                          "category"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
                     "date",
                     "meals",
                     "weightEntry",
-                    "colourCounts"
+                    "colourCounts",
+                    "foods"
                   ],
                   "additionalProperties": false
                 }

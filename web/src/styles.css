@@ -1,7 +1,6 @@
 /*
- * Light and dark follow the system setting and nothing else is themed. There is no toggle, no
- * stored preference and no palette beyond what is here: this story ships a login screen, and a
- * design system invented around one form is a design system the first real screen throws away.
+ * Light and dark follow the system setting and nothing else is themed. There is no toggle and no
+ * stored preference, and the palette is still only what the screens actually use.
  *
  * `color-scheme` is what does the work. It tells the browser both schemes are supported, which
  * makes form controls, scrollbars and the canvas itself follow the system on their own, and it
@@ -17,6 +16,25 @@
   --line: light-dark(#d5d9df, #333840);
   --brand: light-dark(#2f7a37, #6bcf78);
   --danger: light-dark(#b3261e, #ff8a80);
+
+  /*
+   * The traffic light, which is the only thing this product says. Each pair is darkened for
+   * light mode and lightened for dark so the letter inside the disc keeps its contrast against
+   * the fill in both, and grey is a real fourth value rather than a faded green: "nobody has
+   * judged this yet" is a state, not a weaker verdict.
+   */
+  --green: light-dark(#2f9e44, #51cf66);
+  --yellow: light-dark(#e8a33d, #ffd43b);
+  --orange: light-dark(#e8590c, #ff922b);
+  --unclassified: light-dark(#adb5bd, #5c636a);
+  --on-colour: light-dark(#ffffff, #14161a);
+
+  /*
+   * The smallest anything tappable may be. The WCAG target size minimum, and on a phone it is
+   * also just the width of a thumb: a control smaller than this is one people miss and stop
+   * using.
+   */
+  --touch: 2.75rem;
 
   font-family: system-ui, sans-serif;
   line-height: 1.5;
@@ -69,12 +87,18 @@ input {
   padding: 0.625rem;
 }
 
+/*
+ * Every button, not just the ones on a phone screen. A target floor set here is one no control
+ * added later can forget, and the pointer a desktop aims with is not the reason the floor
+ * exists: a 44px row is easier to hit with a mouse too.
+ */
 button {
   border: 1px solid var(--line);
   border-radius: 0.375rem;
   cursor: pointer;
   font: inherit;
   margin-top: 1rem;
+  min-height: var(--touch);
   padding: 0.625rem;
 }
 
@@ -86,4 +110,198 @@ p {
   color: var(--danger);
   /* Reserved whether or not there is a failure, so the form does not jump when one arrives. */
   min-height: 1.5rem;
+}
+
+/*
+ * Everything below is the Today screen, see src/today.tsx.
+ *
+ * One column that widens, and no second layout. The content is a list of short rows, so a phone
+ * and a desktop want the same thing and the desktop simply has more room around it; a media
+ * query here would be a second arrangement to keep working for no gain. `main`'s max-width above
+ * is the whole of the responsive story.
+ */
+
+nav {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+
+nav button {
+  flex: 1;
+  margin-top: 0;
+}
+
+/*
+ * Visually gone, still read aloud. The navigation arrows need a name a screen reader can
+ * announce, and "Previous day" beside an arrow is noise to everyone who can see the arrow.
+ */
+.away {
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+/*
+ * One row of the day: a label on the left, the thing it is about on the right. A button and a
+ * paragraph share it so that a tappable row and a static one line up exactly, which is what
+ * keeps the eye on the column rather than on which rows happen to be interactive.
+ */
+.row {
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  box-sizing: border-box;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  margin: 0;
+  min-height: var(--touch);
+  padding: 0.5rem 0;
+  text-align: left;
+  width: 100%;
+}
+
+button.row {
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  color: inherit;
+}
+
+.meal__type {
+  color: var(--text);
+}
+
+.dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0;
+}
+
+.dots--summary {
+  gap: 0.375rem;
+  margin: 1rem 0 1.5rem;
+}
+
+/*
+ * The dot itself. The letter inside is what makes the four states tell each other apart without
+ * hue, so it is sized to be legible rather than hinted at, and centred with flex so it sits on
+ * the disc's middle whatever the font.
+ */
+.dot {
+  align-items: center;
+  border-radius: 50%;
+  color: var(--on-colour);
+  display: inline-flex;
+  flex: none;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  height: 1.375rem;
+  justify-content: center;
+  line-height: 1;
+  width: 1.375rem;
+}
+
+.dot--green {
+  background: var(--green);
+}
+
+.dot--yellow {
+  background: var(--yellow);
+}
+
+.dot--orange {
+  background: var(--orange);
+}
+
+.dot--unclassified {
+  background: var(--unclassified);
+}
+
+/*
+ * Not sent yet. A ring around the dot rather than a faded fill: fading a traffic light changes
+ * which light it looks like, and this has to say "on its way" without saying anything about the
+ * colour. `outline` rather than a border so the disc does not change size as an entry drains.
+ */
+.dot--pending {
+  outline: 2px solid var(--muted);
+  outline-offset: 2px;
+}
+
+.meal__detail ul {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 1rem;
+}
+
+.item {
+  justify-content: flex-start;
+}
+
+.hint {
+  color: var(--muted);
+  margin-left: auto;
+}
+
+.pending {
+  color: var(--muted);
+}
+
+/* The three verdicts, side by side, each a whole touch target rather than a word to aim at. */
+.choices {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+  padding-left: 1rem;
+}
+
+.choices button {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  gap: 0.5rem;
+  margin-top: 0;
+  min-height: var(--touch);
+}
+
+.danger {
+  border-color: var(--danger);
+  color: var(--danger);
+  width: 100%;
+}
+
+/*
+ * The undo and the refusals both sit in the flow rather than floating over the screen. A toast
+ * that fades is a control somebody has to catch; these stay until they are used or the day
+ * changes, which is what makes "with undo" a promise rather than a race.
+ */
+/* Its own padding, because unlike .rejected this box is the row rather than wrapping one. */
+.undo {
+  border: 1px solid var(--line);
+  border-bottom-color: var(--line);
+  border-radius: 0.375rem;
+  margin-top: 1rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.undo button,
+.rejected button {
+  flex: none;
+  margin-top: 0;
+}
+
+.rejected {
+  border: 1px solid var(--danger);
+  border-radius: 0.375rem;
+  margin: 1rem 0;
+  padding: 0 0.75rem;
+}
+
+.rejected .row:last-child {
+  border-bottom: none;
 }

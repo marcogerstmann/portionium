@@ -119,8 +119,13 @@ const noContentResponse = { 204: z.null().describe('Deleted') } as const;
  * Nullable columns become absent properties rather than nulls, because that is what the entity
  * schema says a food looks like. `category` is the exception and is null on purpose: a food
  * nobody has judged yet is a state the client renders, not a field it has to feel around for.
+ *
+ * Exported because GET /days/{date} answers with the foods its items name and has to spell them
+ * the same way the catalog does, see api/src/http/routes/meals.ts. A second copy of this would
+ * be a second set of fields to keep in step, which is exactly what the paragraph above warns
+ * about.
  */
-function toFoodResponse(
+export function toFoodResponse(
   food: FoodRecord,
   classification: FoodClassificationRecord | undefined,
 ): FoodResponse {

@@ -1,5 +1,6 @@
 import {
   PROBLEM,
+  type Category,
   type LocalDate,
   type MealResponse,
   type MealType,
@@ -18,7 +19,9 @@ import {
   localDateFor,
   putDay,
   refreshDay,
+  withClassification,
   withMeal,
+  withoutMeal,
   withWeight,
   type OutboxEntry,
 } from './db';
@@ -165,7 +168,8 @@ export async function logMeal(
 ): Promise<MealResponse> {
   const loggedAt = new Date();
   const date = localDateFor(loggedAt, user.timezone, user.dayBoundaryHour);
-  const colours = new Map((await cachedFoods()).map((food) => [food.id, food.category]));
+  const known = await cachedFoods();
+  const colours = new Map(known.map((food) => [food.id, food.category]));
 
   const optimistic: MealResponse = {
     id: uuidv7(),
@@ -182,11 +186,15 @@ export async function logMeal(
     })),
   };
 
-  await cacheLocally(date, (day) => withMeal(day, optimistic));
+  // The catalog entries go into the day beside the meal, not just their colours: the screen
+  // renders a name next to every dot, and a day the server has not answered for yet has no
+  // other source for one. See withMeal.
+  await cacheLocally(date, (day) => withMeal(day, optimistic, known));
 
   await enqueue({
     path: '/meals',
     date,
+    subject: mealSubject(optimistic.id),
     body: {
       // The id the device chose, which is what survives a retry as the same meal rather than a
       // second one. See createMealRequestSchema, where the field exists for exactly this.
@@ -233,10 +241,104 @@ export async function logWeight(
   await enqueue({
     path: '/weight',
     date,
+    subject: weightSubject(date),
     body: { weightKg, recordedAt: optimistic.recordedAt },
   });
 
   return optimistic;
+}
+
+/**
+ * Delete a meal, and hand back what it takes to put it back.
+ *
+ * The undo is the returned meal rather than anything stored here, because the server's own
+ * delete is soft and reviving it is posting the same id again, see insertMeal in
+ * api/src/db/meal.ts and restoreMeal below. So there is no pending-deletion timer, no window to
+ * expire and nothing to lose if the app is closed mid undo: the delete is durable the moment
+ * this resolves, exactly like every other write here, and undoing it is another durable write.
+ *
+ * A meal whose own POST has not drained yet is the interesting case and needs nothing special.
+ * Both entries are in one queue in the order they were made, so the server sees the create and
+ * then the delete, and ends up where the person left it.
+ */
+export async function deleteMeal(meal: MealResponse): Promise<void> {
+  await cacheLocally(meal.localDate, (day) => withoutMeal(day, meal.id));
+
+  await enqueue({
+    path: `/meals/${meal.id}`,
+    method: 'DELETE',
+    date: meal.localDate,
+    subject: mealSubject(meal.id),
+    body: undefined,
+  });
+}
+
+/**
+ * Put back a meal this device deleted, which is what undo means here.
+ *
+ * The same id, the same instant and the same items, so this is the row coming back rather than
+ * a second meal that looks like it: the id was minted on this device in the first place and the
+ * server revives its own soft deleted row for it.
+ */
+export async function restoreMeal(meal: MealResponse): Promise<void> {
+  const known = await cachedFoods();
+
+  await cacheLocally(meal.localDate, (day) => withMeal(day, meal, known));
+
+  await enqueue({
+    path: '/meals',
+    date: meal.localDate,
+    subject: mealSubject(meal.id),
+    body: {
+      id: meal.id,
+      type: meal.type,
+      loggedAt: meal.loggedAt,
+      items: meal.items.map((item) => ({ foodId: item.foodId })),
+      ...(meal.notes === undefined ? {} : { notes: meal.notes }),
+    },
+  });
+}
+
+/**
+ * Give a food a colour, from whichever day was on screen when somebody tapped a grey dot.
+ *
+ * This is the caller's own verdict, which outranks the seeded one and the model's for them and
+ * for nobody else, see resolveClassification in api/src/domain/classification.ts. The optimistic
+ * half changes every item on this day that names the food, so the dot, the name and the summary
+ * row move together on the tap.
+ *
+ * Only the day in front of the person is corrected, not the other six in the cache. Their
+ * refresh brings the new colour with it, and reaching across the cache to rewrite days nobody is
+ * looking at would be this module deciding what the server thinks, which is the one thing it
+ * must never do.
+ */
+export async function classifyFood(
+  date: LocalDate,
+  foodId: string,
+  category: Category,
+): Promise<void> {
+  await cacheLocally(date, (day) => withClassification(day, foodId, category));
+
+  await enqueue({
+    path: `/foods/${foodId}/classification`,
+    method: 'PUT',
+    date,
+    subject: foodSubject(foodId),
+    body: { category },
+  });
+}
+
+/** How a write says what it is about, so a screen can match one against what it renders. */
+export function mealSubject(mealId: string): string {
+  return `meal:${mealId}`;
+}
+
+export function weightSubject(date: LocalDate): string {
+  return `weight:${date}`;
+}
+
+export function foodSubject(foodId: string): string {
+  return `food:${foodId}`;
 }
 
 /** Apply an optimistic change to the cached day, creating the day if it was never fetched. */
@@ -253,7 +355,10 @@ async function cacheLocally(
  * The drain is not awaited. Awaiting it would make a caller wait on the network, which is the
  * one thing this whole module exists to avoid, and the entry is already durable by then.
  */
-async function enqueue(write: Pick<OutboxEntry, 'path' | 'body' | 'date'>): Promise<void> {
+async function enqueue(
+  write: Pick<OutboxEntry, 'path' | 'body' | 'date'> &
+    Partial<Pick<OutboxEntry, 'method' | 'subject'>>,
+): Promise<void> {
   await database.outbox.add({
     ...write,
     key: uuidv7(),
@@ -374,7 +479,9 @@ async function attempt(entry: OutboxEntry): Promise<AttemptOutcome> {
     // is read back by the day refresh above, so keeping a schema per path here would be a
     // second, thinner copy of the contract with nothing reading it.
     await request(entry.path, z.unknown(), {
-      method: 'POST',
+      // POST for an entry written before the field existed, which is every entry this app
+      // queued while creating was the only write it could make. See OutboxEntry.method.
+      method: entry.method ?? 'POST',
       body: entry.body,
       idempotencyKey: entry.key,
     });
@@ -457,6 +564,25 @@ async function requestBackgroundSync(): Promise<void> {
 /** How many writes have not reached the server. Excludes the ones waiting for a person. */
 export async function pendingCount(): Promise<number> {
   return database.outbox.filter((entry) => entry.failure === null).count();
+}
+
+/**
+ * What is still queued and what was refused, in one read, because a screen showing either shows
+ * both and two queries over the same handful of rows is one more than the queue is worth.
+ */
+export async function outboxState(): Promise<{ pending: Set<string>; failed: OutboxEntry[] }> {
+  const queued = await database.outbox.orderBy('key').toArray();
+
+  return {
+    // Subjects rather than entries: what a screen asks is "has this meal reached the server",
+    // which is a membership test and not a list to walk per rendered row.
+    pending: new Set(
+      queued.flatMap((entry) =>
+        entry.failure === null && entry.subject !== undefined ? [entry.subject] : [],
+      ),
+    ),
+    failed: queued.filter((entry) => entry.failure !== null),
+  };
 }
 
 /**

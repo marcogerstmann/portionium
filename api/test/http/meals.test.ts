@@ -555,6 +555,35 @@ describe('one local day', () => {
     expect(body.meals[0]?.items).toHaveLength(3);
     expect(body.weightEntry).toBeNull();
     expect(body.colourCounts).toEqual({ green: 1, yellow: 0, orange: 1, unclassified: 1 });
+
+    // The names the items point at, resolved to the same colours the items carry. Without this
+    // a client has identifiers to render and nothing to render them as, see dayResponseSchema.
+    expect(body.foods).toEqual([
+      expect.objectContaining({ id: green.id, name: 'Skyr', category: 'green' }),
+      expect.objectContaining({ id: orange.id, name: 'Peanut butter', category: 'orange' }),
+      expect.objectContaining({ id: unclassified.id, name: 'Mystery item', category: null }),
+    ]);
+  });
+
+  it('names a food once however many of the meals on the day ate it', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const food = fixtures.create.food({ name: 'Skyr' });
+    const loggedAt = new Date('2026-04-10T08:00:00.000Z');
+    fixtures.create.meal(fixtures.userA, {
+      loggedAt,
+      type: 'breakfast',
+      items: [{ foodId: food.id }, { foodId: food.id }],
+    });
+    fixtures.create.meal(fixtures.userA, {
+      loggedAt: new Date('2026-04-10T12:00:00.000Z'),
+      type: 'lunch',
+      items: [{ foodId: food.id }],
+    });
+    const token = fixtures.create.session(fixtures.userA);
+
+    const response = await app.inject({ url: days('2026-04-10'), headers: browser(token) });
+
+    expect(response.json<DayResponse>().foods).toHaveLength(1);
   });
 
   it('includes the weight entry recorded on the same local day', async () => {
@@ -580,6 +609,7 @@ describe('one local day', () => {
       meals: [],
       weightEntry: null,
       colourCounts: { green: 0, yellow: 0, orange: 0, unclassified: 0 },
+      foods: [],
     });
   });
 

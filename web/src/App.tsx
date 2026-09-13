@@ -1,17 +1,18 @@
 import { loginResponseSchema, userResponseSchema, type UserResponse } from '@portionium/schemas';
 import { useEffect, useState, type FormEvent } from 'react';
-import { z } from 'zod';
 
 import { ApiError, request, session, UNAUTHENTICATED_EVENT } from './api';
 import { drain } from './outbox';
+import { Today } from './today';
 
 /**
- * The shell, which today is one gate and two screens behind it.
+ * The shell: one gate, and the day behind it.
  *
- * There is no router and no state library here yet. This story is infrastructure, and both are
- * decisions the first real screen should make with a screen in front of it rather than a
- * skeleton. What is here is the part every screen after it depends on: who is signed in, how
- * that is found out, and what happens when it stops being true.
+ * There is still no router and no state library. The app is one screen, so a router would be a
+ * dependency mapping one path to one component, and the state a screen holds is the day it is
+ * showing, which belongs to that screen. Both become worth having when there is a second screen
+ * to route to, which is WEB 5. What is here is what every screen after it depends on: who is
+ * signed in, how that is found out, and what happens when it stops being true.
  */
 
 /** While `GET /me` is in flight. A cookie may or may not be attached and neither answer is in yet. */
@@ -82,29 +83,6 @@ function Login({ onSignedIn }: { onSignedIn: (user: UserResponse) => void }) {
           {error}
         </p>
       </form>
-    </main>
-  );
-}
-
-/** Everything behind the gate, which is nothing yet. The screens arrive with WEB 3. */
-function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: () => void }) {
-  return (
-    <main>
-      <header>
-        <h1>Today</h1>
-        <button
-          type="button"
-          onClick={() => {
-            // The row is deleted server side, so the credential is dead whatever this client
-            // does next. A failure here is still a sign out locally, for the same reason.
-            void request('/auth/logout', z.null(), { method: 'POST' }).finally(onSignedOut);
-          }}
-        >
-          Sign out, {user.displayName}
-        </button>
-      </header>
-
-      <p>Nothing logged yet.</p>
     </main>
   );
 }

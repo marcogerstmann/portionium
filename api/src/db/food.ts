@@ -190,6 +190,35 @@ export function findExistingFoodIds(db: Db, ids: readonly string[]): Set<string>
 }
 
 /**
+ * These ids as live catalog rows, for a caller that needs the entries themselves rather than
+ * just which of them exist. One query for a whole day's worth of items, the same shape and the
+ * same reason findExistingFoodIds is one, see GET /days/{date} in
+ * api/src/http/routes/meals.ts, which reads a day's food names with it.
+ *
+ * The order is the caller's, not the database's: a day lists its foods in the order its items
+ * first name them, and an `IN` clause has no order of its own to rely on.
+ */
+export function findFoodsByIds(db: Db, ids: readonly string[]): FoodRecord[] {
+  if (ids.length === 0) {
+    return [];
+  }
+
+  const unique = [...new Set(ids)];
+  const rows = db
+    .select()
+    .from(foodTable)
+    .where(and(inArray(foodTable.id, unique), isNull(foodTable.deletedAt)))
+    .all();
+
+  const byId = new Map(rows.map((row) => [row.id, row]));
+
+  return unique.flatMap((id) => {
+    const row = byId.get(id);
+    return row === undefined ? [] : [row];
+  });
+}
+
+/**
  * How many meal items name this food. Soft deleted meals are counted too: their items are still
  * rows pointing here, and a meal that can be looked at in a history is a meal whose foods have
  * to still resolve.

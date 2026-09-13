@@ -872,6 +872,11 @@ fetches and overwrites, and a screen renders the first and then the second. The 
 source of truth for every read, without exception: nothing on the device ever wins an argument
 with it, which is what keeps this a cache rather than a replica.
 
+A cached day carries the foods its items name, because `GET /days/{date}` sends them: an item
+carries a `foodId` and a colour, which is what a count needs, and not the name, which is what a
+person reads. Denormalising it into the day payload rather than looking names up separately is
+what lets a day open with no network at all, see `dayResponseSchema`.
+
 `localDateFor` is the client side twin of `resolveLocalDate` in `api/src/domain/local-date.ts`
 and has to agree with it, or an offline meal is filed under one date locally and another on the
 server. It is built on `Intl.DateTimeFormat`, which is the browser's own IANA database, so the
@@ -913,6 +918,36 @@ the schemas inside it.
 Two tabs are handled with one Web Lock around the drain. That is an optimisation rather than the
 correctness property, which is why a browser without Web Locks drains anyway: the idempotency
 key already makes a double send harmless, and the lock only saves the wasted request.
+
+### The Today screen
+
+[`web/src/today.tsx`](./web/src/today.tsx) is the one screen, and
+[`web/src/day.ts`](./web/src/day.ts) is the arithmetic behind it, split out because none of it
+needs React, a DOM or IndexedDB and all of it is worth testing.
+
+There is no loading state on it anywhere, which is a decision rather than an omission. A day is
+read from the device and rendered, and the server's answer replaces it whenever it arrives, so a
+day that is not cached yet renders as an empty day rather than as a spinner. That is the right
+answer for the common case, a day with nothing on it, and a brief understatement for the rest.
+
+Colour never carries a meaning alone. Each dot is a letter in a coloured disc with an
+`aria-label`, three channels for one fact, because roughly one man in twelve cannot tell this
+palette's green from its orange. The unsent mark follows the same rule and is a ring rather than
+a dimmed fill: fading a traffic light changes which light it looks like, and a screen reader
+cannot hear faintness either, so it is announced.
+
+Paging is bounded on both sides by the same promise. Forward stops at today, and back stops at
+the edge of the cache, so the screen can only show days that are actually on the device.
+`refreshRecentDays` fills the gaps in that window behind the screen, and only the gaps: a launch
+on a phone used this week costs no requests beyond the one for the day being shown, where
+re-fetching the whole window every launch would cost seven for six answers that have not changed.
+
+Two corrections live here and a third deliberately does not. Deleting a meal and giving a food a
+colour need no food search, so they are here; composing or recomposing a meal needs the search
+surface WEB 4 builds and is reached from here once it exists. Undo is not a timer and not a
+window that expires: the delete is durable immediately like every other write, and undoing it
+posts the same meal id again, which revives the server's own soft deleted row. So closing the app
+mid undo loses nothing, and there is nothing to race.
 
 ### One origin, in both directions
 

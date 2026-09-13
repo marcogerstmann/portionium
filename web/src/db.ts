@@ -1,6 +1,7 @@
 import {
   dayResponseSchema,
   foodResponseSchema,
+  type Category,
   type ColourCounts,
   type DayResponse,
   type FoodResponse,
@@ -66,7 +67,23 @@ export interface OutboxEntry {
   key: string;
   /** Below the API prefix, the way ./api.ts takes it. */
   path: string;
+  /**
+   * The verb. Absent on an entry written before this field existed, which is every entry queued
+   * by the version that only ever posted, so a reader defaults it to POST rather than dropping
+   * a meal somebody logged before they updated the app. Not indexed, so adding it needed no
+   * Dexie version and no migration, see the `stores` block above.
+   */
+  method?: 'POST' | 'PUT' | 'DELETE';
   body: unknown;
+  /**
+   * What this write is about, `meal:<id>` or `weight:<date>`, so a screen can ask whether the
+   * thing it is rendering has reached the server yet without reading the body and guessing.
+   * Also what labels a rejected write in a list of them, see failedWrites in ./outbox.ts.
+   *
+   * Optional for the same reason `method` is: an entry queued by an earlier version has none,
+   * and a missing pending mark is a better outcome than a screen that refuses to render.
+   */
+  subject?: string;
   /** Which day this write changes, so a successful send knows which cached day is now stale. */
   date: LocalDate;
   /** How many attempts have failed. Drives the backoff, see backoffMs in ./outbox.ts. */
@@ -148,17 +165,18 @@ export function localDateFor(instant: Date, timezone: Timezone, boundaryHour: nu
 
   const date = `${part('year')}-${part('month')}-${part('day')}`;
 
-  return Number(part('hour')) >= boundaryHour ? date : dayBefore(date);
+  return Number(part('hour')) >= boundaryHour ? date : shiftDate(date, -1);
 }
 
 /**
  * Calendar arithmetic on a date with no zone attached, done in UTC so that no offset and no DST
- * transition can reach it. The zone was already applied above, which is why subtracting a day
- * here is safe where subtracting 24 hours from the instant would not be.
+ * transition can reach it. The zone was already applied above, which is why moving a day here
+ * is safe where adding 24 hours to the instant would not be: a day is 23 or 25 hours long twice
+ * a year in most of the world, and paging between days must not skip or repeat one when it is.
  */
-function dayBefore(date: LocalDate): LocalDate {
+export function shiftDate(date: LocalDate, days: number): LocalDate {
   const midnight = new Date(`${date}T00:00:00Z`);
-  midnight.setUTCDate(midnight.getUTCDate() - 1);
+  midnight.setUTCDate(midnight.getUTCDate() + days);
 
   return midnight.toISOString().slice(0, 10);
 }
@@ -189,10 +207,66 @@ export function countColours(meals: readonly MealResponse[]): ColourCounts {
  * is this, not a response. Meals come back from the server ordered by when they were logged, so
  * a meal logged now belongs at the end.
  */
-export function withMeal(day: DayResponse, meal: MealResponse): DayResponse {
+export function withMeal(
+  day: DayResponse,
+  meal: MealResponse,
+  foods: readonly FoodResponse[],
+): DayResponse {
   const meals = [...day.meals, meal];
+  const known = new Set(day.foods.map((food) => food.id));
+  const added = foods.filter((food) => meal.items.some((item) => item.foodId === food.id));
+
+  return {
+    ...day,
+    meals,
+    // The names this meal's items need, so the optimistic copy renders as words rather than as
+    // identifiers. A food the device has never seen is simply absent, which the screen renders
+    // the same way the server's answer would if the catalog entry had gone: see foodNames.
+    foods: [...day.foods, ...added.filter((food) => !known.has(food.id))],
+    colourCounts: countColours(meals),
+  };
+}
+
+/**
+ * A day with one meal taken off it, the optimistic half of deleting one.
+ *
+ * The foods are left alone rather than pruned. A name nobody renders costs a string, and the
+ * refresh after the delete drains replaces the whole day anyway, so working out which foods no
+ * other meal still names would be arithmetic with no reader.
+ */
+export function withoutMeal(day: DayResponse, mealId: string): DayResponse {
+  const meals = day.meals.filter((meal) => meal.id !== mealId);
 
   return { ...day, meals, colourCounts: countColours(meals) };
+}
+
+/**
+ * A day in which one food has been given a colour, the optimistic half of classifying one from
+ * this screen. Every item naming that food takes the colour, which is what makes the dot, the
+ * name beside it and the summary row at the top all change together on the tap rather than on
+ * the refresh that follows it.
+ */
+export function withClassification(
+  day: DayResponse,
+  foodId: string,
+  category: Category,
+): DayResponse {
+  const meals = day.meals.map((meal) => ({
+    ...meal,
+    items: meal.items.map((item) => (item.foodId === foodId ? { ...item, category } : item)),
+  }));
+
+  return {
+    ...day,
+    meals,
+    foods: day.foods.map((food) => (food.id === foodId ? { ...food, category } : food)),
+    colourCounts: countColours(meals),
+  };
+}
+
+/** Every food a day names, by id, which is how an item's `foodId` becomes something readable. */
+export function foodNames(day: DayResponse): Map<string, FoodResponse> {
+  return new Map(day.foods.map((food) => [food.id, food]));
 }
 
 /**
@@ -205,7 +279,7 @@ export function withWeight(day: DayResponse, weightEntry: WeightEntryResponse): 
 
 /** A day with nothing on it, so an optimistic write has something to be applied to. */
 export function emptyDay(date: LocalDate): DayResponse {
-  return { date, meals: [], weightEntry: null, colourCounts: countColours([]) };
+  return { date, meals: [], weightEntry: null, colourCounts: countColours([]), foods: [] };
 }
 
 /** What is on the device for this day, or nothing if it has never been fetched or written. */
@@ -232,6 +306,33 @@ export async function refreshDay(date: LocalDate): Promise<DayResponse> {
   await trimDays();
 
   return day;
+}
+
+/**
+ * Fill the gaps in the window the Today screen pages through.
+ *
+ * Without this the only day on the device is the one somebody happened to open, and paging back
+ * with no network would find nothing.
+ *
+ * Only the days that are missing, and never today. A launch on a phone that has been used this
+ * week therefore costs no requests at all beyond the one the screen makes for the day it is
+ * showing, where fetching the whole window every time would cost seven, every time, for six
+ * answers that have not changed. Staleness is not this function's problem: the day somebody
+ * actually looks at is refreshed by the screen that shows it, see the Today screen's own load.
+ *
+ * Sequential rather than in parallel, because this runs behind a screen that has already
+ * rendered and nothing is waiting on it: six requests at once would only compete with the one
+ * refresh a person is looking at. Every failure is swallowed, since a cache that could not be
+ * warmed is the offline case rather than an error.
+ */
+export async function refreshRecentDays(today: LocalDate): Promise<void> {
+  for (let back = 1; back < CACHED_DAYS; back += 1) {
+    const date = shiftDate(today, -back);
+
+    if ((await cachedDay(date)) === undefined) {
+      await refreshDay(date).catch(() => undefined);
+    }
+  }
 }
 
 /**

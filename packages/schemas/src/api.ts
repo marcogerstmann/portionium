@@ -504,6 +504,16 @@ export const dayResponseSchema = z.object({
   meals: z.array(mealResponseSchema),
   weightEntry: weightEntryResponseSchema.nullable(),
   colourCounts: colourCountsSchema,
+  /**
+   * Every food the meals above name, once each, in the order the items first name them.
+   *
+   * An item carries a `foodId` and a colour, which is what a count needs, and not a name, which
+   * is what a person reads. That name is sent here rather than on each item for two reasons. A
+   * day repeats the same food across meals, and a list beside the meals says it once. And this
+   * is the payload a client stores for a day, so the names have to be in it or a day opened
+   * with no network renders a column of identifiers.
+   */
+  foods: z.array(foodResponseSchema),
 });
 
 export type DayResponse = z.infer<typeof dayResponseSchema>;

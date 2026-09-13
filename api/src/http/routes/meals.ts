@@ -29,7 +29,7 @@ import {
   findClassificationsForFoods,
   type FoodClassificationRecord,
 } from '../../db/classification.js';
-import { findExistingFoodIds } from '../../db/food.js';
+import { findExistingFoodIds, findFoodsByIds } from '../../db/food.js';
 import {
   insertMealFavourite,
   listMealFavourites,
@@ -63,6 +63,7 @@ import {
   idempotencyProblemResponses,
   problemResponses,
 } from '../problem.js';
+import { toFoodResponse } from './foods.js';
 
 /**
  * The primary write path: logging what somebody ate, and reading it back. Two shapes of read
@@ -513,13 +514,18 @@ export const mealRoutes: FastifyPluginCallbackZod<MealRouteOptions> = (app, opti
       const { userId } = request.auth;
       const { date } = request.params;
 
-      // Four queries whatever the day contains: the meals, their items in one go, the
-      // classifications those items resolve to in one more, and the weight reading. A day with
-      // twenty items costs the same round trip as a day with two, which is the point.
+      // Five queries whatever the day contains: the meals, their items in one go, the
+      // classifications those items resolve to in one more, the foods those items name in one
+      // more, and the weight reading. A day with twenty items costs the same round trip as a
+      // day with two, which is the point.
       const meals = findMealsForDay(db, userId, date);
       const { items, resolved, byMeal } = itemsAndColours(
         userId,
         meals.map((meal) => meal.id),
+      );
+      const foods = findFoodsByIds(
+        db,
+        items.map((item) => item.foodId),
       );
       const weightEntry = findLatestWeightEntryForDay(db, userId, date);
 
@@ -528,6 +534,9 @@ export const mealRoutes: FastifyPluginCallbackZod<MealRouteOptions> = (app, opti
         meals: meals.map((meal) => toMealResponse(meal, byMeal.get(meal.id) ?? [], resolved)),
         weightEntry: weightEntry === undefined ? null : toWeightEntryResponse(weightEntry),
         colourCounts: countColours(items, resolved),
+        // The colour each one resolves to is the same one its items carry, from the same map, so
+        // a dot and the name beside it can never disagree about what colour a food is.
+        foods: foods.map((food) => toFoodResponse(food, resolved.get(food.id))),
       };
     },
   );
