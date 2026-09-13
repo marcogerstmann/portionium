@@ -136,26 +136,15 @@ test('deletes a meal and puts it back with undo', async ({ page }) => {
   await expect(meals.getByRole('button', { name: /Dinner/ })).toBeVisible();
 });
 
-test('marks an unsent write as pending and stops marking it once it drains', async ({ page }) => {
-  await signIn(page);
-  await page.context().setOffline(true);
-
-  await page.getByRole('button', { name: /Weight/ }).click();
-  await page.getByLabel('Weight in kg').fill('81.4');
-  await page.getByRole('button', { name: 'Save' }).click();
-
-  // Durable and on screen with no network, which is the whole point of the outbox, and marked in
-  // a way that is announced rather than only dimmed, see the accessibility note on POR-42.
-  await expect(page.getByText('81.4 kg')).toBeVisible();
-  await expect(page.getByRole('img', { name: 'not sent yet' })).toBeVisible();
-
-  await page.context().setOffline(false);
-  await expect(page.getByRole('img', { name: 'not sent yet' })).toHaveCount(0);
-
-  // And it is the server's copy afterwards, not the optimistic one.
-  await page.reload();
-  await expect(page.getByText('81.4 kg')).toBeVisible();
-});
+/*
+ * Recording a weight offline is no longer here, it is the offline spec in compose.spec.ts.
+ *
+ * Not because this file stopped caring, but because a day holds one reading and every spec in
+ * this run shares an account and a today: two specs recording a weight is two specs racing over
+ * which one the day shows, which is the same reason the specs here claim a meal type nobody else
+ * logs. The claims this test made, durable and marked offline, unmarked once drained, and the
+ * server's copy after a reload, all moved with it, and it gained the one POR-44 asks for.
+ */
 
 test('gives every tappable row at least a 44 pixel target', async ({ page }) => {
   await signIn(page);

@@ -6,6 +6,7 @@ import {
   type LocalDate,
   type MealItemResponse,
   type MealResponse,
+  type StatsWeightResponse,
   type UserResponse,
 } from '@portionium/schemas';
 import { useCallback, useEffect, useRef, useState, type FormEvent, type TouchEvent } from 'react';
@@ -38,6 +39,8 @@ import {
   restoreMeal,
   weightSubject,
 } from './outbox';
+import { lastReading, spokenCounts, trendCaveat } from './stats';
+import { Stats, useWeightStats } from './statistics';
 
 /**
  * The screen the app opens on and the one somebody sees several times a day.
@@ -86,16 +89,12 @@ function Summary({ day }: { day: DayResponse }) {
     return <p>Nothing logged yet.</p>;
   }
 
-  const { green, yellow, orange, unclassified } = day.colourCounts;
-  const spoken = [
-    `${green} green`,
-    `${yellow} yellow`,
-    `${orange} orange`,
-    ...(unclassified > 0 ? [`${unclassified} not classified yet`] : []),
-  ].join(', ');
-
   return (
-    <p className="dots dots--summary" role="img" aria-label={`This day: ${spoken}.`}>
+    <p
+      className="dots dots--summary"
+      role="img"
+      aria-label={`This day: ${spokenCounts(day.colourCounts)}.`}
+    >
       {items.map((item) => (
         <span key={item.id} aria-hidden="true" className={`dot dot--${dotFor(item)}`}>
           {DOTS[dotFor(item)].letter}
@@ -216,33 +215,52 @@ function MealDetail({
 }
 
 /**
- * The day's weight, or the way to record one.
+ * The day's weight: one tap to record one, and the trend as the answer.
  *
- * One number and its unit, no trend and no comparison with yesterday: the trend is the headline
- * on the statistics screen WEB 5 builds, and a delta next to a single reading is the daily noise
- * this product exists not to show.
+ * What is shown back is deliberately not what was typed in. A daily weight is mostly water,
+ * salt and when the last meal was, and a screen that answers a reading with that reading is the
+ * one that makes a good fortnight look like a failure. So the smoothed trend is the line in
+ * normal text and the reading sits under it as a footnote, which is the same ordering the
+ * statistics screen is built around, see ./statistics.tsx.
  *
- * ponytail: a bare number field rather than the entry WEB 5 specifies, which prefills the last
- * reading and confirms with the resulting trend. Both need weight history this screen does not
- * load, so they arrive with the screen that does, and this input is what they extend.
+ * The trend is the server's, always. It arrives here from the same cached `GET /stats/weight`
+ * the statistics screen reads, so a reading that has not drained yet is confirmed against the
+ * trend as it stands, with the unsent mark beside it saying exactly that, and the number moves
+ * once the queue empties and the outbox announces, see the sync effect in Today.
  */
 function Weight({
   day,
+  weight,
   pending,
+  onEnter,
   onRecord,
 }: {
   day: DayResponse;
+  /** The last thing the server said about the trend, or nothing on a device that never asked. */
+  weight: StatsWeightResponse | undefined;
   pending: boolean;
+  /** Before the field opens, because a reading is stamped with this clock. See the call site. */
+  onEnter: () => void;
   onRecord: (weightKg: number) => void;
 }) {
   const [entering, setEntering] = useState(false);
+
+  const days = weight?.days ?? [];
+  // Null rather than a number whenever the server says there is not enough behind the value to
+  // stand on, which is the same judgement the statistics screen refuses to draw a line through.
+  const trend = trendCaveat(days) === undefined ? (days.at(-1)?.trendKg ?? null) : null;
 
   if (day.weightEntry !== null) {
     return (
       <p className="row">
         <span>Weight</span>
-        <span>
-          {day.weightEntry.weightKg.toFixed(1)} kg{pending && <PendingMark />}
+        <span className="weight">
+          <span className="weight__trend">
+            {trend === null ? 'Trend forming' : `Trend ${trend.toFixed(1)} kg`}
+          </span>
+          <span className="hint">
+            {day.weightEntry.weightKg.toFixed(1)} kg{pending && <PendingMark />}
+          </span>
         </span>
       </p>
     );
@@ -250,12 +268,24 @@ function Weight({
 
   if (!entering) {
     return (
-      <button type="button" className="row" onClick={() => setEntering(true)}>
+      <button
+        type="button"
+        className="row"
+        onClick={() => {
+          onEnter();
+          setEntering(true);
+        }}
+      >
         <span>Weight</span>
         <span className="hint">Add</span>
       </button>
     );
   }
+
+  // The last thing that was actually on the scale, which on most days is within a few hundred
+  // grams of what is about to be typed. Selected on focus rather than only offered, so the
+  // field is both a default to accept and an empty one to type over, at no extra tap either way.
+  const last = lastReading(days);
 
   return (
     <form
@@ -283,6 +313,8 @@ function Weight({
         max="1000"
         required
         autoFocus
+        defaultValue={last === undefined ? undefined : last.toFixed(1)}
+        onFocus={(event) => event.currentTarget.select()}
       />
       <button type="submit">Save</button>
     </form>
@@ -337,7 +369,10 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
   const today = localDateFor(new Date(), user.timezone, user.dayBoundaryHour);
 
   const [date, setDate] = useState<LocalDate>(today);
-  const [composing, setComposing] = useState(false);
+  // Three screens and one variable, rather than a boolean each: two booleans would allow a
+  // state that means nothing, and there is still no router here, see App. A router earns its
+  // place when a screen is worth a URL, which is when back means something on this app.
+  const [screen, setScreen] = useState<'day' | 'compose' | 'stats'>('day');
   const [loaded, setLoaded] = useState<DayResponse | undefined>(undefined);
   const [opened, setOpened] = useState<string | undefined>(undefined);
   const [undoable, setUndoable] = useState<MealResponse | undefined>(undefined);
@@ -345,6 +380,12 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
     pending: new Set(),
     failed: [],
   });
+
+  // The trend behind the weight row, from the device first and the server second like everything
+  // else here. `queue` is the reload trigger: the sync effect below replaces it on every outbox
+  // announce, so a weight that has just drained is asked about again and the confirmation under
+  // it becomes the trend that includes it. See useWeightStats.
+  const { weight } = useWeightStats(today, queue);
 
   // Only the day that was asked for, so paging never shows the previous day's meals under the
   // new day's heading while the cache is being read.
@@ -412,9 +453,9 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
       const target = event.target;
       const typing = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
 
-      // Not while the composer is open. Its own arrows move through the results, and a left
-      // arrow aimed at a meal type button must not page the day underneath it.
-      if (composing || typing || event.metaKey || event.ctrlKey || event.altKey) {
+      // Not while another screen is open. The composer's own arrows move through its results,
+      // and a left arrow aimed at a meal type button must not page the day underneath it.
+      if (screen !== 'day' || typing || event.metaKey || event.ctrlKey || event.altKey) {
         return;
       }
 
@@ -428,7 +469,7 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
     addEventListener('keydown', onKeyDown);
 
     return () => removeEventListener('keydown', onKeyDown);
-  }, [composing, page]);
+  }, [screen, page]);
 
   /**
    * Swipe, as two touch positions and a threshold, rather than a gesture library.
@@ -463,10 +504,14 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
 
   const foods = foodNames(day);
 
-  // After every hook, so the hook order is the same on both branches. The day behind this is
-  // left mounted in state rather than unwound: closing the composer is a render, not a reload.
-  if (composing) {
-    return <Compose user={user} onDone={() => setComposing(false)} />;
+  // After every hook, so the hook order is the same on every branch. The day behind these is
+  // left mounted in state rather than unwound: closing one is a render, not a reload.
+  if (screen === 'compose') {
+    return <Compose user={user} onDone={() => setScreen('day')} />;
+  }
+
+  if (screen === 'stats') {
+    return <Stats user={user} onDone={() => setScreen('day')} />;
   }
 
   return (
@@ -508,7 +553,7 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
           // Paging first is what keeps the screen honest about where it went, rather than logging
           // to a day the person is not looking at.
           setDate(today);
-          setComposing(true);
+          setScreen('compose');
         }}
       >
         Add a meal
@@ -560,9 +605,24 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
 
       <Weight
         day={day}
+        weight={weight}
         pending={queue.pending.has(weightSubject(date))}
+        // A reading is stamped with this clock, so it lands on today whichever day is being
+        // read, exactly as a meal is. Paging first is what keeps the screen honest about where
+        // it went: without it, recording from a day in the past leaves that day still saying
+        // "Add" while the value quietly appears on today. See logWeight.
+        onEnter={() => setDate(today)}
         onRecord={(weightKg) => void logWeight(user, weightKg)}
       />
+
+      {/* The way to the other screen, as a row like the one above it rather than a tab bar: two
+          screens do not need a permanent bar taking a thumb's worth of every day. */}
+      <button type="button" className="row" onClick={() => setScreen('stats')}>
+        <span>Statistics</span>
+        <span className="hint" aria-hidden="true">
+          →
+        </span>
+      </button>
     </main>
   );
 }

@@ -421,3 +421,158 @@ label[for='food'] {
   color: var(--muted);
   cursor: not-allowed;
 }
+
+/*
+ * The weight field, laid out as the row it replaces rather than as a form of its own. The
+ * generic `form` rule above is a column, which is right for the login screen and wrong here:
+ * opening this must not push everything under it down the screen, because what tapped it is a
+ * thumb that is already over the row.
+ */
+form.row {
+  flex-direction: row;
+}
+
+form.row label,
+form.row button {
+  flex: none;
+  margin-top: 0;
+}
+
+form.row input {
+  flex: 1;
+  min-width: 0;
+}
+
+/*
+ * The day's weight, which answers with the trend and keeps the reading underneath it. A column
+ * rather than a row, so the two stack against the right edge and the trend is plainly the line
+ * being read: this is the whole product principle expressed in a flex direction.
+ */
+.weight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.weight__trend {
+  color: var(--text);
+}
+
+/*
+ * Everything below is the statistics screen, see src/statistics.tsx.
+ *
+ * The same column and the same rows as the other two screens. A wider viewport gets a wider
+ * column and a longer range inside it, never a second arrangement: the content is a line and
+ * three lists, which read top to bottom identically on a phone and on a desktop, so the extra
+ * room is worth more as more days than as columns. The range itself is chosen in TypeScript,
+ * because it decides what is requested and not only what is drawn, see CHART_DAYS.
+ */
+main.wide {
+  max-width: 46rem;
+}
+
+h2 {
+  font-size: 1rem;
+  margin: 1.5rem 0 0.5rem;
+}
+
+/* The trend, and the largest thing on the screen. Nothing else here competes with it. */
+.headline {
+  color: var(--text);
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1.1;
+  margin: 0.5rem 0 0.25rem;
+}
+
+/* What the screen does not know yet, said where the headline would have been. */
+.notice {
+  margin: 0.5rem 0;
+}
+
+.chart {
+  display: block;
+  height: auto;
+  margin: 0.5rem 0 1rem;
+  width: 100%;
+}
+
+/*
+ * What was on the scale. Small and grey on purpose: these are the numbers the product exists to
+ * stop people reading as progress, and they are here because somebody wants to see the dot they
+ * stood on the scale for, not because they are the answer.
+ */
+.chart__raw {
+  fill: var(--muted);
+  opacity: 0.5;
+}
+
+/*
+ * The trend. Drawn after the dots, so it passes over them rather than under. The stroke does not
+ * scale with the viewBox, which is what keeps a wider chart a longer line rather than a fatter
+ * one.
+ */
+.chart__line {
+  fill: none;
+  stroke: var(--brand);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.5;
+}
+
+/*
+ * A colour distribution as one bar. Each part carries its letter for the same reason every dot
+ * does: roughly one man in twelve cannot tell this palette's green from its orange, and a bar
+ * whose only signal is hue is a bar those people cannot read. A part too narrow for its letter
+ * simply clips it, and the bar is labelled with the counts either way.
+ */
+.bar {
+  display: flex;
+  border-radius: 0.375rem;
+  flex: 1;
+  gap: 1px;
+  min-width: 6rem;
+  overflow: hidden;
+}
+
+.bar__part {
+  align-items: center;
+  color: var(--on-colour);
+  display: flex;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0.25rem 0;
+}
+
+.bar__part--green {
+  background: var(--green);
+}
+
+.bar__part--yellow {
+  background: var(--yellow);
+}
+
+.bar__part--orange {
+  background: var(--orange);
+}
+
+.bar__part--unclassified {
+  background: var(--unclassified);
+}
+
+/* The label the bars line up after, so three windows read as one comparison rather than three. */
+.window,
+.week__label {
+  flex: none;
+  width: 7.5rem;
+}
+
+/* Right aligned and fixed, so a column of weekly changes can be read down rather than across. */
+.week__weight {
+  flex: none;
+  text-align: right;
+  width: 5.5rem;
+}

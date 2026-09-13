@@ -18,11 +18,13 @@ import { request } from './api';
 /**
  * What this client keeps on the device, and the one place IndexedDB is opened.
  *
- * Three tables, and each exists for a different reason. `days` is what makes a cold launch on a
+ * Four tables, and each exists for a different reason. `days` is what makes a cold launch on a
  * train render something rather than a spinner. `foods` is what makes logging possible with no
  * network at all, because a meal references a food by id and a client with no catalog has no id
  * to reference. `outbox` is the queue of writes that have not reached the server yet, which is
- * the subject of docs/adr/010-pwa-and-offline-outbox.md and is drained by ./outbox.ts.
+ * the subject of docs/adr/010-pwa-and-offline-outbox.md and is drained by ./outbox.ts. `stats`
+ * is the last answer each statistic gave, so the screen that shows them opens on numbers rather
+ * than on nothing while it asks again.
  *
  * The direction is one way and deliberately so. Writes go into the outbox and are replayed at
  * the server; reads are served from these tables first and then replaced by whatever the server
@@ -45,6 +47,22 @@ export interface CachedDay {
  * the order the server ranked them in, which is information the id order does not carry, see
  * api/src/domain/food-search.ts.
  */
+/**
+ * One statistic's last answer, keyed by the question rather than by the URL that asked it.
+ *
+ * The URL carries the range, which moves every day and differs between a phone and a desktop,
+ * so keying on it would leave a row behind on every one of those changes and need a trim like
+ * trimDays. Keying on the question means three rows that are overwritten forever.
+ *
+ * `value` is `unknown` because a row written by an older version of this app is a shape this
+ * one may no longer understand. It is parsed on the way out rather than trusted, see
+ * cachedStats.
+ */
+export interface CachedStats {
+  name: string;
+  value: unknown;
+}
+
 export interface CachedFood {
   id: string;
   rank: number;
@@ -121,6 +139,7 @@ export const database = new Dexie('portionium') as Dexie & {
   days: EntityTable<CachedDay, 'date'>;
   foods: EntityTable<CachedFood, 'id'>;
   outbox: EntityTable<OutboxEntry, 'key'>;
+  stats: EntityTable<CachedStats, 'name'>;
 };
 
 /**
@@ -133,6 +152,12 @@ database.version(1).stores({
   foods: 'id, rank',
   outbox: 'key',
 });
+
+/**
+ * A version states only what changed, Dexie carries the rest forward, which is what keeps an
+ * installed app's cached days and queued writes across an upgrade rather than rebuilding them.
+ */
+database.version(2).stores({ stats: 'name' });
 
 /**
  * The calendar day an instant belongs to, for one user. The client side twin of
@@ -306,6 +331,39 @@ export async function refreshDay(date: LocalDate): Promise<DayResponse> {
   await trimDays();
 
   return day;
+}
+
+/**
+ * The last answer this statistic gave, or nothing if it has never been asked on this device.
+ *
+ * Validated rather than cast, the same rule ./api.ts applies to a response: a row written by a
+ * version of this app that shaped the answer differently is discarded here instead of reaching
+ * a chart as a half shaped object. A miss is the same outcome as a first launch, which every
+ * caller already has to render.
+ */
+export async function cachedStats<T extends z.ZodType>(
+  name: string,
+  schema: T,
+): Promise<z.infer<T> | undefined> {
+  const parsed = schema.safeParse((await database.stats.get(name))?.value);
+
+  return parsed.success ? parsed.data : undefined;
+}
+
+/**
+ * The server's answer, stored on the way past, the same contract refreshDay has: the server is
+ * the source of truth and this is a cache of its last word, never a value computed here.
+ */
+export async function refreshStats<T extends z.ZodType>(
+  name: string,
+  path: string,
+  schema: T,
+): Promise<z.infer<T>> {
+  const value: unknown = await request(path, schema);
+
+  await database.stats.put({ name, value });
+
+  return value as z.infer<T>;
 }
 
 /**

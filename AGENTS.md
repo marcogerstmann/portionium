@@ -859,14 +859,22 @@ stored is cleared, so a queue of meals written on a train survives signing back 
 ### What the device keeps
 
 One IndexedDB database, opened in exactly one place,
-[`web/src/db.ts`](./web/src/db.ts), through Dexie. Three tables, and each is there for a
+[`web/src/db.ts`](./web/src/db.ts), through Dexie. Four tables, and each is there for a
 different reason. `days` is what makes a cold launch with no network render something instead of
 a spinner, capped at `CACHED_DAYS`. `foods` is what makes logging possible with no network at
 all, because a meal references a food by id and a client with no catalog has no id to reference;
 it holds the caller's most eaten entries with the colour already resolved for them, which is the
 same answer `GET /foods/search` gives an autocomplete before anything is typed. It is filled by
-`refreshFoods` once per launch, beside the day window, and read by the composer. `outbox` is the
-queue below.
+`refreshFoods` once per launch, beside the day window, and read by the composer. `stats` is the
+last answer each statistic gave, see the statistics screen below. `outbox` is the queue below.
+
+`stats` is keyed by the question rather than by the URL that asked it, so it is three rows that
+are overwritten forever. A URL carries a range, which moves every day and differs between a
+phone and a desktop, so keying on it would leave a row behind on every one of those changes and
+need a trim like `trimDays`. What comes back out is parsed against the schema rather than cast
+to it, because a row written by an older version of this app is a shape this one may no longer
+understand, and a miss is the same outcome as a first launch, which every caller already
+renders.
 
 Reads are cache first and then replaced. `cachedDay` answers from the device, `refreshDay`
 fetches and overwrites, and a screen renders the first and then the second. The server is the
@@ -922,9 +930,15 @@ key already makes a double send harmless, and the lock only saves the wasted req
 
 ### The Today screen
 
-[`web/src/today.tsx`](./web/src/today.tsx) is the one screen, and
+[`web/src/today.tsx`](./web/src/today.tsx) is the screen the app opens on, and
 [`web/src/day.ts`](./web/src/day.ts) is the arithmetic behind it, split out because none of it
 needs React, a DOM or IndexedDB and all of it is worth testing.
+
+It is also where the other two screens are reached from, as one piece of state rather than a
+boolean each, because two booleans allow a combination that means nothing. There is still no
+router: a router earns its place when a screen is worth a URL, which is when the back gesture
+has to mean something on this app, and today closing a screen is a render rather than a
+navigation.
 
 There is no loading state on it anywhere, which is a decision rather than an omission. A day is
 read from the device and rendered, and the server's answer replaces it whenever it arrives, so a
@@ -996,6 +1010,59 @@ Favourites and meal suggestions are not here, though the API answers both. A fav
 carry a `foodId` and no name, so a preview needs a lookup per food that no endpoint offers, and
 nothing in this client can pin a favourite in the first place, so the list would be empty for
 everybody. Both are worth building once the API answers with names.
+
+### Weight, and the statistics screen
+
+[`web/src/statistics.tsx`](./web/src/statistics.tsx) is the screen that says whether any of this
+is working, and [`web/src/stats.ts`](./web/src/stats.ts) is the arithmetic behind it, the same
+split `day.ts` is to `today.tsx`.
+
+One rule decides the presentation on both this screen and the weight row on the day: the trend
+is the headline and the daily value is never the largest thing on screen. A daily weight is
+mostly water, salt and when the last meal was, and a screen that answers a reading with that
+reading is the one that makes a good fortnight look like a failure. So recording a weight is
+confirmed with the resulting trend and the reading sits under it as a footnote, and the chart
+draws the smoothed line prominently over small grey dots.
+
+Nothing here computes a statistic. The server resolves the classifications, smooths the trend
+and subtracts the previous period, and every number on the screen is one of its answers sliced,
+summed over a window or turned into a sentence. A second implementation of the smoothing on this
+side would be a second answer to one question, which is the mistake `food-search.ts` already
+refuses to make about ranking.
+
+The corollary of the first rule is `trendCaveat`, and it is the part worth not breaking. When
+the server says there is nothing behind the value, `trendKg` null, or that there is too little,
+`lowConfidence`, the line is not drawn at all and the screen says which of the two it is. A
+confident curve through two readings a fortnight apart is a picture that is wrong in exactly the
+direction this screen exists to correct, so it shows the readings on their own instead. The
+judgement is the server's, see `WEIGHT_TREND.minEvidence` in
+[`api/src/domain/weight-trend.ts`](./api/src/domain/weight-trend.ts); this file only reads it.
+
+The charting is hand written SVG, one polyline over a row of circles, and a pure function that
+turns days into coordinates. `chartGeometry`'s viewBox widens with the number of days rather than
+being fixed, which keeps the drawn scale near one at both phone and desktop width: a fixed
+viewBox stretched across a wide screen inflates every dot and every stroke with it, and the line
+has to stay the prominent thing rather than become the fattest. The stroke is additionally
+non-scaling.
+
+A wider viewport buys a longer range and nothing else, `CHART_DAYS`, decided by a `matchMedia`
+read through `useSyncExternalStore` rather than mirrored into state. The content is a line and
+three lists, which read top to bottom identically on a phone, so the extra room is worth more as
+more days than as a second arrangement to keep working. The choice is made in TypeScript rather
+than in CSS because it decides what is requested, not only what is drawn.
+
+The weight entry itself is on the day, one tap from the row that shows it, prefilled with the
+last reading from the same cached `GET /stats/weight` this screen draws. Tapping it while
+looking at an earlier day pages to today first, the same thing the meal button does and for the
+same reason: a reading is stamped with this clock, so without it the value would quietly land on
+today while the day being read still offered to add one.
+
+Three things are deliberately not here. There is no loading state, the same decision the Today
+screen makes. There is no way to correct a reading from this screen, because `DELETE /weight/{date}`
+removes the most recent one for a day and a chart is the wrong place to be deleting things from.
+And the colour distribution is fetched once over the widest window and sliced for the other two
+rather than asked for three times, since the API fills the gaps itself and position in the array
+is therefore the date.
 
 ### One origin, in both directions
 

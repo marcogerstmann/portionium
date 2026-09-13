@@ -34,6 +34,15 @@ const API = '/api/v1';
 const OFFLINE_FOODS = ['Aubergine', 'Blumenkohl', 'Brokkoli'];
 const KEYBOARD_FOODS = ['Camembert', 'Couscous'];
 
+/**
+ * The weight the offline spec records, and no other spec types.
+ *
+ * The same claiming convention as the foods above, one dimension across. Every spec shares an
+ * account and today.spec.ts records a weight of its own, so "the reading on today" is not
+ * something a count can point at; a value nobody else uses is.
+ */
+const OFFLINE_WEIGHT = 79.3;
+
 interface LoggedMeal {
   id: string;
   type: string;
@@ -77,6 +86,14 @@ async function mealsOf(page: Page, names: readonly string[]): Promise<LoggedMeal
   const { items } = (await response.json()) as { items: LoggedMeal[] };
 
   return items.filter((meal) => meal.items.some((item) => wanted.has(item.foodId)));
+}
+
+/** The readings on the server carrying this exact weight, which is how a spec finds its own. */
+async function weightEntriesOf(page: Page, weightKg: number): Promise<{ weightKg: number }[]> {
+  const response = await page.request.get(`${API}/weight?limit=100`);
+  const { items } = (await response.json()) as { items: { weightKg: number }[] };
+
+  return items.filter((entry) => entry.weightKg === weightKg);
 }
 
 /** How many rows are in one of the client's IndexedDB tables, which is what "cached" means. */
@@ -194,7 +211,9 @@ test('adds a food the catalog does not have, with nothing but a name', async ({ 
   expect(entries.map((entry) => entry.name)).toContain(invented);
 });
 
-test('logs three meals with no network and drains them exactly once', async ({ page }) => {
+test('logs three meals and a weight with no network and drains them exactly once', async ({
+  page,
+}) => {
   await signIn(page);
 
   // What the device has to be holding before the connection goes: a meal references a food by
@@ -209,9 +228,19 @@ test('logs three meals with no network and drains them exactly once', async ({ p
     await page.getByRole('button', { name: /^Log / }).click();
   }
 
+  // The other half of the criterion that moved off WEB 2, recorded through this UI rather than
+  // through the API, because what is being tested is that the screen's own write goes into the
+  // outbox rather than onto the network. See the weight entry on the Today screen.
+  await page.getByRole('button', { name: /Weight/ }).click();
+  await page.getByLabel('Weight in kg').fill(String(OFFLINE_WEIGHT));
+  await page.getByRole('button', { name: 'Save' }).click();
+
+  await expect(page.getByText(`${OFFLINE_WEIGHT} kg`)).toBeVisible();
+
   // Durable and on screen with no network at all, and marked as not sent in a way that is
-  // announced rather than only dimmed, see the accessibility note on POR-42.
-  await expect(page.getByRole('img', { name: /not sent yet/ })).toHaveCount(3);
+  // announced rather than only dimmed, see the accessibility note on POR-42. Four marks: three
+  // meals and the reading.
+  await expect(page.getByRole('img', { name: /not sent yet/ })).toHaveCount(4);
 
   await page.context().setOffline(false);
 
@@ -227,4 +256,12 @@ test('logs three meals with no network and drains them exactly once', async ({ p
 
   expect(logged).toHaveLength(3);
   expect(logged.flatMap((meal) => meal.items)).toHaveLength(3);
+
+  // And exactly one reading rather than two. A weight carries no client minted id, so the
+  // idempotency key is the only thing standing between a retry and a second row, see logWeight.
+  expect(await weightEntriesOf(page, OFFLINE_WEIGHT)).toHaveLength(1);
+
+  // The server's copy afterwards, not the optimistic one, which a reload is what tells apart.
+  await page.reload();
+  await expect(page.getByText(`${OFFLINE_WEIGHT} kg`)).toBeVisible();
 });
