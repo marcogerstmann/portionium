@@ -3,13 +3,18 @@ import { expect, test } from '@playwright/test';
 import { ACCOUNT } from '../playwright.config';
 
 /**
- * The whole of the client that exists today: it loads, it signs in, and what is behind the gate
- * renders for an account that has logged nothing.
+ * The whole of the client: it loads, it signs in, and what is behind the gate renders.
  *
  * Thin on purpose. This is the harness proving itself, and a smoke test that asserts a lot is a
  * test that fails for a dozen reasons that are not the one it is named after.
+ *
+ * The empty day it checks is yesterday rather than today, and that is the one thing here worth
+ * knowing. One database serves the whole run and the specs share an account, so today is a day
+ * every other spec logs meals into, see the note on claiming foods in compose.spec.ts. Yesterday
+ * is nobody's, and it is the same claim either way: a day with nothing on it renders as an empty
+ * day rather than as a spinner, which is what the cache in src/db.ts exists for.
  */
-test('loads, signs in, and shows an empty Today', async ({ page }) => {
+test('loads, signs in, and renders a day with nothing on it', async ({ page }) => {
   await page.goto('/');
 
   await expect(page.getByRole('heading', { name: 'portionium' })).toBeVisible();
@@ -19,6 +24,9 @@ test('loads, signs in, and shows an empty Today', async ({ page }) => {
   await page.getByRole('button', { name: 'Sign in' }).click();
 
   await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
+
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.getByRole('heading', { name: 'Yesterday' })).toBeVisible();
   await expect(page.getByText('Nothing logged yet.')).toBeVisible();
 });
 

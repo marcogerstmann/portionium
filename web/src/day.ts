@@ -1,4 +1,10 @@
-import { MEAL_TYPES, type LocalDate, type MealResponse, type MealType } from '@portionium/schemas';
+import {
+  MEAL_TYPES,
+  type LocalDate,
+  type MealResponse,
+  type MealType,
+  type Timezone,
+} from '@portionium/schemas';
 
 import { CACHED_DAYS, shiftDate } from './db';
 
@@ -38,6 +44,40 @@ export const MEAL_TYPE_LABELS: Record<MealType, string> = {
   dinner: 'Dinner',
   snack: 'Snack',
 };
+
+/**
+ * Which meal somebody is most likely logging at this moment, so the composer opens on it.
+ *
+ * Read in the user's own timezone rather than the device's, the same rule localDateFor follows:
+ * a phone that travelled is still a person eating breakfast at home. `Intl.DateTimeFormat` is
+ * the browser's own IANA database and `h23` is what makes midnight hour 0 rather than 24.
+ *
+ * The gaps between the meals are snacks rather than a nearest-meal guess, which is the honest
+ * answer: eating at 16:00 is an afternoon snack and eating at 23:00 is a late one, and calling
+ * either of them dinner is a pre-selection somebody has to undo. Being wrong here costs a tap,
+ * which is exactly what this exists to save, so it only claims the hours it is sure about.
+ */
+export function mealTypeAt(instant: Date, timezone: Timezone): MealType {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: timezone,
+    hour: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(instant);
+
+  // By name rather than by position, the same reason localDateFor reads its parts that way: a
+  // formatted hour can carry a separator or a marker, and a part is just the number.
+  const hour = Number(parts.find((part) => part.type === 'hour')?.value);
+
+  if (hour >= 5 && hour < 11) {
+    return 'breakfast';
+  }
+
+  if (hour >= 11 && hour < 15) {
+    return 'lunch';
+  }
+
+  return hour >= 17 && hour < 22 ? 'dinner' : 'snack';
+}
 
 /**
  * Where paging one day in either direction lands.

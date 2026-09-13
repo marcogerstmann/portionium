@@ -864,7 +864,8 @@ different reason. `days` is what makes a cold launch with no network render some
 a spinner, capped at `CACHED_DAYS`. `foods` is what makes logging possible with no network at
 all, because a meal references a food by id and a client with no catalog has no id to reference;
 it holds the caller's most eaten entries with the colour already resolved for them, which is the
-same answer `GET /foods/search` gives an autocomplete before anything is typed. `outbox` is the
+same answer `GET /foods/search` gives an autocomplete before anything is typed. It is filled by
+`refreshFoods` once per launch, beside the day window, and read by the composer. `outbox` is the
 queue below.
 
 Reads are cache first and then replaced. `cachedDay` answers from the device, `refreshDay`
@@ -943,11 +944,58 @@ on a phone used this week costs no requests beyond the one for the day being sho
 re-fetching the whole window every launch would cost seven for six answers that have not changed.
 
 Two corrections live here and a third deliberately does not. Deleting a meal and giving a food a
-colour need no food search, so they are here; composing or recomposing a meal needs the search
-surface WEB 4 builds and is reached from here once it exists. Undo is not a timer and not a
+colour need no food search, so they are here; recomposing a meal does, and needs `PATCH /meals/{id}`
+rather than the outbox's create path, so it is not here yet. Undo is not a timer and not a
 window that expires: the delete is durable immediately like every other write, and undoing it
 posts the same meal id again, which revives the server's own soft deleted row. So closing the app
 mid undo loses nothing, and there is nothing to race.
+
+### Composing a meal
+
+[`web/src/compose.tsx`](./web/src/compose.tsx), opened from the Today screen and rendered in
+place of it. This is the interaction the product lives or dies on, so everything in it is
+arranged around one number: the taps between opening the app and a logged three item meal.
+
+The search field is an ARIA combobox over a listbox, and that one choice is what makes two of
+the requirements the same code. Focus never leaves the input, the highlight moves with
+`aria-activedescendant`, so desktop operation is type, arrow down, enter, repeat, and picking a
+food puts the caret straight back for the next one. A three item meal is one journey to the
+keyboard rather than three, which on a phone is the difference between the keyboard staying up
+and closing three times.
+
+Answers come from the device first and the server second, and both are one effect. Every
+keystroke sets the cached answer synchronously, so there is never a moment with nothing on
+screen, and a timer behind it asks `GET /foods/search` after 200 ms. The effect's cleanup flips
+a flag and clears the timer, which is one mechanism covering two problems: a request per
+keystroke, and an answer to an abandoned query arriving after a newer one. A failed request is
+swallowed rather than shown, because it means there is no connection, the local answer is
+already up, and an error beside a working list is noise.
+
+The local half is [`web/src/food-search.ts`](./web/src/food-search.ts), and it is deliberately
+not a second copy of the server's search. Exact name, then a prefix of the name, then a prefix
+of a later word, then anywhere in the name, with the cache's own order breaking every tie, since
+that order is the server's answer to what this person eats. There is no typo tolerance: the
+server has a trigram index and a Damerau walk for that, see `api/src/domain/food-search.ts`, and
+two implementations of a ranking are two different answers to one search box. What is scanned
+here is fifty names out of somebody's own diet, where a typo is visibly a typo.
+
+Three smaller decisions are worth knowing. The meal type is pre-selected from the clock in the
+user's own timezone by `mealTypeAt`, and the hours between meals are snacks rather than a guess
+at the nearest one, because being wrong costs the tap this exists to save. A food the catalog
+does not have is added from the last row of the same listbox, with nothing but a name, so
+keyboard-only creation needs no separate control; it is the one thing here that needs a
+connection, because `POST /foods` mints the id and a meal references a food by id. And nothing
+asks a model anything, so adding an unknown food is one insert and never a wait on a classifier:
+it resolves to no colour, which is what puts it in the review queue.
+
+There is no quantity field and there will not be one. The product's claim is that nobody weighs
+their food, and the moment portions become enterable this turns back into the calorie tracker it
+exists to replace. `mealItemSchema.quantity` exists on the wire and stays unused.
+
+Favourites and meal suggestions are not here, though the API answers both. A favourite's items
+carry a `foodId` and no name, so a preview needs a lookup per food that no endpoint offers, and
+nothing in this client can pin a favourite in the first place, so the list would be empty for
+everybody. Both are worth building once the API answers with names.
 
 ### One origin, in both directions
 
@@ -966,9 +1014,17 @@ cookie is marked `Secure`, see Sessions.
 `vite-plugin-pwa` in generate mode, configured in the same file. The manifest carries what a
 browser needs before it offers to install anything: a name, a start URL, `display: standalone`,
 a theme colour and icons at 192 and 512. Those two are the mark on nothing, a green disc, which
-is also the favicon. The `maskable` entry is a third file and is opaque on purpose: a launcher
-crops it to the platform's own shape, so the green runs to the edge and the crop is what supplies
-the circle, with the white disc inside the middle 80% the specification reserves. Workbox
+is also the favicon. The `maskable` entry is a third file and is opaque on purpose, because an
+installed icon cannot be transparent on either platform and iOS composites transparency onto
+black. So it is the disc drawn on the app's own dark background, `--green` on `--background`,
+half the canvas across, which is 62.5% of the circle of 80% diameter the specification reserves
+as the safe zone: whichever shape a launcher crops to, circle or squircle or rounded square, the
+disc keeps a ring of plate around it and nothing takes a bite out of the mark.
+
+The same disc is drawn a third time on the login screen, above the wordmark, as one element and a
+border radius rather than as a fetch of the SVG. It costs no request and `--green` is what makes
+it follow the system's light and dark, where the file in `public/` carries one fixed colour
+because a browser tab cannot be asked which mode it is in. Workbox
 precaches the shell and everything it loads, with `navigateFallback` to `index.html` so a client
 route survives a cold launch, and a denylist for `/api` so a navigation to the API's own paths is
 never answered with this app.

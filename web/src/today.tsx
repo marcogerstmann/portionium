@@ -12,6 +12,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent, type TouchEve
 import { z } from 'zod';
 
 import { request } from './api';
+import { Compose } from './compose';
 import { dayLabel, MEAL_TYPE_LABELS, orderMeals, pageTo } from './day';
 import {
   cachedDay,
@@ -19,9 +20,11 @@ import {
   foodNames,
   localDateFor,
   refreshDay,
+  refreshFoods,
   refreshRecentDays,
   type OutboxEntry,
 } from './db';
+import { Dot, DOTS, dotOf, UNCLASSIFIED, type DotCategory } from './dot';
 import {
   classifyFood,
   deleteMeal,
@@ -50,60 +53,19 @@ import {
  * screen after a tap is the optimistic copy in the cache, and the refresh that follows the drain
  * replaces it with what the server actually holds. See docs/adr/010-pwa-and-offline-outbox.md.
  *
- * What is not here, on purpose: composing a meal. Choosing foods needs the search surface WEB 4
- * builds, so adding one is a button that story fills in, and editing a meal's items is the same
- * surface reached from the meal below. What this screen owns is reading a day and the two
- * corrections that need no search, deleting a meal and giving a food a colour.
- */
-
-/** No colour yet. A fourth visual state rather than a missing one, see Dot. */
-const UNCLASSIFIED = 'unclassified';
-
-type DotCategory = Category | typeof UNCLASSIFIED;
-
-/**
- * What each colour is called, and the letter that carries it when the colour cannot.
+ * Composing a meal is ./compose.tsx, opened from here and rendered in place of the day. A
+ * screen rather than a panel below the list, because the search field wants the keyboard and the
+ * whole viewport, and because the day behind it is already showing what was just added by the
+ * time it closes. What this screen owns is reading a day and the corrections that need no
+ * search, deleting a meal and giving a food a colour.
  *
- * The letter is not decoration. Around one man in twelve cannot tell this palette's green from
- * its orange, and a screen whose only signal is hue is a screen those people cannot read, so
- * every dot says which it is in a second channel that survives any kind of colour vision. The
- * `aria-label` is the third channel, for a person who is not looking at it at all.
+ * Editing a meal's items is still not here. It is the same surface as composing one, reached
+ * from the meal below, and it needs PATCH /meals/{id} rather than the outbox's create path.
  */
-const DOTS: Record<DotCategory, { letter: string; label: string }> = {
-  green: { letter: 'G', label: 'green' },
-  yellow: { letter: 'Y', label: 'yellow' },
-  orange: { letter: 'O', label: 'orange' },
-  [UNCLASSIFIED]: { letter: '?', label: 'not classified yet' },
-};
-
-/**
- * One traffic light, as a letter in a coloured disc.
- *
- * `role="img"` with a label rather than bare text, so a screen reader announces "green" once
- * instead of spelling out a row of letters, and the letter itself is left to the eye.
- *
- * `pending` is the unsent state, and it is drawn as a ring rather than by dimming the dot. A
- * dimmed colour is a worse colour, which on this screen is a different meaning; a ring is a mark
- * beside the meaning rather than a change to it. It is announced too, for the reason the ticket
- * gives: a screen reader has no way to hear that something looks faint.
- */
-function Dot({ category, pending = false }: { category: DotCategory; pending?: boolean }) {
-  const { letter, label } = DOTS[category];
-
-  return (
-    <span
-      role="img"
-      aria-label={pending ? `${label}, not sent yet` : label}
-      className={`dot dot--${category}${pending ? ' dot--pending' : ''}`}
-    >
-      {letter}
-    </span>
-  );
-}
 
 /** An item's colour as a dot takes it: null on the wire is a state, not a missing value. */
-function dotOf(item: MealItemResponse): DotCategory {
-  return item.category ?? UNCLASSIFIED;
+function dotFor(item: MealItemResponse): DotCategory {
+  return dotOf(item.category);
 }
 
 /**
@@ -135,8 +97,8 @@ function Summary({ day }: { day: DayResponse }) {
   return (
     <p className="dots dots--summary" role="img" aria-label={`This day: ${spoken}.`}>
       {items.map((item) => (
-        <span key={item.id} aria-hidden="true" className={`dot dot--${dotOf(item)}`}>
-          {DOTS[dotOf(item)].letter}
+        <span key={item.id} aria-hidden="true" className={`dot dot--${dotFor(item)}`}>
+          {DOTS[dotFor(item)].letter}
         </span>
       ))}
     </p>
@@ -166,7 +128,7 @@ function MealRow({
 
       <span className="dots">
         {meal.items.map((item) => (
-          <Dot key={item.id} category={dotOf(item)} pending={pending} />
+          <Dot key={item.id} category={dotFor(item)} pending={pending} />
         ))}
       </span>
     </button>
@@ -375,6 +337,7 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
   const today = localDateFor(new Date(), user.timezone, user.dayBoundaryHour);
 
   const [date, setDate] = useState<LocalDate>(today);
+  const [composing, setComposing] = useState(false);
   const [loaded, setLoaded] = useState<DayResponse | undefined>(undefined);
   const [opened, setOpened] = useState<string | undefined>(undefined);
   const [undoable, setUndoable] = useState<MealResponse | undefined>(undefined);
@@ -410,6 +373,11 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
   // network. Once per launch: the days do not change while somebody is reading one.
   useEffect(() => {
     void refreshRecentDays(today);
+
+    // And the catalog the composer searches when there is no network, which is the other half of
+    // what the device has to hold for logging to work in a basement, see refreshFoods. Swallowed
+    // for the same reason the days are: a cache that could not be warmed is the offline case.
+    void refreshFoods().catch(() => undefined);
   }, [today]);
 
   // Both the queue's own state and the day it changed. A drain that lands re-fetches the day in
@@ -444,7 +412,9 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
       const target = event.target;
       const typing = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
 
-      if (typing || event.metaKey || event.ctrlKey || event.altKey) {
+      // Not while the composer is open. Its own arrows move through the results, and a left
+      // arrow aimed at a meal type button must not page the day underneath it.
+      if (composing || typing || event.metaKey || event.ctrlKey || event.altKey) {
         return;
       }
 
@@ -458,7 +428,7 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
     addEventListener('keydown', onKeyDown);
 
     return () => removeEventListener('keydown', onKeyDown);
-  }, [page]);
+  }, [composing, page]);
 
   /**
    * Swipe, as two touch positions and a threshold, rather than a gesture library.
@@ -493,6 +463,12 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
 
   const foods = foodNames(day);
 
+  // After every hook, so the hook order is the same on both branches. The day behind this is
+  // left mounted in state rather than unwound: closing the composer is a render, not a reload.
+  if (composing) {
+    return <Compose user={user} onDone={() => setComposing(false)} />;
+  }
+
   return (
     <main onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
       <header>
@@ -523,6 +499,20 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
       <Summary day={day} />
 
       <Rejected entries={queue.failed} onDiscard={(key) => void discardWrite(key)} />
+
+      <button
+        type="button"
+        className="save"
+        onClick={() => {
+          // A meal is stamped with this clock, so it lands on today whichever day is being read.
+          // Paging first is what keeps the screen honest about where it went, rather than logging
+          // to a day the person is not looking at.
+          setDate(today);
+          setComposing(true);
+        }}
+      >
+        Add a meal
+      </button>
 
       <section aria-label="Meals">
         {orderMeals(day.meals).map((meal) => (

@@ -59,6 +59,27 @@ main {
   min-height: 100dvh;
 }
 
+/*
+ * The mark and the wordmark under it, centred over the form.
+ *
+ * Scoped to `.centred` rather than set on `h1`, because the same element is a heading on the day
+ * and on the composer, where it shares a row with a button and belongs against the left edge.
+ *
+ * `align-self` on the disc because its parent is a flex column: left alone the container would
+ * stretch it to the full width and the border radius would draw a pill rather than a circle.
+ */
+.centred h1 {
+  text-align: center;
+}
+
+.mark {
+  align-self: center;
+  background: var(--green);
+  border-radius: 50%;
+  height: 4rem;
+  width: 4rem;
+}
+
 header {
   display: flex;
   align-items: baseline;
@@ -304,4 +325,99 @@ button.row {
 
 .rejected .row:last-child {
   border-bottom: none;
+}
+
+/*
+ * Everything below is the composer, see src/compose.tsx.
+ *
+ * The same column and the same rows as the day, because it is the same app and a second visual
+ * language for the second screen would be two things to keep in step for no gain.
+ */
+
+/* The four meal types, each a whole target rather than a word to aim at. One tap to correct. */
+.types {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.types button {
+  flex: 1;
+  margin-top: 0;
+  padding: 0.625rem 0.25rem;
+}
+
+/*
+ * The chosen one, marked with a fill rather than only a border. A border alone is the weakest
+ * signal a design has, and this is the field somebody checks at a glance before saving.
+ */
+.types button[aria-pressed='true'] {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--on-colour);
+  font-weight: 700;
+}
+
+/*
+ * The field is a block of its own rather than a label sitting beside an input. A `label` is
+ * inline by default, which would put the two on one line and leave the field as wide as its
+ * default size rather than as wide as the results underneath it.
+ */
+label[for='food'] {
+  display: block;
+}
+
+.search {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.chosen,
+.results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.chosen {
+  margin-bottom: 1rem;
+}
+
+/* The remove control sits in its row rather than a button's own top margin below it. */
+.chosen button {
+  margin-top: 0;
+}
+
+/*
+ * A result row. Not a button, because it is an `option` inside a `listbox` and the keyboard
+ * reaches it through the field above rather than by tabbing onto it, which is the ARIA combobox
+ * pattern. The touch floor still applies: it is tapped like anything else.
+ */
+.option {
+  cursor: pointer;
+  justify-content: flex-start;
+  min-height: var(--touch);
+  padding: 0.5rem;
+}
+
+/*
+ * Where the arrow keys are. A background rather than an outline, so it reads as a position in a
+ * list rather than as focus, which is still in the field where the caret is.
+ */
+.option--active {
+  background: light-dark(#eef3ee, #1e2a20);
+}
+
+/*
+ * The one control that ends the screen, so it is the full width and sits below the list rather
+ * than floating over it: a button that overlaps the results is a button that covers the thing
+ * somebody is reaching for.
+ */
+.save {
+  width: 100%;
+}
+
+.save:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
 }

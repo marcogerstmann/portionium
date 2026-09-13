@@ -37,10 +37,13 @@ export default defineConfig({
           // colour gets the disc and not a square of background it did not ask for.
           { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
-          // A launcher crops this one to whatever shape the platform draws, so it is opaque and
-          // green to the edge: the crop supplies the circle, and a transparent maskable icon
-          // would be cut against nothing. The white disc sits inside the middle 80% the
-          // specification reserves, so no platform's shape can take a bite out of it.
+          // The same mark, drawn the only way an installed icon can be. A launcher crops this one
+          // to whatever shape the platform draws, so it is opaque and green to every edge and
+          // carries nothing at all: the crop is what supplies the disc, and on a launcher that
+          // draws circles the result is the favicon with the wallpaper around it rather than a
+          // logo sitting on a plate. Nothing is inside the middle 80% the specification reserves
+          // because there is nothing to protect, which is what makes the shape the platform
+          // picks irrelevant. A transparent maskable icon would be cut against nothing instead.
           {
             src: '/icon-maskable-512.png',
             sizes: '512x512',

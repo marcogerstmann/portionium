@@ -58,6 +58,13 @@ function Login({ onSignedIn }: { onSignedIn: (user: UserResponse) => void }) {
 
   return (
     <main className="centred">
+      {/* The mark, above the wordmark. Drawn rather than fetched: it is one element and a border
+          radius, so it costs no request, and taking its colour from `--green` is what makes it
+          follow the system's light and dark like the rest of the app, where public/icon.svg
+          carries one fixed colour because a browser tab cannot be asked. It carries no label
+          because the heading under it is already the name, and announcing "portionium" twice is
+          worse than not drawing it at all. */}
+      <div className="mark" />
       <h1>portionium</h1>
 
       <form onSubmit={(event) => void submit(event)}>

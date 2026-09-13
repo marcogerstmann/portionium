@@ -1,7 +1,7 @@
 import type { MealResponse, MealType } from '@portionium/schemas';
 import { describe, expect, it } from 'vitest';
 
-import { dayLabel, orderMeals, pageTo } from './day';
+import { dayLabel, mealTypeAt, orderMeals, pageTo } from './day';
 import { CACHED_DAYS } from './db';
 
 /**
@@ -89,5 +89,41 @@ describe('dayLabel', () => {
     // 10 September 2026 is a Thursday. Rendered anywhere but UTC, a date parsed as midnight can
     // land on the day before, which is the bug localDateFor exists to prevent.
     expect(dayLabel('2026-09-10', '2026-09-13')).toContain('Thursday');
+  });
+});
+
+describe('mealTypeAt', () => {
+  /** 13 September 2026 is not a DST transition anywhere below, so the offsets are the plain ones. */
+  const at = (utc: string) => new Date(`2026-09-13T${utc}:00Z`);
+
+  it('claims the hours it is sure about', () => {
+    // Berlin is UTC+2 in September, so each of these is two hours later where the person is.
+    expect(mealTypeAt(at('06:00'), 'Europe/Berlin')).toBe('breakfast');
+    expect(mealTypeAt(at('11:00'), 'Europe/Berlin')).toBe('lunch');
+    expect(mealTypeAt(at('17:00'), 'Europe/Berlin')).toBe('dinner');
+  });
+
+  it('calls the gaps between them a snack rather than guessing at the nearest meal', () => {
+    // 16:00 and 23:00 local. Both are snacks, and calling either one dinner would be a
+    // pre-selection somebody has to undo, which is the tap this exists to save.
+    expect(mealTypeAt(at('14:00'), 'Europe/Berlin')).toBe('snack');
+    expect(mealTypeAt(at('21:00'), 'Europe/Berlin')).toBe('snack');
+  });
+
+  it('reads the hour in the user profile timezone and not the device one', () => {
+    // One instant, three places, three meals: 05:00 in New York, 11:00 in Berlin, 18:00 in
+    // Tokyo. A phone that travelled is still a person eating breakfast at home, which is why
+    // this takes a timezone the same way localDateFor does.
+    const instant = at('09:00');
+
+    expect(mealTypeAt(instant, 'America/New_York')).toBe('breakfast');
+    expect(mealTypeAt(instant, 'Europe/Berlin')).toBe('lunch');
+    expect(mealTypeAt(instant, 'Asia/Tokyo')).toBe('dinner');
+  });
+
+  it('puts the small hours in the day that is ending, not in breakfast', () => {
+    // 02:00 local. Somebody eating then has not started tomorrow, and the day boundary in their
+    // profile says the same thing about which date it lands on, see localDateFor.
+    expect(mealTypeAt(at('00:00'), 'Europe/Berlin')).toBe('snack');
   });
 });

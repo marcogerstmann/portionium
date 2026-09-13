@@ -11,7 +11,9 @@
     <!-- For a browser that has no SVG favicon, which is the only reason to ship a second one. -->
     <link rel="alternate icon" href="/icon-192.png" type="image/png" />
     <!-- iOS reads this one, ignores the manifest's icons entirely, and composites anything
-         transparent onto black, so it gets the opaque icon rather than the bare disc. -->
+         transparent onto black, so it gets the opaque icon rather than the bare disc. It rounds
+         the corners itself, which on a solid green square is the same mark under a different
+         mask than the one a launcher applies. -->
     <link rel="apple-touch-icon" href="/icon-maskable-512.png" />
     <title>portionium</title>
   </head>

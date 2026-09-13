@@ -1,6 +1,7 @@
 import {
   PROBLEM,
   type Category,
+  type FoodResponse,
   type LocalDate,
   type MealResponse,
   type MealType,
@@ -153,23 +154,24 @@ export function classifyAttempt(cause: unknown): AttemptOutcome {
  * Log a meal. Durable when this resolves, sent whenever the network allows.
  *
  * The returned meal is what the screen renders and what goes into the cached day, ids and all.
- * It is a prediction of the row the server will hold, which is safe to make because everything
- * in it except the colours is decided here: the id is minted here, the instant is this clock's,
- * and the local date is derived with the same rule the server derives it with, see localDateFor.
+ * It is a prediction of the row the server will hold, and every part of it is decided here: the
+ * id is minted here, the instant is this clock's, the local date is derived with the same rule
+ * the server derives it with, see localDateFor, and the colours come from the entries the
+ * caller picked.
  *
- * The colours are the one part that is a guess, taken from the cached catalog. A food that is
- * not in the cache renders as unclassified until the refresh after the drain replaces the day
- * with the server's copy, which is the correct answer arriving a moment late rather than a
- * wrong one persisting.
+ * The whole catalog entry is taken rather than its id, which is what makes that last part true.
+ * A food is chosen from a search result or from the cache, so the colour resolved for this user
+ * is already in the caller's hand, and taking ids here would mean looking it up again against a
+ * cache of fifty entries that a food found on the server is not necessarily in. The name comes
+ * with it for the same reason: the screen renders a word next to every dot, and a day the
+ * server has not answered for yet has no other source for one. See withMeal.
  */
 export async function logMeal(
   user: UserResponse,
-  meal: { type: MealType; foodIds: readonly string[]; notes?: string },
+  meal: { type: MealType; foods: readonly FoodResponse[]; notes?: string },
 ): Promise<MealResponse> {
   const loggedAt = new Date();
   const date = localDateFor(loggedAt, user.timezone, user.dayBoundaryHour);
-  const known = await cachedFoods();
-  const colours = new Map(known.map((food) => [food.id, food.category]));
 
   const optimistic: MealResponse = {
     id: uuidv7(),
@@ -178,18 +180,15 @@ export async function logMeal(
     loggedAt: loggedAt.toISOString(),
     localDate: date,
     ...(meal.notes === undefined ? {} : { notes: meal.notes }),
-    items: meal.foodIds.map((foodId, position) => ({
+    items: meal.foods.map((food, position) => ({
       id: uuidv7(),
-      foodId,
+      foodId: food.id,
       position,
-      category: colours.get(foodId) ?? null,
+      category: food.category,
     })),
   };
 
-  // The catalog entries go into the day beside the meal, not just their colours: the screen
-  // renders a name next to every dot, and a day the server has not answered for yet has no
-  // other source for one. See withMeal.
-  await cacheLocally(date, (day) => withMeal(day, optimistic, known));
+  await cacheLocally(date, (day) => withMeal(day, optimistic, meal.foods));
 
   await enqueue({
     path: '/meals',
@@ -204,7 +203,7 @@ export async function logMeal(
       // still a meal eaten tonight, and letting the server stamp it on arrival would file it
       // under the wrong day.
       loggedAt: optimistic.loggedAt,
-      items: meal.foodIds.map((foodId) => ({ foodId })),
+      items: meal.foods.map((food) => ({ foodId: food.id })),
       ...(meal.notes === undefined ? {} : { notes: meal.notes }),
     },
   });
