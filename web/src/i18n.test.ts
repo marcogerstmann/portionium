@@ -32,7 +32,7 @@ describe('the two dictionaries', () => {
 describe('t', () => {
   it('fills in a placeholder from the vars it is given', () => {
     setLocale('en-US');
-    expect(t('todaySignOut', { name: 'Ada' })).toBe('Sign out, Ada');
+    expect(t('composeAdding', { name: 'Ada' })).toBe('Adding Ada');
   });
 
   it('reads the active language, not a fixed one', () => {

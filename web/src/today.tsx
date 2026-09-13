@@ -10,10 +10,8 @@ import {
   type UserResponse,
 } from '@portionium/schemas';
 import {
-  ChartLine,
   ChevronLeft,
   ChevronRight,
-  LogOut,
   Plus,
   RefreshCw,
   Trash2,
@@ -21,9 +19,7 @@ import {
   Undo2,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type FormEvent, type TouchEvent } from 'react';
-import { z } from 'zod';
 
-import { request } from './api';
 import { Compose } from './compose';
 import { dayLabel, mealTypeLabel, orderMeals, pageTo } from './day';
 import {
@@ -52,7 +48,7 @@ import {
   weightSubject,
 } from './outbox';
 import { formatKg, lastReading, spokenCounts, trendCaveat } from './stats';
-import { Stats, useWeightStats } from './statistics';
+import { useWeightStats } from './statistics';
 
 /**
  * The screen the app opens on and the one somebody sees several times a day.
@@ -416,16 +412,29 @@ function Rejected({
   );
 }
 
-export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: () => void }) {
+export function Today({
+  user,
+  onComposingChange,
+}: {
+  user: UserResponse;
+  /** So the tab bar in App can get out of the composer's way, see there. */
+  onComposingChange: (composing: boolean) => void;
+}) {
   const t = useT();
   const locale = useLocale();
   const today = localDateFor(new Date(), user.timezone, user.dayBoundaryHour);
 
   const [date, setDate] = useState<LocalDate>(today);
-  // Three screens and one variable, rather than a boolean each: two booleans would allow a
-  // state that means nothing, and there is still no router here, see App. A router earns its
-  // place when a screen is worth a URL, which is when back means something on this app.
-  const [screen, setScreen] = useState<'day' | 'compose' | 'stats'>('day');
+  // The day and the composer, rather than a boolean each: two booleans would allow a state that
+  // means nothing. Statistics and Settings are no longer screens this component owns, see POR-65
+  // and App; what is left here is the one thing the composer still needs to be, an overlay on
+  // top of the day rather than a fourth tab.
+  const [screen, setScreen] = useState<'day' | 'compose'>('day');
+
+  useEffect(() => {
+    onComposingChange(screen === 'compose');
+  }, [screen, onComposingChange]);
+
   const [loaded, setLoaded] = useState<DayResponse | undefined>(undefined);
   const [opened, setOpened] = useState<string | undefined>(undefined);
   const [undoable, setUndoable] = useState<MealResponse | undefined>(undefined);
@@ -563,26 +572,10 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
     return <Compose user={user} date={date} onDone={() => setScreen('day')} />;
   }
 
-  if (screen === 'stats') {
-    return <Stats user={user} onDone={() => setScreen('day')} />;
-  }
-
   return (
     <main onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-      <header className="flex items-center justify-between gap-4">
+      <header>
         <h1>{dayLabel(date, today, locale)}</h1>
-        <button
-          type="button"
-          className="flex shrink-0 items-center gap-2 text-sm"
-          onClick={() => {
-            // The row is deleted server side, so the credential is dead whatever this client
-            // does next. A failure here is still a sign out locally, for the same reason.
-            void request('/auth/logout', z.null(), { method: 'POST' }).finally(onSignedOut);
-          }}
-        >
-          <LogOut aria-hidden="true" className="size-4" />
-          {t('todaySignOut', { name: user.displayName })}
-        </button>
       </header>
 
       {/* Visually an arrow, still read aloud. `sr-only` is Tailwind's own, which is what the
@@ -682,14 +675,6 @@ export function Today({ user, onSignedOut }: { user: UserResponse; onSignedOut: 
         pending={queue.pending.has(weightSubject(date))}
         onRecord={(weightKg) => void logWeight(user, weightKg, date)}
       />
-
-      {/* The way to the other screen, as a row like the one above it rather than a tab bar: two
-          screens do not need a permanent bar taking a thumb's worth of every day. */}
-      <button type="button" className="row" onClick={() => setScreen('stats')}>
-        <ChartLine aria-hidden="true" className="size-4 text-muted" />
-        <span className="flex-1">{t('todayStatistics')}</span>
-        <ChevronRight aria-hidden="true" className="size-4 text-muted" />
-      </button>
     </main>
   );
 }

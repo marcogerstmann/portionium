@@ -1,19 +1,22 @@
 import { loginResponseSchema, userResponseSchema, type UserResponse } from '@portionium/schemas';
+import { ChartLine, House, Settings as SettingsIcon } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 
 import { ApiError, request, session, UNAUTHENTICATED_EVENT } from './api';
 import { setLocale, useT } from './i18n';
 import { drain } from './outbox';
+import { Settings } from './settings';
+import { Stats } from './statistics';
 import { Today } from './today';
 
 /**
- * The shell: one gate, and the day behind it.
+ * The shell: one gate, and the three destinations behind it.
  *
- * There is still no router and no state library. The app is one screen, so a router would be a
- * dependency mapping one path to one component, and the state a screen holds is the day it is
- * showing, which belongs to that screen. Both become worth having when there is a second screen
- * to route to, which is WEB 5. What is here is what every screen after it depends on: who is
- * signed in, how that is found out, and what happens when it stops being true.
+ * There is still no router and no state library. A router earns its place when a screen is
+ * worth a URL, which is when the back gesture has to mean something on this app, and switching
+ * tabs is a render rather than a navigation. What is here is what every screen after it depends
+ * on: who is signed in, how that is found out, what happens when it stops being true, and, since
+ * POR-65, which of the three tabs is the active one.
  */
 
 /** While `GET /me` is in flight. A cookie may or may not be attached and neither answer is in yet. */
@@ -102,9 +105,73 @@ function Login({ onSignedIn }: { onSignedIn: (user: UserResponse) => void }) {
   );
 }
 
+type Tab = 'today' | 'stats' | 'settings';
+
+/**
+ * Room for the tab bar under a screen's own content, so the bar never covers the last row of a
+ * scrolled screen. 5rem is the bar's rendered height with a rem or so to spare rather than a
+ * measured figure: the bar is three lines of CSS with nothing that changes its height at
+ * runtime, so a constant is the whole of the layout problem, not a size worth reading off a ref.
+ */
+const CLEAR_TAB_BAR = 'pb-[calc(5rem+env(safe-area-inset-bottom))]';
+
+/**
+ * The three destinations, always on screen and never over the composer.
+ *
+ * Plain buttons in a `nav` rather than an ARIA tablist: three static destinations need no
+ * roving tabindex or arrow key handling, and a `<button>` is already reachable by Tab and
+ * activated by Enter or Space, which is the whole of WEB 10's keyboard requirement. What a tab
+ * bar needs beyond that is `aria-current`, and a second channel beside it so the active one is
+ * not colour alone, here the label and icon both going bold.
+ *
+ * `env(safe-area-inset-bottom)` is padding on the bar rather than a margin below it, so the
+ * bar's own background reaches the true bottom of the screen, behind the home indicator, rather
+ * than leaving a gap of whatever colour sits underneath.
+ */
+function TabBar({ tab, onChange }: { tab: Tab; onChange: (tab: Tab) => void }) {
+  const t = useT();
+
+  const tabs: { key: Tab; label: string; icon: typeof House }[] = [
+    { key: 'today', label: t('navToday'), icon: House },
+    { key: 'stats', label: t('navStatistics'), icon: ChartLine },
+    { key: 'settings', label: t('navSettings'), icon: SettingsIcon },
+  ];
+
+  return (
+    <nav
+      className="fixed inset-x-0 bottom-0 flex border-t border-line bg-background pb-[env(safe-area-inset-bottom)]"
+      aria-label={t('navLabel')}
+    >
+      {tabs.map(({ key, label, icon: Icon }) => {
+        const active = tab === key;
+
+        return (
+          <button
+            key={key}
+            type="button"
+            className="flex min-h-touch flex-1 flex-col items-center justify-center gap-1 rounded-none border-none bg-transparent"
+            aria-current={active ? 'page' : undefined}
+            onClick={() => onChange(key)}
+          >
+            <Icon aria-hidden="true" className={`size-5 ${active ? 'text-brand' : 'text-muted'}`} />
+            <span className={`text-xs ${active ? 'font-bold text-brand' : 'text-muted'}`}>
+              {label}
+            </span>
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
 export function App() {
   const [user, setUser] = useState<UserResponse | undefined>(undefined);
   const [ready, setReady] = useState(false);
+  const [tab, setTab] = useState<Tab>('today');
+  // Lifted out of today.tsx rather than read from there, because this is the one thing about the
+  // composer the tab bar needs to know: it is a full screen view and not a fourth tab, so it and
+  // the bar must never be on screen together, see Today's onComposingChange.
+  const [composing, setComposing] = useState(false);
 
   /**
    * `setUser` and the one thing that has to happen alongside every call to it: a stored account
@@ -116,6 +183,13 @@ export function App() {
   function applyUser(next: UserResponse | undefined): void {
     setUser(next);
     setLocale(next?.locale ?? null);
+
+    // Today is the screen the app opens on, and signing out is as fresh a start as a reload: the
+    // next person at this device, or the same one signing back in, should not land on whichever
+    // tab the last session happened to leave open.
+    if (next === undefined) {
+      setTab('today');
+    }
   }
 
   // Whether there is a session is the server's answer, not a flag this app stored. A cookie it
@@ -152,6 +226,24 @@ export function App() {
       }}
     />
   ) : (
-    <Today user={user} onSignedOut={() => applyUser(undefined)} />
+    <>
+      {/* All three stay mounted, `hidden` rather than unmounted, so switching tabs never
+          discards a day being viewed or a half composed meal: there is nothing to discard, it
+          was never taken off the page. `hidden` also takes whichever two are inactive out of the
+          accessibility tree and the tab order, so nothing behind the visible screen is reachable
+          by finding it first. The padding below each is a floor generous enough to clear the tab
+          bar's own height plus the safe area, so the bar never sits over a screen's last row. */}
+      <div hidden={tab !== 'today'} className={composing ? undefined : CLEAR_TAB_BAR}>
+        <Today user={user} onComposingChange={setComposing} />
+      </div>
+      <div hidden={tab !== 'stats'} className={CLEAR_TAB_BAR}>
+        <Stats user={user} />
+      </div>
+      <div hidden={tab !== 'settings'} className={CLEAR_TAB_BAR}>
+        <Settings user={user} onSignedOut={() => applyUser(undefined)} />
+      </div>
+
+      {!composing && <TabBar tab={tab} onChange={setTab} />}
+    </>
   );
 }

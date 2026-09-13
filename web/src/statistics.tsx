@@ -10,7 +10,6 @@ import {
   type WeeklySummaryWeek,
   type WeightTrendDay,
 } from '@portionium/schemas';
-import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { z } from 'zod';
 
@@ -271,14 +270,7 @@ function WeekRow({ week }: { week: WeeklySummaryWeek }) {
   );
 }
 
-export function Stats({
-  user,
-  onDone,
-}: {
-  user: UserResponse;
-  /** Back to the day. */
-  onDone: () => void;
-}) {
+export function Stats({ user }: { user: UserResponse }) {
   const t = useT();
   const locale = useLocale();
   const today: LocalDate = localDateFor(new Date(), user.timezone, user.dayBoundaryHour);
@@ -303,12 +295,8 @@ export function Stats({
 
   return (
     <main className="max-w-3xl">
-      <header className="flex items-center justify-between gap-4">
+      <header>
         <h1>{t('statsTitle')}</h1>
-        <button type="button" className="flex shrink-0 items-center gap-2 text-sm" onClick={onDone}>
-          <ArrowLeft aria-hidden="true" className="size-4" />
-          {t('statsBack')}
-        </button>
       </header>
 
       <section aria-label={t('todayWeightLabel')}>

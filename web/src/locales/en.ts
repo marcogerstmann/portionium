@@ -47,7 +47,6 @@ export const en = {
   todayMealNoun: 'A meal',
   todayNotSaved: '{noun} on {date} was not saved. {failure}',
   todayDiscard: 'Discard',
-  todaySignOut: 'Sign out, {name}',
   todayDayNav: 'Day',
   todayPreviousDay: 'Previous day',
   todayNextDay: 'Next day',
@@ -55,7 +54,14 @@ export const en = {
   todayMealsLabel: 'Meals',
   todayMealDeleted: '{mealType} deleted.',
   todayUndo: 'Undo',
-  todayStatistics: 'Statistics',
+
+  navLabel: 'Destinations',
+  navToday: 'Today',
+  navStatistics: 'Statistics',
+  navSettings: 'Settings',
+
+  settingsTitle: 'Settings',
+  settingsSignOut: 'Sign out',
 
   composeMealTypeGroup: 'Meal type',
   composeTitle: 'Add a meal',
@@ -75,7 +81,6 @@ export const en = {
   statsReadings: { one: '{count} reading', other: '{count} readings' },
   statsDaysOf7: '{count} of 7 days',
   statsTitle: 'Statistics',
-  statsBack: 'Back',
   statsColoursTitle: 'Colours',
   statsLastDays: 'Last {window} days',
   statsWeeksTitle: 'Weeks',

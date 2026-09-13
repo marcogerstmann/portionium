@@ -50,15 +50,28 @@ async function signIn(page: Page) {
 
 async function openStatistics(page: Page) {
   await signIn(page);
-  await page.getByRole('button', { name: 'Statistics' }).click();
+  await page
+    .getByRole('navigation', { name: 'Destinations' })
+    .getByRole('button', { name: 'Statistics' })
+    .click();
   await expect(page.getByRole('heading', { name: 'Statistics' })).toBeVisible();
 }
 
-test('is one tap from the day and one tap back', async ({ page }) => {
-  await openStatistics(page);
+test('is one tap from the day and one tap back, and marks the active tab', async ({ page }) => {
+  const tabBar = page.getByRole('navigation', { name: 'Destinations' });
 
-  await page.getByRole('button', { name: 'Back' }).click();
+  await openStatistics(page);
+  await expect(tabBar.getByRole('button', { name: 'Statistics' })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+
+  await tabBar.getByRole('button', { name: 'Today' }).click();
   await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
+  await expect(tabBar.getByRole('button', { name: 'Today' })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
 });
 
 test('says there is not enough behind the trend rather than drawing a line', async ({ page }) => {
@@ -84,7 +97,10 @@ test('shows the colour distribution over three windows, in a second channel as w
   // Something to distribute. A bar with nothing in it says so instead of drawing a colour, which
   // is the right answer for an empty account and not the one this test is about.
   await logMeal(page, 'Skyr');
-  await page.getByRole('button', { name: 'Statistics' }).click();
+  await page
+    .getByRole('navigation', { name: 'Destinations' })
+    .getByRole('button', { name: 'Statistics' })
+    .click();
 
   const colours = page.getByRole('region', { name: 'Colours' });
 
@@ -105,9 +121,15 @@ test('lists the weeks and opens from the device on a second visit', async ({ pag
 
   // The second visit is the claim: the last answer is on the device, so the screen opens on
   // numbers with no network rather than on nothing while it asks again. See cachedStats.
-  await page.getByRole('button', { name: 'Back' }).click();
+  await page
+    .getByRole('navigation', { name: 'Destinations' })
+    .getByRole('button', { name: 'Today' })
+    .click();
   await page.context().setOffline(true);
-  await page.getByRole('button', { name: 'Statistics' }).click();
+  await page
+    .getByRole('navigation', { name: 'Destinations' })
+    .getByRole('button', { name: 'Statistics' })
+    .click();
 
   await expect(page.getByRole('region', { name: 'Weeks' }).getByText(/\d/).first()).toBeVisible();
   await page.context().setOffline(false);

@@ -47,7 +47,6 @@ export const de: typeof en = {
   todayMealNoun: 'Eine Mahlzeit',
   todayNotSaved: '{noun} vom {date} wurde nicht gespeichert. {failure}',
   todayDiscard: 'Verwerfen',
-  todaySignOut: 'Abmelden, {name}',
   todayDayNav: 'Tag',
   todayPreviousDay: 'Vorheriger Tag',
   todayNextDay: 'Nächster Tag',
@@ -55,7 +54,14 @@ export const de: typeof en = {
   todayMealsLabel: 'Mahlzeiten',
   todayMealDeleted: '{mealType} gelöscht.',
   todayUndo: 'Rückgängig',
-  todayStatistics: 'Statistik',
+
+  navLabel: 'Bereiche',
+  navToday: 'Heute',
+  navStatistics: 'Statistik',
+  navSettings: 'Einstellungen',
+
+  settingsTitle: 'Einstellungen',
+  settingsSignOut: 'Abmelden',
 
   composeMealTypeGroup: 'Mahlzeitentyp',
   composeTitle: 'Mahlzeit hinzufügen',
@@ -75,7 +81,6 @@ export const de: typeof en = {
   statsReadings: { one: '{count} Messung', other: '{count} Messungen' },
   statsDaysOf7: '{count} von 7 Tagen',
   statsTitle: 'Statistik',
-  statsBack: 'Zurück',
   statsColoursTitle: 'Farben',
   statsLastDays: 'Letzte {window} Tage',
   statsWeeksTitle: 'Wochen',
