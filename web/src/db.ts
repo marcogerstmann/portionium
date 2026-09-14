@@ -352,6 +352,36 @@ export async function refreshDay(date: LocalDate): Promise<DayResponse> {
 }
 
 /**
+ * Every cached day, with these foods' waiting entries given the colour that was just confirmed
+ * for them. The optimistic half of clearing the review queue, see ./review.tsx.
+ *
+ * Every day rather than one, which is the difference between this and classifyFood in
+ * ./outbox.ts: the queue is not about a day at all, and a food somebody eats every morning is
+ * grey on all seven of them. What happens inside each day is not decided here either, it is
+ * withClassification, which is the server's own rule written down once: an entry still waiting
+ * takes the colour, an entry that already carries one is history and is left exactly as it is.
+ *
+ * Read through cachedDay rather than off the row, so a day cached by an older version of this
+ * app is skipped instead of being written back in a shape this one invented, see there.
+ */
+export async function classifyCachedDays(
+  verdicts: readonly { foodId: string; category: Category }[],
+): Promise<void> {
+  for (const date of await database.days.orderBy('date').primaryKeys()) {
+    const day = await cachedDay(date);
+
+    if (day !== undefined) {
+      await putDay(
+        verdicts.reduce(
+          (current, verdict) => withClassification(current, verdict.foodId, verdict.category),
+          day,
+        ),
+      );
+    }
+  }
+}
+
+/**
  * The last answer this statistic gave, or nothing if it has never been asked on this device.
  *
  * Validated rather than cast, the same rule ./api.ts applies to a response: a row written by a

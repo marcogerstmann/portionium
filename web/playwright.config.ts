@@ -58,6 +58,7 @@ export const ACCOUNTS = {
   compose: fixture('compose'),
   statistics: fixture('statistics'),
   settings: fixture('settings'),
+  review: fixture('review'),
 };
 
 /**

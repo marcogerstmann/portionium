@@ -185,6 +185,20 @@ describe('withClassification', () => {
     expect(after.colourCounts).toEqual({ green: 0, yellow: 0, orange: 1, unclassified: 1 });
     expect(after.foods[0]?.category).toBe('orange');
   });
+
+  it('leaves an entry that already carries a colour exactly as it is', () => {
+    // The rule the review queue depends on: confirming a colour fills in the entries still
+    // waiting and never rewrites history, which is what the server does in the same transaction.
+    // A copy that recoloured them all would disagree with the refresh that follows it.
+    const eaten = meal('green');
+    const foodId = eaten.entries[0]?.foodId ?? '';
+    const day = withMeal(emptyDay('2026-09-13'), eaten, [food(foodId, 'Already judged')]);
+
+    const after = withClassification(day, foodId, 'orange');
+
+    expect(after.meals[0]?.entries.map((entry) => entry.category)).toEqual(['green']);
+    expect(after.colourCounts).toEqual({ green: 1, yellow: 0, orange: 0, unclassified: 0 });
+  });
 });
 
 describe('shiftDate', () => {

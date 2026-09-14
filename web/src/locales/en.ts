@@ -56,6 +56,16 @@ export const en = {
   todayMealsLabel: 'Meals',
   todayMealDeleted: '{mealType} deleted.',
   todayUndo: 'Undo',
+  todayReviewQueue: 'Foods with no colour',
+  todayReviewCount: { one: '{count} waiting for a colour', other: '{count} waiting for a colour' },
+
+  reviewTitle: 'Give a colour',
+  reviewDone: 'Done',
+  reviewIntro:
+    'These are the foods nothing has judged yet, most eaten first. A colour here decides every future entry of that food, and fills in the entries already logged that are still waiting.',
+  reviewEmpty: 'Nothing to review. Every food you have logged has a colour.',
+  reviewFoodsLabel: 'Foods with no colour',
+  reviewConfirm: { one: 'Confirm {count} food', other: 'Confirm {count} foods' },
 
   navLabel: 'Destinations',
   navToday: 'Today',

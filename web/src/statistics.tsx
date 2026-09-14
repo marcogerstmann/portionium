@@ -88,8 +88,12 @@ function useWide(): boolean {
  * replaced a moment later is what this cache is for, and the alternative is an empty screen
  * while the request runs. A failure is swallowed: it means there is no connection, and what is
  * on screen is already the best answer available.
+ *
+ * Exported, because the review queue's badge is the same kind of thing: one answer from the
+ * server, keyed by the question rather than by the URL, rendered from the device first so a
+ * launch with no connection still shows the last count. See useUnclassifiedCount in ./review.tsx.
  */
-function useStatistic<T extends z.ZodType>(
+export function useStatistic<T extends z.ZodType>(
   name: string,
   path: string,
   schema: T,

@@ -56,6 +56,22 @@ export const de: typeof en = {
   todayMealsLabel: 'Mahlzeiten',
   todayMealDeleted: '{mealType} gelöscht.',
   todayUndo: 'Rückgängig',
+  todayReviewQueue: 'Lebensmittel ohne Farbe',
+  todayReviewCount: {
+    one: '{count} wartet auf eine Farbe',
+    other: '{count} warten auf eine Farbe',
+  },
+
+  reviewTitle: 'Farbe geben',
+  reviewDone: 'Fertig',
+  reviewIntro:
+    'Diese Lebensmittel hat noch niemand eingeordnet, am häufigsten gegessene zuerst. Eine Farbe hier gilt für jeden künftigen Eintrag dieses Lebensmittels und füllt die bereits eingetragenen, die noch warten.',
+  reviewEmpty: 'Nichts zu prüfen. Jedes eingetragene Lebensmittel hat eine Farbe.',
+  reviewFoodsLabel: 'Lebensmittel ohne Farbe',
+  reviewConfirm: {
+    one: '{count} Lebensmittel bestätigen',
+    other: '{count} Lebensmittel bestätigen',
+  },
 
   navLabel: 'Bereiche',
   navToday: 'Heute',

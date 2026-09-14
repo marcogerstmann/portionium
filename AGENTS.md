@@ -1075,6 +1075,40 @@ carry a `foodId` and no name, so a preview needs a lookup per food that no endpo
 nothing in this client can pin a favourite in the first place, so the list would be empty for
 everybody. Both are worth building once the API answers with names.
 
+### The review queue
+
+[`web/src/review.tsx`](./web/src/review.tsx), reached from a row on the Today screen and only
+while there is something in it. A chore rather than a destination, so it is not a fourth tab, and
+the row carries the count from `GET /foods/unclassified/count`, which is its own endpoint
+precisely so a client that only wants to know whether to show the row does not pay for the
+ranking query to find out.
+
+It closes the gap the composer opens. A food added on the fly arrives with no colour, and so does
+every entry logged with it, and a grey entry is one the statistics cannot place, so without this
+the faster the composer gets the more of the diary becomes uncountable.
+
+A colour button marks a row and one button at the bottom sends the lot, because the endpoint takes
+a batch and a queue is something somebody clears in a sitting. The list is asked for at the
+endpoint's own default of 50, which is also the cap on one batch, so everything on screen can
+always go in the one request and there is no paging and no chunking here.
+
+Nothing on this screen goes through the outbox, unlike every write on the Today screen. An outbox
+entry is shaped around the one day it changes, which is what its drain refreshes, and a batch of
+verdicts about foods is about no day in particular. This is a screen somebody opens deliberately
+and waits on, which is the case `api.ts` describes as sending without an idempotency key.
+
+What a confirmation does to the entries already logged is the server's, in the same transaction,
+see `colourWaitingEntries`. `classifyCachedDays` in [`web/src/db.ts`](./web/src/db.ts) mirrors
+exactly that on the device and nothing more: every cached day rather than the one on screen, since
+a food somebody eats every morning is grey on all seven of them, and inside each day the rule is
+`withClassification`, so an entry still waiting takes the colour and an entry that already carries
+one is left as history, see [ADR 011](./docs/adr/011-an-entry-is-a-colour.md).
+
+The `suggestion` each queue entry carries is deliberately not rendered. It is null for everything
+today, because nothing produces a model verdict yet. The screen is built now and the source of
+what fills it changes later, which is the groundwork the AI epic needs: a suggestion never colours
+an entry, a confirmation does.
+
 ### Weight, and the statistics screen
 
 [`web/src/statistics.tsx`](./web/src/statistics.tsx) is the screen that says whether any of this

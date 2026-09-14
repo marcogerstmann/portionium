@@ -13,6 +13,7 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  ListChecks,
   Plus,
   RefreshCw,
   Trash2,
@@ -48,6 +49,7 @@ import {
   restoreMeal,
   weightSubject,
 } from './outbox';
+import { Review, useUnclassifiedCount } from './review';
 import { formatKg, lastReading, spokenCounts, trendCaveat } from './stats';
 import { useWeightStats } from './statistics';
 
@@ -440,11 +442,17 @@ export function Today({
   // means nothing. Statistics and Settings are no longer screens this component owns, see POR-65
   // and App; what is left here is the one thing the composer still needs to be, an overlay on
   // top of the day rather than a fourth tab.
-  const [screen, setScreen] = useState<'day' | 'compose'>('day');
+  const [screen, setScreen] = useState<'day' | 'compose' | 'review'>('day');
 
   useEffect(() => {
     onComposingChange(screen === 'compose');
   }, [screen, onComposingChange]);
+
+  // Bumped whenever something that changes the queue has happened behind a screen that was
+  // just closed: composing can add a food with no colour, and reviewing takes them away again.
+  // It is the badge's reload trigger and nothing else, see useUnclassifiedCount.
+  const [queueChanged, setQueueChanged] = useState(0);
+  const queued = useUnclassifiedCount(queueChanged);
 
   const [loaded, setLoaded] = useState<DayResponse | undefined>(undefined);
   const [opened, setOpened] = useState<string | undefined>(undefined);
@@ -587,7 +595,32 @@ export function Today({
   // After every hook, so the hook order is the same on every branch. The day behind these is
   // left mounted in state rather than unwound: closing one is a render, not a reload.
   if (screen === 'compose') {
-    return <Compose user={user} date={date} onDone={() => setScreen('day')} />;
+    return (
+      <Compose
+        user={user}
+        date={date}
+        onDone={() => {
+          setScreen('day');
+          // A food the catalog did not have was possibly just minted, and it arrived with no
+          // colour, so the badge under this screen is a count that has just changed.
+          setQueueChanged((count) => count + 1);
+        }}
+      />
+    );
+  }
+
+  if (screen === 'review') {
+    return (
+      <Review
+        onDone={() => {
+          setScreen('day');
+          // The cached day was recoloured in place by the confirmation, and the server has
+          // already applied the same rule to the real one, so this reads both back in order.
+          void load(date);
+        }}
+        onConfirmed={() => setQueueChanged((count) => count + 1)}
+      />
+    );
   }
 
   return (
@@ -699,6 +732,25 @@ export function Today({
             {t('todayUndo')}
           </button>
         </p>
+      )}
+
+      {/* Only while there is something in it, which is what makes it an errand that appears
+          rather than a permanent row saying zero. Below the meals and above the weight, because
+          it is a chore and must not compete with the one button this screen is for. */}
+      {queued > 0 && (
+        <button type="button" className="row" onClick={() => setScreen('review')}>
+          <ListChecks aria-hidden="true" className="size-4 shrink-0" />
+          <span className="flex-1">{t('todayReviewQueue')}</span>
+          {/* The badge, and the same fact as a sentence for a reader who gets no shape from a
+              pill with a number in it. */}
+          <span
+            aria-hidden="true"
+            className="rounded-full bg-brand px-2 py-0.5 text-sm font-bold text-on-colour"
+          >
+            {queued}
+          </span>
+          <span className="sr-only">{t('todayReviewCount', { count: queued })}</span>
+        </button>
       )}
 
       <Weight
