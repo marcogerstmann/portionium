@@ -14,8 +14,15 @@ const ACCOUNT = ACCOUNTS.review;
  * the server changed them on its side, which is IndexedDB plus a real confirmation, not a pure
  * function over a day.
  *
- * The tests below share an account and a today, so they run in the order they are written: the
- * first is the only moment this account's queue is empty, and the second fills it.
+ * The tests below share an account and a today, so they run in the order they are written.
+ *
+ * The queue itself is the shared catalog's, not this account's: a food with no verdict at all is
+ * pending for every account until somebody gives it one, see findPendingFoods in
+ * api/src/db/unclassified.ts, and no write endpoint can give it a verdict visible to every other
+ * account, only the seed loader and the AI pipeline can. compose.spec.ts's own "adds a food the
+ * catalog does not have" test leaves exactly one such food behind on purpose, forever, for
+ * whichever spec file happens to run after it in this shared server. So nothing below assumes
+ * the count starts at zero; each test reads it fresh and asserts what its own actions changed.
  */
 
 const API = '/api/v1';
@@ -47,23 +54,36 @@ async function colourOf(page: Page, name: string): Promise<string | null> {
   return food?.category ?? null;
 }
 
-test('there is no queue row while nothing is waiting', async ({ page }) => {
+/** How many foods nothing has judged yet, right now, read fresh rather than assumed. */
+async function unclassifiedCount(page: Page): Promise<number> {
+  const response = await page.request.get(`${API}/foods/unclassified/count`);
+
+  return ((await response.json()) as { count: number }).count;
+}
+
+test('the queue row is hidden exactly when the count is zero, and names the count otherwise', async ({
+  page,
+}) => {
   await signIn(page);
 
-  // The account has logged nothing yet, so this is the one moment its queue is genuinely empty.
-  // Asserted at the source first, or the absence below would pass for having nothing to do with
-  // the count at all.
-  const count = await page.request.get(`${API}/foods/unclassified/count`);
+  const pending = await unclassifiedCount(page);
+  const queueRow = page.getByRole('button', { name: /Foods with no colour/ });
 
-  expect(((await count.json()) as { count: number }).count).toBe(0);
-
-  await expect(page.getByRole('button', { name: /Foods with no colour/ })).toBeHidden();
+  if (pending === 0) {
+    await expect(queueRow).toBeHidden();
+  } else {
+    await expect(queueRow).toHaveAccessibleName(new RegExp(`${pending} waiting for a colour`));
+  }
 });
 
 test('clears several foods in one request and recolours the entries waiting on them', async ({
   page,
 }) => {
   await signIn(page);
+
+  // Whatever this account's queue already held, from this run's own catalog litter, before this
+  // test adds its two. Everything below is a delta against this rather than an absolute.
+  const before = await unclassifiedCount(page);
 
   // Every confirmation this test causes, so "several rows are one request" is a count rather
   // than an impression. Registered before anything is confirmed.
@@ -101,7 +121,7 @@ test('clears several foods in one request and recolours the entries waiting on t
   // The badge, which is what makes the queue advertise itself rather than wait to be found.
   const queueRow = page.getByRole('button', { name: /Foods with no colour/ });
   await expect(queueRow).toBeVisible();
-  await expect(queueRow).toHaveAccessibleName(/2 waiting for a colour/);
+  await expect(queueRow).toHaveAccessibleName(new RegExp(`${before + 2} waiting for a colour`));
 
   await queueRow.click();
   await expect(page.getByRole('heading', { name: 'Give a colour' })).toBeVisible();
@@ -114,10 +134,18 @@ test('clears several foods in one request and recolours the entries waiting on t
 
   await page.getByRole('button', { name: 'Confirm 2 foods' }).click();
 
-  // Both rows are gone and the screen says so plainly rather than showing an error or nothing.
-  await expect(
-    page.getByText('Nothing to review. Every food you have logged has a colour.'),
-  ).toBeVisible();
+  // Both rows are gone. The empty sentence is only guaranteed once nothing else was already
+  // pending; whatever this run's other spec files left behind is not this test's business and
+  // may still be on screen, so what is asserted either way is that these two specifically left.
+  await expect(page.getByText(FIRST)).toHaveCount(0);
+  await expect(page.getByText(SECOND)).toHaveCount(0);
+
+  if (before === 0) {
+    await expect(
+      page.getByText('Nothing to review. Every food you have logged has a colour.'),
+    ).toBeVisible();
+  }
+
   expect(confirmations).toHaveLength(1);
 
   await page.getByRole('button', { name: 'Done' }).click();
@@ -139,7 +167,13 @@ test('clears several foods in one request and recolours the entries waiting on t
   expect(await colourOf(page, FIRST)).toBe('green');
   expect(await colourOf(page, SECOND)).toBe('orange');
 
-  // The queue row went with the queue, the same rule that kept it off the screen in the first
-  // test: it appears while there is something in it and not otherwise.
-  await expect(page.getByRole('button', { name: /Foods with no colour/ })).toBeHidden();
+  // Back to wherever it started: these two left the queue, and the row reflects whatever is
+  // left, the same rule the first test in this file checks in general.
+  if (before === 0) {
+    await expect(page.getByRole('button', { name: /Foods with no colour/ })).toBeHidden();
+  } else {
+    await expect(page.getByRole('button', { name: /Foods with no colour/ })).toHaveAccessibleName(
+      new RegExp(`${before} waiting for a colour`),
+    );
+  }
 });
