@@ -14,8 +14,10 @@ import {
   ChevronLeft,
   ChevronRight,
   ListChecks,
+  Pencil,
   Plus,
   RefreshCw,
+  Repeat2,
   Trash2,
   TriangleAlert,
   Undo2,
@@ -34,7 +36,7 @@ import {
   refreshRecentDays,
   type OutboxEntry,
 } from './db';
-import { Dot, categoryLabel, dotOf, UNCLASSIFIED, type DotCategory } from './dot';
+import { Dot, categoryLabel, dotOf, type DotCategory } from './dot';
 import { useLocale, useT } from './i18n';
 import {
   classifyFood,
@@ -46,6 +48,8 @@ import {
   outbox,
   OUTBOX_CHANGED_EVENT,
   outboxState,
+  recolourEntry,
+  repeatMeal,
   restoreMeal,
   weightSubject,
 } from './outbox';
@@ -70,11 +74,12 @@ import { useWeightStats } from './statistics';
  * Composing a meal is ./compose.tsx, opened from here and rendered in place of the day. A
  * screen rather than a panel below the list, because the search field wants the keyboard and the
  * whole viewport, and because the day behind it is already showing what was just added by the
- * time it closes. What this screen owns is reading a day and the corrections that need no
- * search, deleting a meal and giving a food a colour.
+ * time it closes.
  *
- * Editing a meal's items is still not here. It is the same surface as composing one, reached
- * from the meal below, and it needs PATCH /meals/{id} rather than the outbox's create path.
+ * Editing a meal is the same surface as composing one, so it is ./compose.tsx opened with the
+ * meal rather than a second screen, see there. What stays here are the corrections that need no
+ * search: deleting a meal, logging one again, giving a colourless food a colour, and moving one
+ * entry's colour.
  */
 
 /** An entry's colour as a dot takes it: null on the wire is a state, not a missing value. */
@@ -153,22 +158,34 @@ function MealRow({
 }
 
 /**
- * An opened meal: what was in it, and the two things that can be done to it here.
+ * An opened meal: what was in it, and the four things that can be done to it here.
  *
- * An entry with no colour is a button rather than a line of text, because it is the one thing on
- * this screen worth fixing in passing: the food is in front of the person who ate it, and asking
- * them then is how a catalog gets classified without anybody sitting down to a queue.
+ * Every entry is a button, and which question it asks depends on the colour it already carries,
+ * which is the whole of docs/adr/011-an-entry-is-a-colour.md read off one row.
  *
- * Only an entry that names a food can be that button, and only while it is grey. A bare colour
- * names nothing to classify, and an entry that already carries a colour is history rather than a
- * question: recolouring the food behind it leaves it exactly as it is, see
- * docs/adr/011-an-entry-is-a-colour.md. Correcting one entry on its own is WEB 15.
+ * A grey entry naming a food asks about the **food**: nothing has judged it, so a verdict here
+ * decides every future entry of it and fills in the ones still waiting, see classifyFood. That
+ * is the one thing on this screen worth fixing in passing, because the food is in front of the
+ * person who ate it and asking them then is how a catalog gets classified without anybody
+ * sitting down to a queue.
+ *
+ * A coloured entry asks about the **entry**: it is history, the food behind it is not in
+ * question, and what somebody is correcting is what they ate that one time. Nothing else moves,
+ * not the food and not another day, see recolourEntry. A bare colour is only ever this, since it
+ * names no food to have an opinion about.
+ *
+ * The three meal-level controls sit under the list rather than in the row above it, where the
+ * whole row is already one button. Logging it again before correcting it, because repeating is
+ * the daily one and editing is the occasional one, and deleting last and alone in red.
  */
 function MealDetail({
   meal,
   foods,
   pending,
   onClassify,
+  onRecolour,
+  onEdit,
+  onRepeat,
   onDelete,
 }: {
   meal: MealResponse;
@@ -176,9 +193,14 @@ function MealDetail({
   /** The subjects still queued, so a colour given a moment ago is marked as not sent yet. */
   pending: ReadonlySet<string>;
   onClassify: (foodId: string, category: Category) => void;
+  onRecolour: (entryId: string, category: Category) => void;
+  onEdit: () => void;
+  onRepeat: () => void;
   onDelete: () => void;
 }) {
-  const [classifying, setClassifying] = useState<string | undefined>(undefined);
+  // The entry whose colour buttons are open, by entry id rather than by food id: two entries can
+  // name one food and only the one that was tapped is the one being asked about.
+  const [asking, setAsking] = useState<string | undefined>(undefined);
   const t = useT();
   const locale = useLocale();
 
@@ -191,31 +213,30 @@ function MealDetail({
           const { foodId } = entry;
           const name =
             foodId === null ? t('bareEntry') : (foods.get(foodId)?.name ?? t('todayUnknownFood'));
+          const open = asking === entry.id;
+          // Grey and naming a food is the one case that is about the catalog. Everything else is
+          // about this entry alone, which includes a bare colour.
+          const classifying = entry.category === null && foodId !== null;
 
           return (
             <li key={entry.id}>
-              {entry.category === null && foodId !== null ? (
-                <button
-                  type="button"
-                  className="row justify-start"
-                  aria-expanded={classifying === foodId}
-                  onClick={() => setClassifying(classifying === foodId ? undefined : foodId)}
-                >
-                  <Dot category={UNCLASSIFIED} />
-                  <span>{name}</span>
-                  <span className="ml-auto text-sm text-muted">{t('todayClassify')}</span>
-                </button>
-              ) : (
-                <p className="row justify-start">
-                  <Dot
-                    category={dotFor(entry)}
-                    pending={foodId !== null && pending.has(foodSubject(foodId))}
-                  />
-                  <span>{name}</span>
-                </p>
-              )}
+              <button
+                type="button"
+                className="row justify-start"
+                aria-expanded={open}
+                onClick={() => setAsking(open ? undefined : entry.id)}
+              >
+                <Dot
+                  category={dotFor(entry)}
+                  pending={foodId !== null && pending.has(foodSubject(foodId))}
+                />
+                <span>{name}</span>
+                <span className="ml-auto shrink-0 text-sm text-muted">
+                  {classifying ? t('todayClassify') : t('todayRecolour')}
+                </span>
+              </button>
 
-              {foodId !== null && classifying === foodId && (
+              {open && (
                 <p className="mb-2 flex gap-2 pl-4">
                   {CATEGORIES.map((category) => (
                     <button
@@ -223,11 +244,19 @@ function MealDetail({
                       type="button"
                       className="flex flex-1 items-center justify-center gap-2 text-sm"
                       onClick={() => {
-                        setClassifying(undefined);
-                        onClassify(foodId, category);
+                        setAsking(undefined);
+
+                        if (classifying && foodId !== null) {
+                          onClassify(foodId, category);
+                        } else {
+                          onRecolour(entry.id, category);
+                        }
                       }}
                     >
-                      <Dot category={category} />
+                      {/* Silent: the button already says the colour, which is what Dot's
+                          `silent` exists for, the same call the composer's colour row makes.
+                          Announced twice these read "orange, orange". */}
+                      <Dot category={category} silent />
                       <span>{categoryLabel(category)}</span>
                     </button>
                   ))}
@@ -238,9 +267,28 @@ function MealDetail({
         })}
       </ul>
 
+      <div className="mt-4 flex gap-2">
+        <button
+          type="button"
+          className="flex flex-1 items-center justify-center gap-2"
+          onClick={onRepeat}
+        >
+          <Repeat2 aria-hidden="true" className="size-4" />
+          {t('todayRepeatMeal')}
+        </button>
+        <button
+          type="button"
+          className="flex flex-1 items-center justify-center gap-2"
+          onClick={onEdit}
+        >
+          <Pencil aria-hidden="true" className="size-4" />
+          {t('todayEditMeal')}
+        </button>
+      </div>
+
       <button
         type="button"
-        className="mt-4 flex w-full items-center justify-center gap-2 border-danger text-danger"
+        className="mt-2 flex w-full items-center justify-center gap-2 border-danger text-danger"
         onClick={onDelete}
       >
         <Trash2 aria-hidden="true" className="size-4" />
@@ -425,6 +473,12 @@ function Rejected({
   );
 }
 
+/**
+ * What is in front of the person. A composer with no meal is a new one and a composer with one
+ * is that meal being corrected, which is the same screen either way, see ./compose.tsx.
+ */
+type Screen = { kind: 'day' } | { kind: 'compose'; meal?: MealResponse } | { kind: 'review' };
+
 export function Today({
   user,
   onComposingChange,
@@ -438,14 +492,15 @@ export function Today({
   const today = localDateFor(new Date(), user.timezone, user.dayBoundaryHour);
 
   const [date, setDate] = useState<LocalDate>(today);
-  // The day and the composer, rather than a boolean each: two booleans would allow a state that
-  // means nothing. Statistics and Settings are no longer screens this component owns, see POR-65
-  // and App; what is left here is the one thing the composer still needs to be, an overlay on
-  // top of the day rather than a fourth tab.
-  const [screen, setScreen] = useState<'day' | 'compose' | 'review'>('day');
+  // One value rather than a boolean each: two booleans would allow a state that means nothing.
+  // The composer carries the meal it is correcting for the same reason, since "composing" and
+  // "which meal" are one fact and a separate `editing` beside a screen name is two halves of it
+  // that can disagree. Statistics and Settings are no longer screens this component owns, see
+  // POR-65 and App.
+  const [screen, setScreen] = useState<Screen>({ kind: 'day' });
 
   useEffect(() => {
-    onComposingChange(screen === 'compose');
+    onComposingChange(screen.kind === 'compose');
   }, [screen, onComposingChange]);
 
   // Bumped whenever something that changes the queue has happened behind a screen that was
@@ -543,7 +598,7 @@ export function Today({
 
       // Not while another screen is open. The composer's own arrows move through its results,
       // and a left arrow aimed at a meal type button must not page the day underneath it.
-      if (screen !== 'day' || typing || event.metaKey || event.ctrlKey || event.altKey) {
+      if (screen.kind !== 'day' || typing || event.metaKey || event.ctrlKey || event.altKey) {
         return;
       }
 
@@ -594,13 +649,14 @@ export function Today({
 
   // After every hook, so the hook order is the same on every branch. The day behind these is
   // left mounted in state rather than unwound: closing one is a render, not a reload.
-  if (screen === 'compose') {
+  if (screen.kind === 'compose') {
     return (
       <Compose
         user={user}
         date={date}
+        {...(screen.meal === undefined ? {} : { meal: screen.meal, foods })}
         onDone={() => {
-          setScreen('day');
+          setScreen({ kind: 'day' });
           // A food the catalog did not have was possibly just minted, and it arrived with no
           // colour, so the badge under this screen is a count that has just changed.
           setQueueChanged((count) => count + 1);
@@ -609,11 +665,11 @@ export function Today({
     );
   }
 
-  if (screen === 'review') {
+  if (screen.kind === 'review') {
     return (
       <Review
         onDone={() => {
-          setScreen('day');
+          setScreen({ kind: 'day' });
           // The cached day was recoloured in place by the confirmation, and the server has
           // already applied the same rule to the real one, so this reads both back in order.
           void load(date);
@@ -674,7 +730,7 @@ export function Today({
       <button
         type="button"
         className="primary mb-2 flex items-center justify-center gap-2"
-        onClick={() => setScreen('compose')}
+        onClick={() => setScreen({ kind: 'compose' })}
       >
         <Plus aria-hidden="true" className="size-5" />
         {t('todayAddMeal')}
@@ -696,6 +752,15 @@ export function Today({
                 foods={foods}
                 pending={queue.pending}
                 onClassify={(foodId, category) => void classifyFood(date, foodId, category)}
+                onRecolour={(entryId, category) => void recolourEntry(meal, entryId, category)}
+                onEdit={() => setScreen({ kind: 'compose', meal })}
+                // The day being read rather than today, the same rule every write on this screen
+                // follows, see instantFor. The day's own foods are what the new entries take
+                // their colours from, which is the catalog as it stands now.
+                onRepeat={() => {
+                  setOpened(undefined);
+                  void repeatMeal(user, meal, date, foods);
+                }}
                 onDelete={() => {
                   setOpened(undefined);
                   // Held for the undo, which is what puts it back: the server's delete is soft
@@ -738,7 +803,7 @@ export function Today({
           rather than a permanent row saying zero. Below the meals and above the weight, because
           it is a chore and must not compete with the one button this screen is for. */}
       {queued > 0 && (
-        <button type="button" className="row" onClick={() => setScreen('review')}>
+        <button type="button" className="row" onClick={() => setScreen({ kind: 'review' })}>
           <ListChecks aria-hidden="true" className="size-4 shrink-0" />
           <span className="flex-1">{t('todayReviewQueue')}</span>
           {/* The badge, and the same fact as a sentence for a reader who gets no shape from a

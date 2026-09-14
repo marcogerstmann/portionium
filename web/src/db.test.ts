@@ -99,6 +99,13 @@ function food(id: string, name: string): FoodResponse {
   return { id, name, kind: 'ingredient', category: 'green' };
 }
 
+/** A second meal, so "replaced in place" is distinguishable from "replaced the whole list". */
+const other: MealResponse = {
+  ...meal('yellow'),
+  id: '01930000-0000-7000-8000-0000000000aa',
+  type: 'snack',
+};
+
 describe('withMeal', () => {
   it('appends the meal and recounts the day', () => {
     const day = withMeal(emptyDay('2026-09-13'), meal('green', 'yellow'), []);
@@ -114,6 +121,29 @@ describe('withMeal', () => {
     const day = withMeal(withMeal(emptyDay('2026-09-13'), first, []), second, []);
 
     expect(day.meals.map((entry) => entry.id)).toEqual([first.id, second.id]);
+  });
+
+  it('replaces a meal it already has rather than adding a second copy of it', () => {
+    // The optimistic half of an edit: one entry recoloured, in place, with the day's own summary
+    // moving with it. A second copy would render the meal twice and count it twice.
+    const before = meal('green', 'green');
+    const after = {
+      ...before,
+      type: 'dinner' as const,
+      entries: [before.entries[0]!, { ...before.entries[1]!, category: 'orange' as const }],
+    };
+
+    const day = withMeal(
+      withMeal(withMeal(emptyDay('2026-09-13'), before, []), other, []),
+      after,
+      [],
+    );
+
+    expect(day.meals.map((entry) => entry.id)).toEqual([before.id, other.id]);
+    expect(day.meals[0]).toEqual(after);
+    // One green left in the edited meal, the yellow of the meal beside it, and the orange the
+    // edit produced. Two greens would mean the old copy was still being counted.
+    expect(day.colourCounts).toEqual({ green: 1, yellow: 1, orange: 1, unclassified: 0 });
   });
 
   it('leaves the day it was given alone, so a render holding the old one is unaffected', () => {

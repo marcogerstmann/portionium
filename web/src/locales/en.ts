@@ -35,6 +35,9 @@ export const en = {
   todayDayImageLabel: 'This day: {summary}.',
   todayUnknownFood: 'Unknown food',
   todayClassify: 'Classify',
+  todayRecolour: 'Change colour',
+  todayEditMeal: 'Edit',
+  todayRepeatMeal: 'Log again',
   todayDeleteMeal: 'Delete this {mealType}',
   todayWeightLabel: 'Weight',
   todayTrendForming: 'Trend forming',
@@ -89,6 +92,7 @@ export const en = {
 
   composeMealTypeGroup: 'Meal type',
   composeTitle: 'Add a meal',
+  composeEditTitle: 'Edit meal',
   composeCancel: 'Cancel',
   composeInThisMeal: 'In this meal',
   composeRemove: 'Remove',
@@ -100,6 +104,10 @@ export const en = {
   composeAddAsNew: 'Add {name} as a new food',
   composeColoursLabel: 'Or just a colour',
   composeLog: 'Log {mealType}',
+  composeSave: 'Save changes',
+  composeNotesLabel: 'Notes',
+  composeNoEntries:
+    'A meal needs at least one thing in it. Delete the meal instead of removing its last entry.',
 
   statsNothingLogged: 'Nothing logged',
   statsWeightChartLabel: 'Weight over {days} days, {readings}.',

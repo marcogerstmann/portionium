@@ -35,6 +35,9 @@ export const de: typeof en = {
   todayDayImageLabel: 'Dieser Tag: {summary}.',
   todayUnknownFood: 'Unbekanntes Lebensmittel',
   todayClassify: 'Einordnen',
+  todayRecolour: 'Farbe ändern',
+  todayEditMeal: 'Bearbeiten',
+  todayRepeatMeal: 'Nochmal eintragen',
   todayDeleteMeal: '{mealType} löschen',
   todayWeightLabel: 'Gewicht',
   todayTrendForming: 'Trend bildet sich',
@@ -95,6 +98,7 @@ export const de: typeof en = {
 
   composeMealTypeGroup: 'Mahlzeitentyp',
   composeTitle: 'Mahlzeit hinzufügen',
+  composeEditTitle: 'Mahlzeit bearbeiten',
   composeCancel: 'Abbrechen',
   composeInThisMeal: 'In dieser Mahlzeit',
   composeRemove: 'Entfernen',
@@ -106,6 +110,10 @@ export const de: typeof en = {
   composeAddAsNew: '{name} als neues Lebensmittel hinzufügen',
   composeColoursLabel: 'Oder einfach eine Farbe',
   composeLog: '{mealType} eintragen',
+  composeSave: 'Änderungen speichern',
+  composeNotesLabel: 'Notizen',
+  composeNoEntries:
+    'Eine Mahlzeit braucht mindestens einen Eintrag. Lösche die Mahlzeit, statt den letzten zu entfernen.',
 
   statsNothingLogged: 'Nichts eingetragen',
   statsWeightChartLabel: 'Gewicht über {days} Tage, {readings}.',

@@ -2,12 +2,15 @@ import {
   CATEGORIES,
   foodResponseSchema,
   MEAL_TYPES,
+  type EntryInput,
   type FoodResponse,
   type LocalDate,
+  type MealResponse,
   type MealType,
   type UserResponse,
 } from '@portionium/schemas';
 import { Check, X } from 'lucide-react';
+import { uuidv7 } from 'uuidv7';
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { z } from 'zod';
 
@@ -17,7 +20,7 @@ import { cachedFoods } from './db';
 import { categoryLabel, Dot, dotOf } from './dot';
 import { isNewName, matchFoods } from './food-search';
 import { useLocale, useT } from './i18n';
-import { logMeal, type ComposedEntry } from './outbox';
+import { editMeal, logMeal, type ComposedEntry } from './outbox';
 
 /**
  * Composing a meal, which is the interaction that decides whether this app is still in use in
@@ -46,6 +49,13 @@ import { logMeal, type ComposedEntry } from './outbox';
  * see the note on it in packages/schemas/src/entities.ts. A bare colour is the opposite of a
  * portion rather than a step towards one.
  *
+ * The same screen edits a meal already logged, opened from the day rather than from the add
+ * button and told apart by nothing but the `meal` prop. A second component would be this one
+ * with the combobox, the colour buttons, the type row and the keyboard handling copied, and the
+ * two would drift the first time one of them was touched. What edit mode changes is where the
+ * initial state comes from and what the last button does, which is two branches rather than a
+ * file.
+ *
  * What is deliberately not here: favourites and meal suggestions. The API has both, at GET
  * /meals/favourites and GET /meals/suggestions, and neither is renderable yet. A favourite's
  * entries carry a `foodId` and no name, so a preview needs a lookup per food that no endpoint
@@ -66,6 +76,9 @@ const SEARCH_DEBOUNCE_MS = 200;
 const SEARCH_LIMIT = 20;
 
 const searchResponseSchema = z.array(foodResponseSchema);
+
+/** The server's own ceiling, so the field stops where mealSchema.notes does rather than at a 400. */
+const NOTES_MAX_LENGTH = 2000;
 
 /**
  * The four types, as one tap each rather than a select.
@@ -102,27 +115,105 @@ function MealTypes({ chosen, onChoose }: { chosen: MealType; onChoose: (type: Me
   );
 }
 
+/**
+ * One composed thing as the wire takes it.
+ *
+ * The colour travels with the food rather than being left to the server to resolve, which is the
+ * whole of what keeps an edit from rewriting history: an entry that survived the edit goes back
+ * carrying the colour it was logged with, and the restamp PATCH does becomes a no-op on it, see
+ * docs/adr/011-an-entry-is-a-colour.md. A newly picked food carries the colour its search result
+ * showed, which is the same resolution the server is about to make anyway.
+ *
+ * A food still waiting for a colour sends none, because entryInputSchema has no null to send.
+ * That entry is restamped, which is exactly what a verdict on the food would have done to it.
+ *
+ * ponytail: no quantity, because this screen has no field for one and never will, see above. An
+ * entry logged with one through the MCP adapter loses it if somebody edits that meal's entry
+ * list here. Carry it on ComposedEntry the day anything in this client can set one.
+ */
+function composedInput(entry: ComposedEntry): EntryInput {
+  return typeof entry === 'string'
+    ? { category: entry }
+    : { foodId: entry.id, ...(entry.category === null ? {} : { category: entry.category }) };
+}
+
+/**
+ * A logged meal as this screen holds it: one chosen thing per entry, in the order they were
+ * eaten.
+ *
+ * A food carries the colour the **entry** was logged with rather than the one the catalog
+ * resolves for it now, so the edit view shows the same dots the day behind it does. A food the
+ * day does not name is not something this can happen for, since a day response carries every
+ * food its entries reference, but a stale optimistic day could; it becomes an entry with the
+ * same name the day gives it, which keeps the food id and therefore the entry.
+ */
+function composedFrom(
+  meal: MealResponse,
+  foods: ReadonlyMap<string, FoodResponse>,
+  unknownName: string,
+): ComposedEntry[] {
+  return meal.entries.map((entry) => {
+    const { foodId } = entry;
+
+    if (foodId === null) {
+      // A bare entry always carries a colour, both by entryInputSchema's refinement and by
+      // stampEntries, so the fallback below is unreachable rather than a default worth choosing.
+      return entry.category ?? 'green';
+    }
+
+    const food = foods.get(foodId) ?? {
+      id: foodId,
+      name: unknownName,
+      kind: 'ingredient' as const,
+    };
+
+    return { ...food, category: entry.category };
+  });
+}
+
 export function Compose({
   user,
   date,
+  meal,
+  foods,
   onDone,
 }: {
   user: UserResponse;
   /** The day this meal is logged for, whichever day was on screen when this opened. */
   date: LocalDate;
+  /**
+   * The meal being corrected, when this screen is an edit rather than a new entry. Its presence
+   * is the whole of the difference: where the initial state comes from, and whether the last
+   * button logs a meal or patches one.
+   */
+  meal?: MealResponse;
+  /** The day's catalog, so an edit can render its entries as words. Only read alongside `meal`. */
+  foods?: ReadonlyMap<string, FoodResponse>;
   /** Back to the day. Called whether the meal was saved or abandoned. */
   onDone: () => void;
 }) {
-  const [type, setType] = useState<MealType>(() => mealTypeAt(new Date(), user.timezone));
-  const [chosen, setChosen] = useState<ComposedEntry[]>([]);
+  const t = useT();
+  const locale = useLocale();
+
+  // Once, on mount, which is what makes this the thing the edit is compared against: `chosen`
+  // moves as somebody edits and this does not, so the two disagreeing is exactly "the entry list
+  // changed". Both sides go through composedInput, so an untouched list compares equal whatever
+  // the entries carry that this screen cannot show.
+  const [initial] = useState<ComposedEntry[]>(() =>
+    meal === undefined ? [] : composedFrom(meal, foods ?? new Map(), t('todayUnknownFood')),
+  );
+
+  const [type, setType] = useState<MealType>(
+    () => meal?.type ?? mealTypeAt(new Date(), user.timezone),
+  );
+  const [chosen, setChosen] = useState<ComposedEntry[]>(initial);
+  const [notes, setNotes] = useState(meal?.notes ?? '');
   const [query, setQuery] = useState('');
   const [cached, setCached] = useState<FoodResponse[]>([]);
   const [results, setResults] = useState<FoodResponse[]>([]);
   const [active, setActive] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
-  const t = useT();
-  const locale = useLocale();
 
   const field = useRef<HTMLInputElement>(null);
 
@@ -169,6 +260,7 @@ export function Compose({
     };
   }, [query, cached]);
 
+  const trimmedNotes = notes.trim();
   const typed = query.trim();
   // The last option, offered only when nothing on screen already means this. See isNewName.
   const creatable = isNewName(results, typed);
@@ -212,6 +304,57 @@ export function Compose({
     } finally {
       setBusy(false);
     }
+  }
+
+  /** A new meal. Durable the moment ./outbox.ts has it, see logMeal. */
+  function log() {
+    return logMeal(
+      user,
+      { type, entries: chosen, ...(trimmedNotes === '' ? {} : { notes: trimmedNotes }) },
+      date,
+    );
+  }
+
+  /**
+   * A meal already logged, as a PATCH carrying only the fields that actually differ.
+   *
+   * The entry list is the one worth leaving out: PATCH restamps whatever list it is sent, so an
+   * edit that only moved the meal from lunch to dinner must not resend the entries, or a food
+   * recoloured since would drag the day it was eaten on with it. What is left out is also what
+   * survives: an entry's quantity, which this screen has no way to show, see composedInput.
+   *
+   * The optimistic copy is predicted here rather than in ./outbox.ts, because this is the half
+   * that knows what was picked. Fresh entry ids because the server mints fresh ones too, see
+   * updateMeal in api/src/db/meal.ts, and the refresh behind the drain replaces them anyway.
+   */
+  function save(current: MealResponse) {
+    const entries = chosen.map(composedInput);
+    const changed = JSON.stringify(entries) !== JSON.stringify(initial.map(composedInput));
+
+    return editMeal(
+      {
+        id: current.id,
+        userId: current.userId,
+        type,
+        loggedAt: current.loggedAt,
+        localDate: current.localDate,
+        ...(trimmedNotes === '' ? {} : { notes: trimmedNotes }),
+        entries: chosen.map((entry, position) => ({
+          id: uuidv7(),
+          foodId: typeof entry === 'string' ? null : entry.id,
+          position,
+          category: typeof entry === 'string' ? entry : entry.category,
+        })),
+      },
+      {
+        ...(type === current.type ? {} : { type }),
+        // An emptied field is sent as an empty string rather than omitted, because omitted is
+        // what "nobody touched this" means on a PATCH, see applyMealChanges.
+        ...(trimmedNotes === (current.notes ?? '') ? {} : { notes: trimmedNotes }),
+        ...(changed ? { entries } : {}),
+      },
+      chosen.flatMap((entry) => (typeof entry === 'string' ? [] : [entry])),
+    );
   }
 
   /** Take the option at this index, whichever kind it is. */
@@ -279,7 +422,7 @@ export function Compose({
   return (
     <main>
       <header className="flex items-center justify-between gap-4">
-        <h1>{t('composeTitle')}</h1>
+        <h1>{meal === undefined ? t('composeTitle') : t('composeEditTitle')}</h1>
         <button type="button" className="flex shrink-0 items-center gap-2 text-sm" onClick={onDone}>
           <X aria-hidden="true" className="size-4" />
           {t('composeCancel')}
@@ -314,6 +457,16 @@ export function Compose({
             );
           })}
         </ul>
+      )}
+
+      {/* An empty meal is a domain invariant the server refuses, and removing the last entry is
+          something somebody does by accident on this screen rather than on purpose. Said here,
+          beside the list it is about, rather than left to come back as a refused write in a list
+          of refused writes an hour later. The button below is disabled to match. */}
+      {meal !== undefined && chosen.length === 0 && (
+        <p role="alert" className="mb-4 text-danger">
+          {t('composeNoEntries')}
+        </p>
       )}
 
       {/* Above the field rather than under the results, because one tap is the whole claim: a
@@ -395,6 +548,22 @@ export function Compose({
           )}
       </ul>
 
+      {/* The first field on this screen that is prose, and the last one in the document, because
+          it is the part nobody fills in on most meals. A textarea rather than an input: a note is
+          a sentence about an occasion, and a single line control that scrolls sideways is how a
+          sentence becomes unreadable while it is being typed. */}
+      <label htmlFor="notes" className="mt-4 block">
+        {t('composeNotesLabel')}
+      </label>
+      <textarea
+        id="notes"
+        className="w-full"
+        rows={2}
+        maxLength={NOTES_MAX_LENGTH}
+        value={notes}
+        onChange={(event) => setNotes(event.target.value)}
+      />
+
       <button
         type="button"
         className="primary mt-4 flex items-center justify-center gap-2 disabled:border-line disabled:bg-transparent disabled:text-muted disabled:shadow-none"
@@ -402,14 +571,16 @@ export function Compose({
         // it here means nobody finds that out from a queue entry that could never be sent.
         disabled={chosen.length === 0}
         onClick={() => {
-          // Not awaited, and that is the contract: the meal is durable once ./outbox.ts has it
+          // Not awaited, and that is the contract: the write is durable once ./outbox.ts has it
           // in IndexedDB, and the day behind this screen already shows it.
-          void logMeal(user, { type, entries: chosen }, date);
+          void (meal === undefined ? log() : save(meal));
           onDone();
         }}
       >
         <Check aria-hidden="true" className="size-5" />
-        {t('composeLog', { mealType: mealTypeLabel(type, locale) })}
+        {meal === undefined
+          ? t('composeLog', { mealType: mealTypeLabel(type, locale) })
+          : t('composeSave')}
         {chosen.length > 0 && ` · ${chosen.length}`}
       </button>
     </main>

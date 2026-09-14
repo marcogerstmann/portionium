@@ -1,11 +1,14 @@
 import {
   PROBLEM,
   type Category,
+  type EntryInput,
+  type EntryResponse,
   type FoodResponse,
   type LocalDate,
   type MealResponse,
   type MealType,
   type Timezone,
+  type UpdateMealRequest,
   type UserResponse,
   type WeightEntryResponse,
 } from '@portionium/schemas';
@@ -391,6 +394,160 @@ export async function restoreMeal(meal: MealResponse): Promise<void> {
       ...(meal.notes === undefined ? {} : { notes: meal.notes }),
     },
   });
+}
+
+/**
+ * Log a meal again, on the day it is being read on.
+ *
+ * The server is handed `fromMealId` and never an entry list, which is the whole point of that
+ * field: the entries are already on the server, and resending them would be this device
+ * deciding what was in a meal it only has a cached copy of. It is also why the two can never
+ * arrive together, see the refusal in POST /meals.
+ *
+ * A repeat is a new write and not a copy of the old row, so the colours are resolved afresh:
+ * an entry naming a food takes that food's colour as the catalog holds it now, which is what
+ * `foods` carries on a day response, and a bare colour has nothing else to be. That is the
+ * same rule stampEntries applies on the way in, so the optimistic copy below is the row that
+ * comes back.
+ *
+ * The notes are deliberately not carried over. A note is about the occasion rather than about
+ * the food, and repeating a meal is a statement about the food.
+ */
+export async function repeatMeal(
+  user: UserResponse,
+  meal: MealResponse,
+  date: LocalDate,
+  foods: ReadonlyMap<string, FoodResponse>,
+): Promise<void> {
+  const optimistic: MealResponse = {
+    id: uuidv7(),
+    userId: user.id,
+    type: meal.type,
+    loggedAt: instantFor(date, user.timezone, user.dayBoundaryHour).toISOString(),
+    localDate: date,
+    entries: meal.entries.map((entry, position) => ({
+      id: uuidv7(),
+      foodId: entry.foodId,
+      position,
+      category:
+        entry.foodId === null ? entry.category : (foods.get(entry.foodId)?.category ?? null),
+    })),
+  };
+
+  await cacheLocally(date, (day) => withMeal(day, optimistic, [...foods.values()]));
+
+  await enqueue({
+    path: '/meals',
+    date,
+    subject: mealSubject(optimistic.id),
+    body: {
+      id: optimistic.id,
+      type: meal.type,
+      loggedAt: optimistic.loggedAt,
+      fromMealId: meal.id,
+    },
+  });
+}
+
+/**
+ * Change a meal already logged, and correct the cached day in place.
+ *
+ * `meal` is the row as it should now read, which the caller predicts because the caller is the
+ * one that knows what changed: the composer has the foods it picked and their colours, and a
+ * recolour has the entry it moved. `changes` is the wire half and carries only the fields that
+ * actually differ, so an edit that touched the notes does not restamp the entry list, see the
+ * comment on PATCH /meals/{id}.
+ *
+ * The interesting half is the coalescing. A meal edited thirty seconds after it was logged, on
+ * a train, has a create still sitting in this queue, and the server holds no id to PATCH: sent
+ * as a second entry it would be a 404 that leaves the meal on screen looking saved. So the edit
+ * is folded into the write that has not gone yet, whichever kind it is, a create or an earlier
+ * edit, and the queue stays one write per meal.
+ *
+ * ponytail: the coalesced entry keeps its idempotency key rather than minting a new one. If the
+ * original request had in fact reached the server and only its response was lost, the retry
+ * carries a different fingerprint under a used key and is refused as a mismatch, which is
+ * visible in the refused list rather than silent. A new key would instead be answered with a
+ * meal id conflict, which this module reads as success, and the edit would disappear. Give the
+ * queue a proper supersede operation if that window ever matters.
+ */
+export async function editMeal(
+  meal: MealResponse,
+  changes: Omit<UpdateMealRequest, 'loggedAt'>,
+  foods: readonly FoodResponse[],
+): Promise<void> {
+  await cacheLocally(meal.localDate, (day) => withMeal(day, meal, foods));
+
+  const queued = (await database.outbox.orderBy('key').reverse().toArray()).find(
+    (entry) => entry.subject === mealSubject(meal.id) && entry.failure === null,
+  );
+
+  // A queued delete is not something to fold an edit into: the meal is off the screen the edit
+  // would have come from, so this is the ordinary path rather than a case to reason about.
+  if (queued !== undefined && (queued.method ?? 'POST') !== 'DELETE') {
+    const { fromMealId, ...rest } = queued.body as Record<string, unknown>;
+
+    const body = {
+      ...rest,
+      // A repeat names an id instead of an entry list and the two together are refused, so an
+      // edit that supplies entries replaces the reference rather than joining it.
+      ...(changes.entries === undefined ? { fromMealId } : {}),
+      ...changes,
+    };
+
+    // Zero means the drain took it between the read above and this write, so the server has it
+    // after all and the edit belongs in a PATCH like any other.
+    if ((await database.outbox.update(queued.key, { body })) > 0) {
+      announce();
+      void drain();
+
+      return;
+    }
+  }
+
+  await enqueue({
+    path: `/meals/${meal.id}`,
+    method: 'PATCH',
+    date: meal.localDate,
+    subject: mealSubject(meal.id),
+    body: changes,
+  });
+}
+
+/**
+ * Change one entry's colour, from whichever day was on screen when somebody tapped a coloured
+ * dot. The food is not touched and no other day moves, which is the difference between this and
+ * classifyFood below: an entry is a colour and this corrects that one entry's, where a verdict
+ * on a food decides every future entry of it, see docs/adr/011-an-entry-is-a-colour.md.
+ *
+ * The whole entry list goes back rather than the one that moved, because PATCH replaces it, and
+ * each entry carries its own colour explicitly. Without that the server would resolve the
+ * others afresh against the catalog as it stands, and correcting one dot would quietly recolour
+ * its neighbours, which is exactly the history rewrite the ADR exists to prevent.
+ */
+export async function recolourEntry(
+  meal: MealResponse,
+  entryId: string,
+  category: Category,
+): Promise<void> {
+  const entries = meal.entries.map((entry) =>
+    entry.id === entryId ? { ...entry, category } : entry,
+  );
+
+  await editMeal({ ...meal, entries }, { entries: entries.map(toEntryInput) }, []);
+}
+
+/**
+ * One stored entry as the wire takes it back. A colour is omitted rather than sent as null,
+ * which entryInputSchema has no room for anyway: an entry still waiting for one is an entry the
+ * server restamps, and restamping a waiting entry is what a user verdict would do to it too.
+ */
+function toEntryInput(entry: EntryResponse): EntryInput {
+  return {
+    ...(entry.foodId === null ? {} : { foodId: entry.foodId }),
+    ...(entry.category === null ? {} : { category: entry.category }),
+    ...(entry.quantity === undefined ? {} : { quantity: entry.quantity }),
+  };
 }
 
 /**

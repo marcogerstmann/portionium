@@ -59,6 +59,7 @@ export const ACCOUNTS = {
   statistics: fixture('statistics'),
   settings: fixture('settings'),
   review: fixture('review'),
+  correct: fixture('correct'),
 };
 
 /**

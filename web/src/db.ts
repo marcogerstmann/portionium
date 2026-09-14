@@ -91,7 +91,7 @@ export interface OutboxEntry {
    * a meal somebody logged before they updated the app. Not indexed, so adding it needed no
    * Dexie version and no migration, see the `stores` block above.
    */
-  method?: 'POST' | 'PUT' | 'DELETE';
+  method?: 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   body: unknown;
   /**
    * What this write is about, `meal:<id>` or `weight:<date>`, so a screen can ask whether the
@@ -226,18 +226,26 @@ export function countColours(meals: readonly MealResponse[]): ColourCounts {
 }
 
 /**
- * A day with one more meal on it, as the server will report it once the outbox has drained.
+ * A day with this meal on it, as the server will report it once the outbox has drained.
  *
  * This is the whole of "the UI never waits on the network": what a screen renders after logging
  * is this, not a response. Meals come back from the server ordered by when they were logged, so
- * a meal logged now belongs at the end.
+ * a meal the day has never seen belongs at the end.
+ *
+ * A meal already on the day is replaced where it stands rather than appended, which is what
+ * corrects an edit in place: recolouring one entry or changing a meal's type must not make the
+ * row jump out from under the thumb that opened it. One function rather than two because the
+ * foods, the counts and the ordering are the same work either way, and the id already says
+ * which of the two this is.
  */
 export function withMeal(
   day: DayResponse,
   meal: MealResponse,
   foods: readonly FoodResponse[],
 ): DayResponse {
-  const meals = [...day.meals, meal];
+  const meals = day.meals.some((current) => current.id === meal.id)
+    ? day.meals.map((current) => (current.id === meal.id ? meal : current))
+    : [...day.meals, meal];
   const known = new Set(day.foods.map((food) => food.id));
   const added = foods.filter((food) => meal.entries.some((entry) => entry.foodId === food.id));
 
