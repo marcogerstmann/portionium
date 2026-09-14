@@ -131,6 +131,7 @@ test('removes a weight and shows the empty row again', async ({ page }) => {
   await expect(page.getByText(`${REMOVED_WEIGHT} kg`)).toBeVisible();
 
   await page.getByRole('button', { name: 'Remove weight' }).click();
+  await page.getByRole('button', { name: 'Yes, remove' }).click();
 
   // The empty row again, the same button the day with no reading has always shown.
   await expect(page.getByRole('button', { name: /Weight/ })).toBeVisible();

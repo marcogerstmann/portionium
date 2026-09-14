@@ -69,7 +69,7 @@ import { editMeal, logMeal, type ComposedEntry } from './outbox';
  * Favourites and suggestions, POR-73, are two more shortlists ahead of the search field, cached
  * on the device the way the frequent foods list already is. Both are compositions rather than
  * history, `MealCompositionEntryResponse`, and picking either fills the composer the same way a
- * search result fills one entry: nothing here is logged until the usual button at the bottom is
+ * search result fills one entry: nothing here is logged until the usual button at the top is
  * pressed, so a favourite is a starting point to adjust rather than a shortcut around adjusting
  * it. They render with no lookup per food because POR-72 put `foodName` on the wire for exactly
  * that. See `CompositionPreview`, `fill` and `pin` below.
@@ -601,6 +601,29 @@ export function Compose({
         </button>
       </header>
 
+      {/* At the top rather than under everything this screen can grow, the search results, the
+          favourites and suggestions lists, the notes field: the tap that ends this screen must
+          not need a scroll to reach it, on a phone least of all. */}
+      <button
+        type="button"
+        className="primary mb-4 flex items-center justify-center gap-2 disabled:border-line disabled:bg-transparent disabled:text-muted disabled:shadow-none"
+        // An empty meal is refused by the server as a domain invariant, see createMeal. Refusing
+        // it here means nobody finds that out from a queue entry that could never be sent.
+        disabled={chosen.length === 0}
+        onClick={() => {
+          // Not awaited, and that is the contract: the write is durable once ./outbox.ts has it
+          // in IndexedDB, and the day behind this screen already shows it.
+          void (meal === undefined ? log() : save(meal));
+          onDone();
+        }}
+      >
+        <Check aria-hidden="true" className="size-5" />
+        {meal === undefined
+          ? t('composeLog', { mealType: mealTypeLabel(type, locale) })
+          : t('composeSave')}
+        {chosen.length > 0 && ` · ${chosen.length}`}
+      </button>
+
       <MealTypes chosen={type} onChoose={setType} />
 
       {chosen.length > 0 && (
@@ -681,7 +704,7 @@ export function Compose({
       {/* An empty meal is a domain invariant the server refuses, and removing the last entry is
           something somebody does by accident on this screen rather than on purpose. Said here,
           beside the list it is about, rather than left to come back as a refused write in a list
-          of refused writes an hour later. The button below is disabled to match. */}
+          of refused writes an hour later. The button above is disabled to match. */}
       {meal !== undefined && chosen.length === 0 && (
         <p role="alert" className="mb-4 text-danger">
           {t('composeNoEntries')}
@@ -835,26 +858,6 @@ export function Compose({
         value={notes}
         onChange={(event) => setNotes(event.target.value)}
       />
-
-      <button
-        type="button"
-        className="primary mt-4 flex items-center justify-center gap-2 disabled:border-line disabled:bg-transparent disabled:text-muted disabled:shadow-none"
-        // An empty meal is refused by the server as a domain invariant, see createMeal. Refusing
-        // it here means nobody finds that out from a queue entry that could never be sent.
-        disabled={chosen.length === 0}
-        onClick={() => {
-          // Not awaited, and that is the contract: the write is durable once ./outbox.ts has it
-          // in IndexedDB, and the day behind this screen already shows it.
-          void (meal === undefined ? log() : save(meal));
-          onDone();
-        }}
-      >
-        <Check aria-hidden="true" className="size-5" />
-        {meal === undefined
-          ? t('composeLog', { mealType: mealTypeLabel(type, locale) })
-          : t('composeSave')}
-        {chosen.length > 0 && ` · ${chosen.length}`}
-      </button>
     </main>
   );
 }

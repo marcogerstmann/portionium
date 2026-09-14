@@ -81,9 +81,9 @@ test('pages between days with the arrow keys and stops at today', async ({ page 
   await expect(page.getByRole('button', { name: 'Next day' })).toBeDisabled();
 });
 
-test('jumps back to today in one tap, disabled once already there', async ({ page }) => {
+test('jumps back to today in one tap, gone once already there', async ({ page }) => {
   await signIn(page);
-  await expect(page.getByRole('button', { name: 'Back to today' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Back to today' })).not.toBeVisible();
 
   await page.keyboard.press('ArrowLeft');
   await page.keyboard.press('ArrowLeft');
@@ -91,11 +91,11 @@ test('jumps back to today in one tap, disabled once already there', async ({ pag
   await expect(page.getByRole('heading', { name: 'Today' })).not.toBeVisible();
 
   const backToToday = page.getByRole('button', { name: 'Back to today' });
-  await expect(backToToday).toBeEnabled();
+  await expect(backToToday).toBeVisible();
   await backToToday.click();
 
   await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
-  await expect(backToToday).toBeDisabled();
+  await expect(backToToday).not.toBeVisible();
 });
 
 test('pages back through the cached week with no network at all', async ({ page }) => {
@@ -144,6 +144,7 @@ test('deletes a meal and puts it back with undo', async ({ page }) => {
   const meals = page.getByRole('region', { name: 'Meals' });
   await meals.getByRole('button', { name: /Dinner/ }).click();
   await page.getByRole('button', { name: /Delete this Dinner/ }).click();
+  await page.getByRole('button', { name: 'Yes, delete' }).click();
 
   await expect(meals.getByRole('button', { name: /Dinner/ })).toHaveCount(0);
 

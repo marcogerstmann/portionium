@@ -205,6 +205,10 @@ function MealDetail({
   // The entry whose colour buttons are open, by entry id rather than by food id: two entries can
   // name one food and only the one that was tapped is the one being asked about.
   const [asking, setAsking] = useState<string | undefined>(undefined);
+  // Whether the delete button's own confirmation is open, the same inline-ask shape as `asking`
+  // above rather than a modal: this screen has no dialog primitive and nothing else here needed
+  // one either.
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const t = useT();
   const locale = useLocale();
 
@@ -290,14 +294,39 @@ function MealDetail({
         </button>
       </div>
 
-      <button
-        type="button"
-        className="mt-2 flex w-full items-center justify-center gap-2 border-danger text-danger"
-        onClick={onDelete}
-      >
-        <Trash2 aria-hidden="true" className="size-4" />
-        {t('todayDeleteMeal', { mealType: mealTypeLabel(meal.type, locale) })}
-      </button>
+      {confirmingDelete ? (
+        <div className="mt-2">
+          <p className="mb-2 text-center text-sm">
+            {t('todayDeleteMealConfirm', { mealType: mealTypeLabel(meal.type, locale) })}
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="flex flex-1 items-center justify-center gap-2"
+              onClick={() => setConfirmingDelete(false)}
+            >
+              {t('todayCancel')}
+            </button>
+            <button
+              type="button"
+              className="flex flex-1 items-center justify-center gap-2 border-danger text-danger"
+              onClick={onDelete}
+            >
+              <Trash2 aria-hidden="true" className="size-4" />
+              {t('todayConfirmDelete')}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="mt-2 flex w-full items-center justify-center gap-2 border-danger text-danger"
+          onClick={() => setConfirmingDelete(true)}
+        >
+          <Trash2 aria-hidden="true" className="size-4" />
+          {t('todayDeleteMeal', { mealType: mealTypeLabel(meal.type, locale) })}
+        </button>
+      )}
     </div>
   );
 }
@@ -334,6 +363,8 @@ function Weight({
   onRemove: () => void;
 }) {
   const [entering, setEntering] = useState(false);
+  // The same inline-ask shape as MealDetail's own delete confirmation, see there.
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
   const t = useT();
   const locale = useLocale();
 
@@ -400,25 +431,53 @@ function Weight({
         <span className="flex items-center gap-2">
           {/* A column rather than a row, so the two stack against the right edge and the trend
               is plainly the line being read: the whole product principle in a flex direction. A
-              correction control grows the tap target beside it, never the type scale. */}
+              correction control grows the tap target beside it, never the type scale. Swapped
+              for the question while confirming a removal, since the trend is not what is being
+              decided right then. */}
           <span className="flex flex-col items-end">
-            <span>
-              {trend === null
-                ? t('todayTrendForming')
-                : t('todayTrendKg', { trend: formatKg(trend, locale) })}
-            </span>
-            <span className="flex items-center gap-1 text-sm text-muted">
-              {formatKg(day.weightEntry.weightKg, locale)} kg{pending && <PendingMark />}
-            </span>
+            {confirmingRemove ? (
+              <span className="text-sm">{t('todayRemoveWeightConfirm')}</span>
+            ) : (
+              <>
+                <span>
+                  {trend === null
+                    ? t('todayTrendForming')
+                    : t('todayTrendKg', { trend: formatKg(trend, locale) })}
+                </span>
+                <span className="flex items-center gap-1 text-sm text-muted">
+                  {formatKg(day.weightEntry.weightKg, locale)} kg{pending && <PendingMark />}
+                </span>
+              </>
+            )}
           </span>
-          <button type="button" className="shrink-0" onClick={() => setEntering(true)}>
-            <Pencil aria-hidden="true" className="size-4" />
-            <span className="sr-only">{t('todayCorrectWeight')}</span>
-          </button>
-          <button type="button" className="shrink-0" onClick={onRemove}>
-            <Trash2 aria-hidden="true" className="size-4" />
-            <span className="sr-only">{t('todayRemoveWeight')}</span>
-          </button>
+          {confirmingRemove ? (
+            <>
+              <button type="button" className="shrink-0" onClick={() => setConfirmingRemove(false)}>
+                {t('todayCancel')}
+              </button>
+              <button
+                type="button"
+                className="shrink-0 border-danger text-danger"
+                onClick={() => {
+                  setConfirmingRemove(false);
+                  onRemove();
+                }}
+              >
+                {t('todayConfirmRemove')}
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" className="shrink-0" onClick={() => setEntering(true)}>
+                <Pencil aria-hidden="true" className="size-4" />
+                <span className="sr-only">{t('todayCorrectWeight')}</span>
+              </button>
+              <button type="button" className="shrink-0" onClick={() => setConfirmingRemove(true)}>
+                <Trash2 aria-hidden="true" className="size-4" />
+                <span className="sr-only">{t('todayRemoveWeight')}</span>
+              </button>
+            </>
+          )}
         </span>
       </div>
     );
@@ -614,6 +673,20 @@ export function Today({
     return () => outbox.removeEventListener(OUTBOX_CHANGED_EVENT, sync);
   }, [date]);
 
+  // The undo toast's own lifetime: ten seconds from whichever deletion set it, then it is gone
+  // the same as if somebody had let it expire on purpose. Restarted rather than counted down
+  // across renders, because `undoable` only ever changes to a new meal or back to undefined, so
+  // a fresh ten seconds per meal is the only thing this effect has to express.
+  useEffect(() => {
+    if (undoable === undefined) {
+      return;
+    }
+
+    const timer = setTimeout(() => setUndoable(undefined), 10_000);
+
+    return () => clearTimeout(timer);
+  }, [undoable]);
+
   const page = useCallback(
     (days: number) => {
       setOpened(undefined);
@@ -728,18 +801,15 @@ export function Today({
         <h1>{dayLabel(date, today, locale)}</h1>
 
         {/* A calendar face rather than the word "today", so it reads as a jump home wherever the
-            day label already says which day this is. Disabled rather than hidden while it is
-            today, the same reasoning as the chevrons: the header must not reflow as somebody
-            pages. */}
-        <button
-          type="button"
-          className="shrink-0 disabled:text-muted"
-          onClick={goToday}
-          disabled={date === today}
-        >
-          <CalendarDays aria-hidden="true" className="size-5" />
-          <span className="sr-only">{t('todayBackToToday')}</span>
-        </button>
+            day label already says which day this is. Gone entirely on today itself: there is
+            nowhere left for it to jump to, and a control with nothing to do is not a state worth
+            showing. */}
+        {date !== today && (
+          <button type="button" className="shrink-0" onClick={goToday}>
+            <CalendarDays aria-hidden="true" className="size-5" />
+            <span className="sr-only">{t('todayBackToToday')}</span>
+          </button>
+        )}
       </header>
 
       {/* Visually an arrow, still read aloud. `sr-only` is Tailwind's own, which is what the
@@ -818,11 +888,12 @@ export function Today({
       </section>
 
       {undoable !== undefined && (
-        /* Its own box rather than the row the refusals are wrapped in, and in the flow rather
-           than floating over the screen: a toast that fades is a control somebody has to catch,
-           and this one stays until it is used or the day changes. */
+        /* Fixed to the bottom of the viewport rather than in the flow, so it sits over whatever
+           is on screen instead of shoving the weight row down the moment a meal is deleted. It
+           still does not fade, it is dismissed, by ten seconds passing (see the effect above),
+           by using it, or by the day changing. */
         <p
-          className="mt-4 flex min-h-touch items-center justify-between gap-3 rounded-md border border-line px-3 py-2 shadow-xs"
+          className="fixed inset-x-6 bottom-4 z-10 mx-auto flex min-h-touch max-w-(--container-lg) items-center justify-between gap-3 rounded-md border border-line bg-background px-3 py-2 shadow-md"
           role="status"
         >
           <span className="text-sm">
