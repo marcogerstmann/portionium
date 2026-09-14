@@ -189,22 +189,43 @@ test('refuses to empty a meal at the field rather than in the queue an hour late
 }) => {
   await signIn(page);
 
-  // Yesterday, which is this test's claim rather than a food: the repeat above leaves two
-  // breakfasts on today and a meal row says only its type, so "the one holding Gurke" is not
-  // something the day can be asked for. Nothing else in this file writes to a past day.
+  // Yesterday, so this does not need to tell itself apart from the two breakfasts the repeat
+  // test above leaves on today. A meal row says only its type though, not which meal, so if a
+  // day boundary crossing ever reinterprets one of those two as yesterday's own too, "Breakfast"
+  // on this page can still name more than one row. Confirmed at the source first, since that
+  // holds regardless of what the device has rendered: this account's own yesterday, read back
+  // through the API, has to be the one meal this test just wrote and no other.
   await logMeal(page, 'breakfast', EMPTY_FOOD, yesterday());
+  await expect.poll(() => mealsOf(page, EMPTY_FOOD)).toHaveLength(1);
+
   await page.reload();
   await page.keyboard.press('ArrowLeft');
 
-  // Counted rather than clicked straight away. A day is rendered from the device first and
+  // Waited for rather than clicked straight away: a day is rendered from the device first and
   // replaced by the server's answer, and yesterday is not on the device yet on a fresh account,
   // so this is what waits for the meal to actually be there. See the load in today.tsx.
-  const row = page
+  const rows = page
     .getByRole('region', { name: 'Meals' })
     .getByRole('button', { name: /Breakfast/ });
-  await expect(row).toHaveCount(1);
+  await expect(rows.first()).toBeVisible();
 
-  await row.click();
+  // Opened one at a time until the one naming EMPTY_FOOD is found, since a row's own label is
+  // only its type and never what is in it.
+  let found = false;
+
+  for (let index = 0; index < (await rows.count()); index += 1) {
+    await rows.nth(index).click();
+
+    if ((await page.getByRole('listitem').filter({ hasText: EMPTY_FOOD }).count()) > 0) {
+      found = true;
+      break;
+    }
+
+    await rows.nth(index).click();
+  }
+
+  expect(found, `a Breakfast meal on this day names ${EMPTY_FOOD}`).toBe(true);
+
   await page.getByRole('button', { name: 'Edit' }).click();
   await page.getByRole('button', { name: new RegExp(`Remove ${EMPTY_FOOD}`) }).click();
 
