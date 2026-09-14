@@ -1,22 +1,32 @@
 import {
   CATEGORIES,
+  favouriteResponseSchema,
   foodResponseSchema,
   MEAL_TYPES,
   type EntryInput,
+  type FavouriteResponse,
   type FoodResponse,
   type LocalDate,
+  type MealCompositionEntryResponse,
   type MealResponse,
+  type MealSuggestionResponse,
   type MealType,
   type UserResponse,
 } from '@portionium/schemas';
-import { Check, X } from 'lucide-react';
+import { Check, Star, X } from 'lucide-react';
 import { uuidv7 } from 'uuidv7';
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { z } from 'zod';
 
 import { ApiError, request } from './api';
 import { mealTypeAt, mealTypeLabel } from './day';
-import { cachedFoods } from './db';
+import {
+  cachedFavourites,
+  cachedFoods,
+  cachedSuggestions,
+  refreshFavourites,
+  refreshSuggestions,
+} from './db';
 import { categoryLabel, Dot, dotOf } from './dot';
 import { isNewName, matchFoods } from './food-search';
 import { useLocale, useT } from './i18n';
@@ -56,11 +66,13 @@ import { editMeal, logMeal, type ComposedEntry } from './outbox';
  * initial state comes from and what the last button does, which is two branches rather than a
  * file.
  *
- * What is deliberately not here: favourites and meal suggestions. The API has both, at GET
- * /meals/favourites and GET /meals/suggestions, and neither is renderable yet. A favourite's
- * entries carry a `foodId` and no name, so a preview needs a lookup per food that no endpoint
- * offers, and nothing in this client can pin a favourite in the first place, so the list would
- * be empty for everybody. Both are a screen of their own once the API answers with names.
+ * Favourites and suggestions, POR-73, are two more shortlists ahead of the search field, cached
+ * on the device the way the frequent foods list already is. Both are compositions rather than
+ * history, `MealCompositionEntryResponse`, and picking either fills the composer the same way a
+ * search result fills one entry: nothing here is logged until the usual button at the bottom is
+ * pressed, so a favourite is a starting point to adjust rather than a shortcut around adjusting
+ * it. They render with no lookup per food because POR-72 put `foodName` on the wire for exactly
+ * that. See `CompositionPreview`, `fill` and `pin` below.
  */
 
 /**
@@ -112,6 +124,26 @@ function MealTypes({ chosen, onChoose }: { chosen: MealType; onChoose: (type: Me
         </button>
       ))}
     </div>
+  );
+}
+
+/**
+ * A composition's entries, as a favourite or a suggestion previews them: a dot and a name per
+ * entry, wrapping rather than truncating since there is no fold to protect below the field this
+ * sits under. `silent`, the dots already sit beside the word they are about.
+ */
+function CompositionPreview({ entries }: { entries: readonly MealCompositionEntryResponse[] }) {
+  const t = useT();
+
+  return (
+    <span className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted">
+      {entries.map((entry, index) => (
+        <span key={index} className="inline-flex items-center gap-1">
+          <Dot category={dotOf(entry.category)} silent />
+          {entry.foodName ?? t('bareEntry')}
+        </span>
+      ))}
+    </span>
   );
 }
 
@@ -171,6 +203,32 @@ function composedFrom(
   });
 }
 
+/**
+ * A favourite or a suggestion, taken as the starting point for a new composition.
+ *
+ * `foodName` is what lets this build a `ComposedEntry` with no lookup, see `mealCompositionEntryResponseSchema`
+ * in packages/schemas/src/api.ts. `kind` is invented, `ingredient`, the same placeholder
+ * composedFrom above falls back to for a food the device has never seen: nothing here ever reads
+ * it, since composedInput sends only the id and the colour back to the server.
+ */
+function fromComposition(
+  entries: readonly MealCompositionEntryResponse[],
+  unknownName: string,
+): ComposedEntry[] {
+  return entries.map((entry) =>
+    entry.foodId === undefined
+      ? // A bare entry always carries a colour, the same invariant composedFrom's fallback rests
+        // on, so this is unreachable rather than a default worth choosing.
+        (entry.category ?? 'green')
+      : {
+          id: entry.foodId,
+          name: entry.foodName ?? unknownName,
+          kind: 'ingredient' as const,
+          category: entry.category,
+        },
+  );
+}
+
 export function Compose({
   user,
   date,
@@ -214,6 +272,11 @@ export function Compose({
   const [active, setActive] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
+  const [favourites, setFavourites] = useState<FavouriteResponse[]>([]);
+  const [suggestions, setSuggestions] = useState<MealSuggestionResponse[]>([]);
+  const [pinning, setPinning] = useState(false);
+  const [favouriteName, setFavouriteName] = useState('');
+  const [pinBusy, setPinBusy] = useState(false);
 
   const field = useRef<HTMLInputElement>(null);
 
@@ -227,6 +290,42 @@ export function Compose({
       setResults((current) => (current.length === 0 ? foods : current));
     });
   }, []);
+
+  // Favourites, the same device first and then server pattern as the catalog above. Once, on
+  // mount: nothing about which favourite is pinned depends on the meal type in progress, unlike
+  // suggestions below, so there is nothing here that a later change to `type` should re-ask for.
+  // Neither this nor suggestions below is worth asking for while editing, since neither renders
+  // then, see the two sections near the bottom of this file.
+  useEffect(() => {
+    if (meal !== undefined) {
+      return;
+    }
+
+    void cachedFavourites().then(setFavourites);
+    void refreshFavourites()
+      .then(setFavourites)
+      .catch(() => undefined);
+  }, [meal]);
+
+  // Suggestions, scoped to whichever meal type is chosen right now, see mealSuggestionsQuerySchema.
+  // Re-run when `type` changes, the same `live` guard the search effect below uses, so a slower
+  // answer for a type somebody has since clicked away from cannot land after the faster one.
+  useEffect(() => {
+    if (meal !== undefined) {
+      return;
+    }
+
+    let live = true;
+
+    void cachedSuggestions(type).then((cached) => live && setSuggestions(cached));
+    void refreshSuggestions(type)
+      .then((fresh) => live && setSuggestions(fresh))
+      .catch(() => undefined);
+
+    return () => {
+      live = false;
+    };
+  }, [type]);
 
   /**
    * The device answers, then the server refines, and both are this one effect.
@@ -278,6 +377,27 @@ export function Compose({
   }
 
   /**
+   * A favourite or a suggestion, taken as the composition to start from.
+   *
+   * Replaces `chosen` rather than appending to it, which is the whole of "fills the composer":
+   * this is a preset offered instead of a search, and adjusting a half-built meal to match one
+   * is more taps than starting from it and removing what does not belong. A favourite carries its
+   * own type, since it was pinned for one, and taking it moves the meal type row along with the
+   * entries; a suggestion needs no such move, it was asked for in the type already chosen.
+   */
+  function fill(entries: readonly MealCompositionEntryResponse[], favouriteType?: MealType) {
+    setChosen(fromComposition(entries, t('todayUnknownFood')));
+
+    if (favouriteType !== undefined) {
+      setType(favouriteType);
+    }
+
+    setQuery('');
+    setError(undefined);
+    field.current?.focus();
+  }
+
+  /**
    * Add a food the catalog does not have, with nothing but a name.
    *
    * `kind` is left to its default and no colour is sent, which is what puts the entry in the
@@ -303,6 +423,58 @@ export function Compose({
       setError(cause instanceof ApiError ? cause.problem.detail : t('composeCreateError'));
     } finally {
       setBusy(false);
+    }
+  }
+
+  /**
+   * Pin what is currently composed as a named favourite.
+   *
+   * Sent without an idempotency key, the same rule `create` above states: this is a call a
+   * person is waiting on and not one anything retries. `favouriteHasNoEntries` is the server's
+   * name for the one case the disabled state of the button already prevents, see the pin button
+   * below, so a refusal here can only be that race and is shown the same way `create`'s is.
+   */
+  async function pin() {
+    const name = favouriteName.trim();
+
+    if (name === '') {
+      return;
+    }
+
+    setPinBusy(true);
+    setError(undefined);
+
+    try {
+      const favourite = await request('/meals/favourites', favouriteResponseSchema, {
+        method: 'POST',
+        body: { name, type, entries: chosen.map(composedInput) },
+      });
+
+      setFavourites((current) => [favourite, ...current]);
+      setPinning(false);
+      setFavouriteName('');
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.problem.detail : t('composeFavouritePinError'));
+    } finally {
+      setPinBusy(false);
+    }
+  }
+
+  /**
+   * Unpin a favourite. Removed from the list the moment it is tapped rather than after the
+   * response, the same optimism the day screen's delete uses, and put back if the server refused.
+   */
+  async function removeFavourite(id: string) {
+    const previous = favourites;
+
+    setFavourites((current) => current.filter((favourite) => favourite.id !== id));
+    setError(undefined);
+
+    try {
+      await request(`/meals/favourites/${id}`, z.null(), { method: 'DELETE' });
+    } catch (cause) {
+      setFavourites(previous);
+      setError(cause instanceof ApiError ? cause.problem.detail : t('composeFavouritePinError'));
     }
   }
 
@@ -459,6 +631,53 @@ export function Compose({
         </ul>
       )}
 
+      {/* Only once there is something to name. The disabled state stands in for the check the
+          server would otherwise answer with favouriteHasNoEntries, see `pin`. */}
+      {chosen.length > 0 &&
+        (pinning ? (
+          <div className="mb-4 flex gap-2">
+            <label htmlFor="favourite-name" className="sr-only">
+              {t('composeFavouriteNameLabel')}
+            </label>
+            <input
+              id="favourite-name"
+              className="flex-1"
+              value={favouriteName}
+              maxLength={100}
+              placeholder={t('composeFavouriteNameLabel')}
+              autoFocus
+              onChange={(event) => setFavouriteName(event.target.value)}
+            />
+            <button
+              type="button"
+              disabled={pinBusy || favouriteName.trim() === ''}
+              onClick={() => void pin()}
+            >
+              <Check aria-hidden="true" className="size-4" />
+              <span className="sr-only">{t('composeFavouritePin')}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPinning(false);
+                setFavouriteName('');
+              }}
+            >
+              <X aria-hidden="true" className="size-4" />
+              <span className="sr-only">{t('composeFavouritePinCancel')}</span>
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="mb-4 flex items-center gap-2 border-none bg-transparent p-0 text-sm text-muted"
+            onClick={() => setPinning(true)}
+          >
+            <Star aria-hidden="true" className="size-4" />
+            {t('composeFavouritePin')}
+          </button>
+        ))}
+
       {/* An empty meal is a domain invariant the server refuses, and removing the last entry is
           something somebody does by accident on this screen rather than on purpose. Said here,
           beside the list it is about, rather than left to come back as a refused write in a list
@@ -524,6 +743,59 @@ export function Compose({
       <p role="alert" className="min-h-6 text-danger">
         {error}
       </p>
+
+      {/* Below the field rather than above it, so neither list can push the field itself out of
+          reach: nothing above here changes size because of what is below. Both are gone once
+          somebody is typing, when the field's own results take over, and gone entirely while
+          editing: a preset is a starting point for a new meal, and correcting one already logged
+          is a statement about that meal in particular, the same distinction that keeps the three
+          colour buttons meaning "log" rather than "recolour" wherever they appear. */}
+      {meal === undefined && typed === '' && favourites.length > 0 && (
+        <section className="mb-4">
+          <h2>{t('composeFavouritesLabel')}</h2>
+          <ul aria-label={t('composeFavouritesLabel')}>
+            {favourites.map((favourite) => (
+              <li key={favourite.id} className="flex items-center gap-2 border-b border-line">
+                <button
+                  type="button"
+                  className="flex min-h-touch flex-1 flex-col items-start gap-1 border-none bg-transparent p-2 text-left"
+                  onClick={() => fill(favourite.entries, favourite.type)}
+                >
+                  <span className="block font-bold">{favourite.name}</span>
+                  <CompositionPreview entries={favourite.entries} />
+                </button>
+                <button
+                  type="button"
+                  className="shrink-0 border-none bg-transparent p-1 text-muted"
+                  aria-label={t('composeFavouriteRemove', { name: favourite.name })}
+                  onClick={() => void removeFavourite(favourite.id)}
+                >
+                  <X aria-hidden="true" className="size-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {meal === undefined && typed === '' && suggestions.length > 0 && (
+        <section className="mb-4">
+          <h2>{t('composeSuggestionsLabel')}</h2>
+          <ul aria-label={t('composeSuggestionsLabel')}>
+            {suggestions.map((suggestion) => (
+              <li key={suggestion.mealId} className="border-b border-line">
+                <button
+                  type="button"
+                  className="min-h-touch w-full border-none bg-transparent p-2 text-left"
+                  onClick={() => fill(suggestion.entries)}
+                >
+                  <CompositionPreview entries={suggestion.entries} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <ul id="food-results" role="listbox" aria-label={t('composeFoodsLabel')}>
         {results.map((food, index) =>

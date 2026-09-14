@@ -108,6 +108,13 @@ export const en = {
   composeNotesLabel: 'Notes',
   composeNoEntries:
     'A meal needs at least one thing in it. Delete the meal instead of removing its last entry.',
+  composeFavouritesLabel: 'Favourites',
+  composeFavouriteRemove: 'Remove {name} from favourites',
+  composeSuggestionsLabel: 'You often log',
+  composeFavouritePin: 'Save as a favourite',
+  composeFavouritePinCancel: 'Do not save this favourite',
+  composeFavouriteNameLabel: 'Favourite name',
+  composeFavouritePinError: 'The favourite could not be saved. Try again.',
 
   statsNothingLogged: 'Nothing logged',
   statsWeightChartLabel: 'Weight over {days} days, {readings}.',

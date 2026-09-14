@@ -60,6 +60,7 @@ export const ACCOUNTS = {
   settings: fixture('settings'),
   review: fixture('review'),
   correct: fixture('correct'),
+  favourites: fixture('favourites'),
 };
 
 /**

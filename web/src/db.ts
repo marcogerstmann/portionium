@@ -1,12 +1,18 @@
 import {
   dayResponseSchema,
+  favouriteResponseSchema,
   foodResponseSchema,
+  mealSuggestionResponseSchema,
+  pageSchema,
   type Category,
   type ColourCounts,
   type DayResponse,
+  type FavouriteResponse,
   type FoodResponse,
   type LocalDate,
   type MealResponse,
+  type MealSuggestionResponse,
+  type MealType,
   type Timezone,
   type WeightEntryResponse,
 } from '@portionium/schemas';
@@ -67,6 +73,19 @@ export interface CachedFood {
   id: string;
   rank: number;
   food: FoodResponse;
+}
+
+/** One pinned favourite, ranked the way a cached food is, see CachedFood. */
+export interface CachedFavourite {
+  id: string;
+  rank: number;
+  favourite: FavouriteResponse;
+}
+
+/** One meal type's suggestions, keyed by the type a query for them is always scoped to. */
+export interface CachedSuggestions {
+  type: MealType;
+  suggestions: MealSuggestionResponse[];
 }
 
 /**
@@ -138,6 +157,8 @@ export const CACHED_FOODS = 50;
 export const database = new Dexie('portionium') as Dexie & {
   days: EntityTable<CachedDay, 'date'>;
   foods: EntityTable<CachedFood, 'id'>;
+  favourites: EntityTable<CachedFavourite, 'id'>;
+  suggestions: EntityTable<CachedSuggestions, 'type'>;
   outbox: EntityTable<OutboxEntry, 'key'>;
   stats: EntityTable<CachedStats, 'name'>;
 };
@@ -158,6 +179,12 @@ database.version(1).stores({
  * installed app's cached days and queued writes across an upgrade rather than rebuilding them.
  */
 database.version(2).stores({ stats: 'name' });
+
+/**
+ * The composer's other two shortlists, see POR-73. Favourites keep the server's own rank like
+ * `foods` does; suggestions are queried one meal type at a time and so are kept one row per type.
+ */
+database.version(3).stores({ favourites: 'id, rank', suggestions: 'type' });
 
 /**
  * The calendar day an instant belongs to, for one user. The client side twin of
@@ -496,4 +523,44 @@ export async function refreshFoods(): Promise<FoodResponse[]> {
   });
 
   return foods;
+}
+
+/** The pinned favourites on the device, in the order the server ranked them. */
+export async function cachedFavourites(): Promise<FavouriteResponse[]> {
+  return (await database.favourites.orderBy('rank').toArray()).map((cached) => cached.favourite);
+}
+
+/**
+ * The server's answer, stored on the way past, the same contract refreshFoods has: replaced
+ * wholesale so a favourite removed elsewhere, or on this device a moment ago, leaves the cache
+ * along with it.
+ */
+export async function refreshFavourites(): Promise<FavouriteResponse[]> {
+  const { items } = await request('/meals/favourites', pageSchema(favouriteResponseSchema));
+
+  await database.transaction('rw', database.favourites, async () => {
+    await database.favourites.clear();
+    await database.favourites.bulkPut(
+      items.map((favourite, rank) => ({ id: favourite.id, rank, favourite })),
+    );
+  });
+
+  return items;
+}
+
+/** What this user tends to log for one meal type, or nothing if this device has never asked. */
+export async function cachedSuggestions(type: MealType): Promise<MealSuggestionResponse[]> {
+  return (await database.suggestions.get(type))?.suggestions ?? [];
+}
+
+/** The server's answer for one meal type, stored on the way past. */
+export async function refreshSuggestions(type: MealType): Promise<MealSuggestionResponse[]> {
+  const suggestions = await request(
+    `/meals/suggestions?type=${type}`,
+    z.array(mealSuggestionResponseSchema),
+  );
+
+  await database.suggestions.put({ type, suggestions });
+
+  return suggestions;
 }

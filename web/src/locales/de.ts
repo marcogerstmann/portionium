@@ -114,6 +114,13 @@ export const de: typeof en = {
   composeNotesLabel: 'Notizen',
   composeNoEntries:
     'Eine Mahlzeit braucht mindestens einen Eintrag. Lösche die Mahlzeit, statt den letzten zu entfernen.',
+  composeFavouritesLabel: 'Favoriten',
+  composeFavouriteRemove: '{name} aus den Favoriten entfernen',
+  composeSuggestionsLabel: 'Häufig eingetragen',
+  composeFavouritePin: 'Als Favorit speichern',
+  composeFavouritePinCancel: 'Diesen Favoriten nicht speichern',
+  composeFavouriteNameLabel: 'Name des Favoriten',
+  composeFavouritePinError: 'Der Favorit konnte nicht gespeichert werden. Versuche es erneut.',
 
   statsNothingLogged: 'Nichts eingetragen',
   statsWeightChartLabel: 'Gewicht über {days} Tage, {readings}.',

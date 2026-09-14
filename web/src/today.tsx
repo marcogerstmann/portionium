@@ -25,15 +25,17 @@ import {
 import { useCallback, useEffect, useRef, useState, type FormEvent, type TouchEvent } from 'react';
 
 import { Compose } from './compose';
-import { dayLabel, mealTypeLabel, orderMeals, pageTo } from './day';
+import { dayLabel, mealTypeAt, mealTypeLabel, orderMeals, pageTo } from './day';
 import {
   cachedDay,
   emptyDay,
   foodNames,
   localDateFor,
   refreshDay,
+  refreshFavourites,
   refreshFoods,
   refreshRecentDays,
+  refreshSuggestions,
   type OutboxEntry,
 } from './db';
 import { Dot, categoryLabel, dotOf, type DotCategory } from './dot';
@@ -555,7 +557,15 @@ export function Today({
     // what the device has to hold for logging to work in a basement, see refreshFoods. Swallowed
     // for the same reason the days are: a cache that could not be warmed is the offline case.
     void refreshFoods().catch(() => undefined);
-  }, [today]);
+
+    // The composer's other two shortlists, POR-73, warmed here for the same reason: pinning or
+    // removing a favourite only updates this screen's own state, not the device, so without this
+    // the cache would still hold whatever the composer last saw open, offline or not. Suggestions
+    // are scoped to a meal type, and the type this warms is the one the composer will open on,
+    // see mealTypeAt, so a launch offline still opens the composer with something to suggest.
+    void refreshFavourites().catch(() => undefined);
+    void refreshSuggestions(mealTypeAt(new Date(), user.timezone)).catch(() => undefined);
+  }, [today, user.timezone]);
 
   // Both the queue's own state and the day it changed. A drain that lands re-fetches the day in
   // ./outbox.ts, so what is read back here is the server's copy rather than the optimistic one.
