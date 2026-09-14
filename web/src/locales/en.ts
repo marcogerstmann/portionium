@@ -29,11 +29,11 @@ export const en = {
   categoryOrange: 'orange',
   categoryUnclassified: 'not classified yet',
   dotPending: '{label}, not sent yet',
+  bareEntry: 'Something eaten',
 
   todayNothingLogged: 'Nothing logged yet.',
   todayDayImageLabel: 'This day: {summary}.',
   todayUnknownFood: 'Unknown food',
-  todayBareEntry: 'Something eaten',
   todayClassify: 'Classify',
   todayDeleteMeal: 'Delete this {mealType}',
   todayWeightLabel: 'Weight',
@@ -88,6 +88,7 @@ export const en = {
   composeFoodsLabel: 'Foods',
   composeAdding: 'Adding {name}',
   composeAddAsNew: 'Add {name} as a new food',
+  composeColoursLabel: 'Or just a colour',
   composeLog: 'Log {mealType}',
 
   statsNothingLogged: 'Nothing logged',

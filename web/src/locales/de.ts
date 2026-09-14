@@ -29,11 +29,11 @@ export const de: typeof en = {
   categoryOrange: 'orange',
   categoryUnclassified: 'noch nicht eingeordnet',
   dotPending: '{label}, noch nicht gesendet',
+  bareEntry: 'Etwas gegessen',
 
   todayNothingLogged: 'Noch nichts eingetragen.',
   todayDayImageLabel: 'Dieser Tag: {summary}.',
   todayUnknownFood: 'Unbekanntes Lebensmittel',
-  todayBareEntry: 'Etwas gegessen',
   todayClassify: 'Einordnen',
   todayDeleteMeal: '{mealType} löschen',
   todayWeightLabel: 'Gewicht',
@@ -88,6 +88,7 @@ export const de: typeof en = {
   composeFoodsLabel: 'Lebensmittel',
   composeAdding: '{name} wird hinzugefügt',
   composeAddAsNew: '{name} als neues Lebensmittel hinzufügen',
+  composeColoursLabel: 'Oder einfach eine Farbe',
   composeLog: '{mealType} eintragen',
 
   statsNothingLogged: 'Nichts eingetragen',

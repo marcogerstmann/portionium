@@ -314,9 +314,20 @@ export function emptyDay(date: LocalDate): DayResponse {
   return { date, meals: [], weightEntry: null, colourCounts: countColours([]), foods: [] };
 }
 
-/** What is on the device for this day, or nothing if it has never been fetched or written. */
+/**
+ * What is on the device for this day, or nothing if it has never been fetched or written.
+ *
+ * Validated rather than cast, the same rule cachedStats follows and for the same reason: a row
+ * written by an older version of this app is a shape this one may no longer understand. POR-68
+ * renamed a meal's `items` to `entries`, so every day cached before that update parses as
+ * nothing here and the screen renders it as a day it has never seen, which is a state it already
+ * has to handle. Nothing migrates IndexedDB by hand: the server is the source of truth for every
+ * read, so the repair for a cached day is the refresh that follows it.
+ */
 export async function cachedDay(date: LocalDate): Promise<DayResponse | undefined> {
-  return (await database.days.get(date))?.day;
+  const parsed = dayResponseSchema.safeParse((await database.days.get(date))?.day);
+
+  return parsed.success ? parsed.data : undefined;
 }
 
 /** Replace what is on the device for this day. Used by a refresh and by an optimistic write. */

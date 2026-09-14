@@ -157,10 +157,10 @@ function MealRow({
  * this screen worth fixing in passing: the food is in front of the person who ate it, and asking
  * them then is how a catalog gets classified without anybody sitting down to a queue.
  *
- * Only an entry that names a food can be that button. An entry with no colour always names one,
- * the table's CHECK sees to it, so the narrowing below never actually falls through; it is
- * written out because a bare colour is expressible on the wire and this file should say what it
- * would do with one rather than assume it away. Composing one is WEB 13.
+ * Only an entry that names a food can be that button, and only while it is grey. A bare colour
+ * names nothing to classify, and an entry that already carries a colour is history rather than a
+ * question: recolouring the food behind it leaves it exactly as it is, see
+ * docs/adr/011-an-entry-is-a-colour.md. Correcting one entry on its own is WEB 15.
  */
 function MealDetail({
   meal,
@@ -188,9 +188,7 @@ function MealDetail({
           // each one: a bare entry has no food to name, to classify, or to be pending on.
           const { foodId } = entry;
           const name =
-            foodId === null
-              ? t('todayBareEntry')
-              : (foods.get(foodId)?.name ?? t('todayUnknownFood'));
+            foodId === null ? t('bareEntry') : (foods.get(foodId)?.name ?? t('todayUnknownFood'));
 
           return (
             <li key={entry.id}>

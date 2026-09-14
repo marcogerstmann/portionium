@@ -1,4 +1,5 @@
 import {
+  CATEGORIES,
   foodResponseSchema,
   MEAL_TYPES,
   type FoodResponse,
@@ -13,10 +14,10 @@ import { z } from 'zod';
 import { ApiError, request } from './api';
 import { mealTypeAt, mealTypeLabel } from './day';
 import { cachedFoods } from './db';
-import { Dot, dotOf } from './dot';
+import { categoryLabel, Dot, dotOf } from './dot';
 import { isNewName, matchFoods } from './food-search';
 import { useLocale, useT } from './i18n';
-import { logMeal } from './outbox';
+import { logMeal, type ComposedEntry } from './outbox';
 
 /**
  * Composing a meal, which is the interaction that decides whether this app is still in use in
@@ -34,10 +35,16 @@ import { logMeal } from './outbox';
  * is one journey to the keyboard rather than three, and the whole flow works from the keyboard
  * alone: type, arrow down, enter, repeat.
  *
+ * A colour can be logged without naming anything, which is the same rule read backwards: an
+ * entry is a colour and a food is a name for one, so the three buttons below are the shortest
+ * path this screen has. They are also the only write here that can never want a connection,
+ * since there is no id to mint at the server, see `create`.
+ *
  * There is no quantity field and there will not be one. The product's claim is that nobody
  * weighs their food; the moment portions become enterable this turns back into the calorie
- * tracker it exists to replace. `mealItemSchema.quantity` exists on the wire and stays unused,
- * see the note on it in packages/schemas/src/entities.ts.
+ * tracker it exists to replace. `entrySchema.quantity` exists on the wire and stays unused,
+ * see the note on it in packages/schemas/src/entities.ts. A bare colour is the opposite of a
+ * portion rather than a step towards one.
  *
  * What is deliberately not here: favourites and meal suggestions. The API has both, at GET
  * /meals/favourites and GET /meals/suggestions, and neither is renderable yet. A favourite's
@@ -107,7 +114,7 @@ export function Compose({
   onDone: () => void;
 }) {
   const [type, setType] = useState<MealType>(() => mealTypeAt(new Date(), user.timezone));
-  const [chosen, setChosen] = useState<FoodResponse[]>([]);
+  const [chosen, setChosen] = useState<ComposedEntry[]>([]);
   const [query, setQuery] = useState('');
   const [cached, setCached] = useState<FoodResponse[]>([]);
   const [results, setResults] = useState<FoodResponse[]>([]);
@@ -167,13 +174,14 @@ export function Compose({
   const creatable = isNewName(results, typed);
   const optionCount = results.length + (creatable ? 1 : 0);
 
-  function add(food: FoodResponse) {
-    setChosen((current) => [...current, food]);
+  function add(entry: ComposedEntry) {
+    setChosen((current) => [...current, entry]);
     setQuery('');
     setError(undefined);
-    // The whole reason a three item meal is one journey to the keyboard. React has just
+    // The whole reason a three entry meal is one journey to the keyboard. React has just
     // re-rendered the field with an empty value and it is still the same element, so this keeps
-    // the caret and, on a phone, the keyboard that is already up.
+    // the caret and, on a phone, the keyboard that is already up. A colour button goes through
+    // here too, which is what puts focus back on the field after a tap that never touched it.
     field.current?.focus();
   }
 
@@ -282,24 +290,51 @@ export function Compose({
 
       {chosen.length > 0 && (
         <ul className="mb-4" aria-label={t('composeInThisMeal')}>
-          {chosen.map((food, position) => (
-            // Position rather than id, because one meal may legitimately name one food twice and
-            // React needs the two rows to be different things.
-            <li key={`${food.id}-${position}`} className="row justify-start">
-              <Dot category={dotOf(food.category)} />
-              <span>{food.name}</span>
-              <button
-                type="button"
-                className="ml-auto flex shrink-0 items-center gap-1 text-sm text-muted"
-                onClick={() => setChosen((current) => current.filter((_, at) => at !== position))}
-              >
-                <X aria-hidden="true" className="size-4" />
-                {t('composeRemove')} <span className="sr-only">{food.name}</span>
-              </button>
-            </li>
-          ))}
+          {chosen.map((entry, position) => {
+            // A bare colour is its dot and a neutral word, the same sentence the day gives it,
+            // see MealDetail in ./today.tsx. There is no name to render because there is no food.
+            const bare = typeof entry === 'string';
+            const name = bare ? t('bareEntry') : entry.name;
+
+            return (
+              // Position rather than id, because one meal may legitimately name one food twice,
+              // or carry two greens, and React needs the rows to be different things.
+              <li key={position} className="row justify-start">
+                <Dot category={bare ? entry : dotOf(entry.category)} />
+                <span>{name}</span>
+                <button
+                  type="button"
+                  className="ml-auto flex shrink-0 items-center gap-1 text-sm text-muted"
+                  onClick={() => setChosen((current) => current.filter((_, at) => at !== position))}
+                >
+                  <X aria-hidden="true" className="size-4" />
+                  {t('composeRemove')} <span className="sr-only">{name}</span>
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
+
+      {/* Above the field rather than under the results, because one tap is the whole claim: a
+          colour is what this app records and naming it is the optional part. Three buttons in
+          the document before the combobox, so the only keyboard cost is one Shift+Tab and `add`
+          hands focus straight back to the field afterwards. */}
+      <div className="mb-4 flex gap-2" role="group" aria-label={t('composeColoursLabel')}>
+        {CATEGORIES.map((category) => (
+          <button
+            key={category}
+            type="button"
+            className="flex flex-1 items-center justify-center gap-2 text-sm"
+            onClick={() => add(category)}
+          >
+            {/* Silent: the button already says the colour, and announcing it twice is what
+                Dot's `silent` exists for. */}
+            <Dot category={category} silent />
+            <span>{categoryLabel(category)}</span>
+          </button>
+        ))}
+      </div>
 
       {/* A block of its own rather than a label sitting beside the input. A `label` is inline by
           default, which would put the two on one line and leave the field as wide as its default
@@ -369,7 +404,7 @@ export function Compose({
         onClick={() => {
           // Not awaited, and that is the contract: the meal is durable once ./outbox.ts has it
           // in IndexedDB, and the day behind this screen already shows it.
-          void logMeal(user, { type, foods: chosen }, date);
+          void logMeal(user, { type, entries: chosen }, date);
           onDone();
         }}
       >

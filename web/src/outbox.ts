@@ -213,6 +213,15 @@ function offsetMinutes(instant: Date, timezone: Timezone): number {
 }
 
 /**
+ * One thing the composer has picked: a catalog food, or a bare colour naming nothing.
+ *
+ * A union of an object and a string rather than a wrapper with a discriminant, because `Category`
+ * is a string union and `typeof entry === 'string'` already narrows both halves. There is nothing
+ * to carry beside a bare colour: it is the whole entry, which is the point of it.
+ */
+export type ComposedEntry = FoodResponse | Category;
+
+/**
  * Log a meal. Durable when this resolves, sent whenever the network allows.
  *
  * The returned meal is what the screen renders and what goes into the cached day, ids and all.
@@ -227,10 +236,14 @@ function offsetMinutes(instant: Date, timezone: Timezone): number {
  * cache of fifty entries that a food found on the server is not necessarily in. The name comes
  * with it for the same reason: the screen renders a word next to every dot, and a day the
  * server has not answered for yet has no other source for one. See withMeal.
+ *
+ * A bare colour needs none of that and is the one write on this screen that can never fail for
+ * want of a network: there is no id to mint at the server, so the entry the queue holds is
+ * already the whole truth of it, see the refusal in `create` in ./compose.tsx.
  */
 export async function logMeal(
   user: UserResponse,
-  meal: { type: MealType; foods: readonly FoodResponse[]; notes?: string },
+  meal: { type: MealType; entries: readonly ComposedEntry[]; notes?: string },
   date: LocalDate,
 ): Promise<MealResponse> {
   const loggedAt = instantFor(date, user.timezone, user.dayBoundaryHour);
@@ -242,18 +255,24 @@ export async function logMeal(
     loggedAt: loggedAt.toISOString(),
     localDate: date,
     ...(meal.notes === undefined ? {} : { notes: meal.notes }),
-    entries: meal.foods.map((food, position) => ({
+    entries: meal.entries.map((entry, position) => ({
       id: uuidv7(),
-      foodId: food.id,
+      foodId: typeof entry === 'string' ? null : entry.id,
       position,
       // The colour the server is about to stamp, from the same resolution the search result
       // already carried, so the optimistic copy is the row that comes back. See stampEntries in
-      // api/src/http/routes/meals.ts.
-      category: food.category,
+      // api/src/http/routes/meals.ts. A bare colour is stamped with itself.
+      category: typeof entry === 'string' ? entry : entry.category,
     })),
   };
 
-  await cacheLocally(date, (day) => withMeal(day, optimistic, meal.foods));
+  await cacheLocally(date, (day) =>
+    withMeal(
+      day,
+      optimistic,
+      meal.entries.filter((entry) => typeof entry !== 'string'),
+    ),
+  );
 
   await enqueue({
     path: '/meals',
@@ -268,7 +287,12 @@ export async function logMeal(
       // still a meal eaten tonight, and letting the server stamp it on arrival would file it
       // under the wrong day.
       loggedAt: optimistic.loggedAt,
-      entries: meal.foods.map((food) => ({ foodId: food.id })),
+      // A food is sent as its id alone and takes the colour standing for this caller when the
+      // request lands, the same rule restoreMeal follows. A colour is sent as itself, which is
+      // what entryInputSchema's third combination is for.
+      entries: meal.entries.map((entry) =>
+        typeof entry === 'string' ? { category: entry } : { foodId: entry.id },
+      ),
       ...(meal.notes === undefined ? {} : { notes: meal.notes }),
     },
   });

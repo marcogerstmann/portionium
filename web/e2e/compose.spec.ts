@@ -50,7 +50,7 @@ const PAST_DAY_WEIGHT = 68.4;
 interface LoggedMeal {
   id: string;
   type: string;
-  entries: { foodId: string | null }[];
+  entries: { foodId: string | null; category: string | null }[];
 }
 
 async function signIn(page: Page) {
@@ -231,6 +231,22 @@ test('logs three meals and a weight with no network and drains them exactly once
   for (const name of OFFLINE_FOODS) {
     await page.getByRole('button', { name: 'Add a meal' }).click();
     await addFood(page, name);
+
+    // The last of the three also carries a bare colour, so what leaves the queue is one meal
+    // mixing an entry that names a food with one that names nothing. This is the write that
+    // needs no connection at all: adding a food the catalog lacks mints an id at the server, and
+    // a colour has no id to mint, see `create` and logMeal.
+    if (name === OFFLINE_FOODS.at(-1)) {
+      await page
+        .getByRole('group', { name: 'Or just a colour' })
+        .getByRole('button', { name: 'green' })
+        .click();
+
+      // On the meal with the neutral word the day gives it, and the field has the caret back.
+      await expect(page.getByRole('listitem').filter({ hasText: 'Something eaten' })).toBeVisible();
+      await expect(page.getByLabel('Add a food')).toBeFocused();
+    }
+
     await page.getByRole('button', { name: /^Log / }).click();
   }
 
@@ -244,9 +260,9 @@ test('logs three meals and a weight with no network and drains them exactly once
   await expect(page.getByText(`${OFFLINE_WEIGHT} kg`)).toBeVisible();
 
   // Durable and on screen with no network at all, and marked as not sent in a way that is
-  // announced rather than only dimmed, see the accessibility note on POR-42. Four marks: three
-  // meals and the reading.
-  await expect(page.getByRole('img', { name: /not sent yet/ })).toHaveCount(4);
+  // announced rather than only dimmed, see the accessibility note on POR-42. One mark per dot
+  // and one for the reading, so five: the third meal carries two entries.
+  await expect(page.getByRole('img', { name: /not sent yet/ })).toHaveCount(5);
 
   await page.context().setOffline(false);
 
@@ -261,7 +277,14 @@ test('logs three meals and a weight with no network and drains them exactly once
   const logged = await mealsOf(page, OFFLINE_FOODS);
 
   expect(logged).toHaveLength(3);
-  expect(logged.flatMap((meal) => meal.entries)).toHaveLength(3);
+  expect(logged.flatMap((meal) => meal.entries)).toHaveLength(4);
+
+  // The mixed meal arrived as one meal, in the order it was composed, with the bare entry
+  // carrying the colour it was logged as and naming no food at all.
+  const mixed = logged.find((meal) => meal.entries.length === 2);
+
+  expect(mixed?.entries[0]?.foodId).not.toBeNull();
+  expect(mixed?.entries[1]).toMatchObject({ foodId: null, category: 'green' });
 
   // And exactly one reading rather than two. A weight carries no client minted id, so the
   // idempotency key is the only thing standing between a retry and a second row, see logWeight.

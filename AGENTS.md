@@ -889,10 +889,14 @@ last answer each statistic gave, see the statistics screen below. `outbox` is th
 `stats` is keyed by the question rather than by the URL that asked it, so it is three rows that
 are overwritten forever. A URL carries a range, which moves every day and differs between a
 phone and a desktop, so keying on it would leave a row behind on every one of those changes and
-need a trim like `trimDays`. What comes back out is parsed against the schema rather than cast
-to it, because a row written by an older version of this app is a shape this one may no longer
-understand, and a miss is the same outcome as a first launch, which every caller already
-renders.
+need a trim like `trimDays`.
+
+`cachedStats` and `cachedDay` both parse what comes back out rather than casting it, because a
+row written by an older version of this app is a shape this one may no longer understand, and a
+miss is the same outcome as a first launch, which every caller already renders. That is what
+carries a rename across an update: POR-68 renamed a meal's `items` to `entries`, so a day cached
+before it parses as nothing and is fetched again. Nothing migrates IndexedDB by hand, and there
+is no repair for a cached day other than the refresh behind it.
 
 Reads are cache first and then replaced. `cachedDay` answers from the device, `refreshDay`
 fetches and overwrites, and a screen renders the first and then the second. The server is the
@@ -996,7 +1000,10 @@ re-fetching the whole window every launch would cost seven for six answers that 
 
 Two corrections live here and a third deliberately does not. Deleting a meal and giving a food a
 colour need no food search, so they are here; recomposing a meal does, and needs `PATCH /meals/{id}`
-rather than the outbox's create path, so it is not here yet. Undo is not a timer and not a
+rather than the outbox's create path, so it is not here yet. The Classify control sits on a grey
+dot and on no other: a bare colour names nothing to classify, and a coloured entry is history
+that recolouring its food deliberately leaves alone, so correcting one entry on its own is a
+different story. Undo is not a timer and not a
 window that expires: the delete is durable immediately like every other write, and undoing it
 posts the same meal id again, which revives the server's own soft deleted row. So closing the app
 mid undo loses nothing, and there is nothing to race.
@@ -1030,12 +1037,24 @@ server has a trigram index and a Damerau walk for that, see `api/src/domain/food
 two implementations of a ranking are two different answers to one search box. What is scanned
 here is fifty names out of somebody's own diet, where a typo is visibly a typo.
 
-What the composer sends is a food id and nothing else. The server stamps the colour that food
-resolves to for this caller at that moment, see
+What the composer sends for a food is its id and nothing else. The server stamps the colour that
+food resolves to for this caller at that moment, see
 [ADR 011](./docs/adr/011-an-entry-is-a-colour.md), and the optimistic copy in `logMeal` carries
 the colour the search result already had for exactly that reason: it is the row that is about to
-come back. A bare colour, an entry naming no food at all, is expressible on the wire and is not
-composable here yet, which is WEB 13.
+come back.
+
+The other thing it sends is a colour naming no food at all, from three buttons above the search
+field, and that is the same rule read backwards: an entry is a colour and a food is a name for
+one, so adding a green is one tap rather than a search followed by a decision about what to call
+it. They sit before the combobox in the document and go through the same `add` the listbox does,
+so the keyboard cost is one Shift+Tab and the caret is back in the field afterwards. A chosen
+thing is therefore `FoodResponse | Category`, `ComposedEntry` in `outbox.ts`: `Category` is a
+string union, so `typeof entry === 'string'` narrows both halves and a bare colour needs no
+wrapper carrying nothing beside it.
+
+It is also the only write on this screen that can never want a connection. Adding an unknown
+food mints an id at the server and a bare colour has no id to mint, so the offline spec logs one
+inside a meal that also names a food and asserts the two drain as one meal.
 
 Three smaller decisions are worth knowing. The meal type is pre-selected from the clock in the
 user's own timezone by `mealTypeAt`, and the hours between meals are snacks rather than a guess
