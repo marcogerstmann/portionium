@@ -43,6 +43,8 @@ export const de: typeof en = {
   todayTrendForming: 'Trend bildet sich',
   todayTrendKg: 'Trend {trend} kg',
   todayAddWeight: 'Hinzufügen',
+  todayCorrectWeight: 'Gewicht korrigieren',
+  todayRemoveWeight: 'Gewicht entfernen',
   todayWeightKgLabel: 'Gewicht in kg',
   todaySave: 'Speichern',
   todayNotSentYet: 'noch nicht gesendet',

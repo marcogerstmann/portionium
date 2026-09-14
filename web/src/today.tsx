@@ -42,6 +42,7 @@ import { Dot, categoryLabel, dotOf, type DotCategory } from './dot';
 import { useLocale, useT } from './i18n';
 import {
   classifyFood,
+  correctWeight,
   deleteMeal,
   discardWrite,
   foodSubject,
@@ -51,6 +52,7 @@ import {
   OUTBOX_CHANGED_EVENT,
   outboxState,
   recolourEntry,
+  removeWeight,
   repeatMeal,
   restoreMeal,
   weightSubject,
@@ -319,12 +321,17 @@ function Weight({
   weight,
   pending,
   onRecord,
+  onCorrect,
+  onRemove,
 }: {
   day: DayResponse;
   /** The last thing the server said about the trend, or nothing on a device that never asked. */
   weight: StatsWeightResponse | undefined;
   pending: boolean;
   onRecord: (weightKg: number) => void;
+  /** POR-74: the reading already on this day, replaced rather than added to. */
+  onCorrect: (weightKg: number) => void;
+  onRemove: () => void;
 }) {
   const [entering, setEntering] = useState(false);
   const t = useT();
@@ -335,85 +342,96 @@ function Weight({
   // stand on, which is the same judgement the statistics screen refuses to draw a line through.
   const trend = trendCaveat(days, locale) === undefined ? (days.at(-1)?.trendKg ?? null) : null;
 
+  if (entering) {
+    // The reading being corrected, when there is one, rather than the last global reading: on
+    // the day being corrected that last reading is the wrong number to offer. Falls back to the
+    // empty row's own default otherwise, see lastReading.
+    const prefill = day.weightEntry?.weightKg ?? lastReading(days);
+
+    return (
+      <form
+        className="row"
+        onSubmit={(event: FormEvent<HTMLFormElement>) => {
+          event.preventDefault();
+          const weightKg = Number(new FormData(event.currentTarget).get('weightKg'));
+
+          // The browser's own `required` and `min` refuse an empty or negative field and
+          // announce why, so what is left to check here is that it parsed as a number at all.
+          if (Number.isFinite(weightKg) && weightKg > 0) {
+            setEntering(false);
+            (day.weightEntry === null ? onRecord : onCorrect)(weightKg);
+          }
+        }}
+      >
+        {/* The field and its button keep their own size inside the row: the generic column the
+            login form uses is right there and wrong here, because opening this must not push
+            everything under it down the screen, under a thumb that is already over the row. */}
+        <label htmlFor="weightKg" className="shrink-0">
+          {t('todayWeightKgLabel')}
+        </label>
+        <input
+          id="weightKg"
+          name="weightKg"
+          type="number"
+          inputMode="decimal"
+          step="0.1"
+          min="1"
+          max="1000"
+          required
+          autoFocus
+          className="min-w-0 flex-1"
+          // A period decimal separator, whatever the active language: the value attribute of a
+          // number input is parsed by the platform as one regardless of locale, never displayed
+          // text, so this is the one number on this screen formatKg must not touch.
+          defaultValue={prefill === undefined ? undefined : prefill.toFixed(1)}
+          onFocus={(event) => event.currentTarget.select()}
+        />
+        <button type="submit" className="shrink-0">
+          {t('todaySave')}
+        </button>
+      </form>
+    );
+  }
+
   if (day.weightEntry !== null) {
     return (
-      <p className="row">
+      <div className="row">
         <span>{t('todayWeightLabel')}</span>
-        {/* A column rather than a row, so the two stack against the right edge and the trend is
-            plainly the line being read: the whole product principle in a flex direction. */}
-        <span className="flex flex-col items-end">
-          <span>
-            {trend === null
-              ? t('todayTrendForming')
-              : t('todayTrendKg', { trend: formatKg(trend, locale) })}
+        <span className="flex items-center gap-2">
+          {/* A column rather than a row, so the two stack against the right edge and the trend
+              is plainly the line being read: the whole product principle in a flex direction. A
+              correction control grows the tap target beside it, never the type scale. */}
+          <span className="flex flex-col items-end">
+            <span>
+              {trend === null
+                ? t('todayTrendForming')
+                : t('todayTrendKg', { trend: formatKg(trend, locale) })}
+            </span>
+            <span className="flex items-center gap-1 text-sm text-muted">
+              {formatKg(day.weightEntry.weightKg, locale)} kg{pending && <PendingMark />}
+            </span>
           </span>
-          <span className="flex items-center gap-1 text-sm text-muted">
-            {formatKg(day.weightEntry.weightKg, locale)} kg{pending && <PendingMark />}
-          </span>
+          <button type="button" className="shrink-0" onClick={() => setEntering(true)}>
+            <Pencil aria-hidden="true" className="size-4" />
+            <span className="sr-only">{t('todayCorrectWeight')}</span>
+          </button>
+          <button type="button" className="shrink-0" onClick={onRemove}>
+            <Trash2 aria-hidden="true" className="size-4" />
+            <span className="sr-only">{t('todayRemoveWeight')}</span>
+          </button>
         </span>
-      </p>
+      </div>
     );
   }
-
-  if (!entering) {
-    return (
-      <button type="button" className="row" onClick={() => setEntering(true)}>
-        <span>{t('todayWeightLabel')}</span>
-        <span className="flex items-center gap-1 text-sm text-muted">
-          <Plus aria-hidden="true" className="size-4" />
-          {t('todayAddWeight')}
-        </span>
-      </button>
-    );
-  }
-
-  // The last thing that was actually on the scale, which on most days is within a few hundred
-  // grams of what is about to be typed. Selected on focus rather than only offered, so the
-  // field is both a default to accept and an empty one to type over, at no extra tap either way.
-  const last = lastReading(days);
 
   return (
-    <form
-      className="row"
-      onSubmit={(event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        const weightKg = Number(new FormData(event.currentTarget).get('weightKg'));
-
-        // The browser's own `required` and `min` refuse an empty or negative field and announce
-        // why, so what is left to check here is that it parsed as a number at all.
-        if (Number.isFinite(weightKg) && weightKg > 0) {
-          setEntering(false);
-          onRecord(weightKg);
-        }
-      }}
-    >
-      {/* The field and its button keep their own size inside the row: the generic column the
-          login form uses is right there and wrong here, because opening this must not push
-          everything under it down the screen, under a thumb that is already over the row. */}
-      <label htmlFor="weightKg" className="shrink-0">
-        {t('todayWeightKgLabel')}
-      </label>
-      <input
-        id="weightKg"
-        name="weightKg"
-        type="number"
-        inputMode="decimal"
-        step="0.1"
-        min="1"
-        max="1000"
-        required
-        autoFocus
-        className="min-w-0 flex-1"
-        // A period decimal separator, whatever the active language: the value attribute of a
-        // number input is parsed by the platform as one regardless of locale, never displayed
-        // text, so this is the one number on this screen formatKg must not touch.
-        defaultValue={last === undefined ? undefined : last.toFixed(1)}
-        onFocus={(event) => event.currentTarget.select()}
-      />
-      <button type="submit" className="shrink-0">
-        {t('todaySave')}
-      </button>
-    </form>
+    <button type="button" className="row" onClick={() => setEntering(true)}>
+      <span>{t('todayWeightLabel')}</span>
+      <span className="flex items-center gap-1 text-sm text-muted">
+        <Plus aria-hidden="true" className="size-4" />
+        {t('todayAddWeight')}
+      </span>
+    </button>
   );
 }
 
@@ -529,17 +547,32 @@ export function Today({
   // new day's heading while the cache is being read.
   const day = loaded?.date === date ? loaded : emptyDay(date);
 
-  /** Read the device's copy and then replace it with the server's, in that order. */
+  // A plain ref rather than a dependency `load` closes over, so `load`'s identity stays stable
+  // while it can still tell a stale call from a current one, see below.
+  const wantedDate = useRef(date);
+  wantedDate.current = date;
+
+  /**
+   * Read the device's copy and then replace it with the server's, in that order.
+   *
+   * A page away while this is still in flight leaves it holding a `wanted` date that is no
+   * longer `date`, and there is nothing to cancel a fetch already sent. Without the guard on
+   * `wantedDate.current` below, that stale answer would still land in `setLoaded` once it
+   * arrives and, since it is for a different day, silently override what the day actually being
+   * looked at had just correctly loaded, until something asks for that day again. The render
+   * guard two lines up only stops the two from being shown mixed together, not one clobbering
+   * the other.
+   */
   const load = useCallback(async (wanted: LocalDate) => {
     const cached = await cachedDay(wanted);
 
-    if (cached !== undefined) {
+    if (cached !== undefined && wantedDate.current === wanted) {
       setLoaded(cached);
     }
 
     const fresh = await refreshDay(wanted).catch(() => undefined);
 
-    if (fresh !== undefined) {
+    if (fresh !== undefined && wantedDate.current === wanted) {
       setLoaded(fresh);
     }
   }, []);
@@ -833,6 +866,8 @@ export function Today({
         weight={weight}
         pending={queue.pending.has(weightSubject(date))}
         onRecord={(weightKg) => void logWeight(user, weightKg, date)}
+        onCorrect={(weightKg) => void correctWeight(user, weightKg, date)}
+        onRemove={() => void removeWeight(date)}
       />
     </main>
   );

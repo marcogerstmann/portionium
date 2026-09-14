@@ -61,6 +61,7 @@ export const ACCOUNTS = {
   review: fixture('review'),
   correct: fixture('correct'),
   favourites: fixture('favourites'),
+  weight: fixture('weight'),
 };
 
 /**

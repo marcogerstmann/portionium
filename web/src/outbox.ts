@@ -27,6 +27,7 @@ import {
   withClassification,
   withMeal,
   withoutMeal,
+  withoutWeight,
   withWeight,
   type OutboxEntry,
 } from './db';
@@ -337,6 +338,89 @@ export async function logWeight(
   });
 
   return optimistic;
+}
+
+/**
+ * Correct a weight already recorded for this day to a new number, and put the correction on the
+ * cached day the way the server would once it drains.
+ *
+ * Delete then post, in that order: the superseded reading is queued for removal before the
+ * corrected one is queued behind it, so the queue drains to one row for the day rather than two.
+ * The queue drains in key order and a UUIDv7 sorts by the moment it was minted, so enqueueing in
+ * this order is the whole of the ordering, see deleteMeal for the same trick played on a meal.
+ *
+ * Unless the reading being corrected has not drained yet, which `editMeal` below is the worked
+ * example of: `weightSubject(date)` is already exactly the key a write is queued under, one per
+ * day, so its body is rewritten in place rather than queuing a delete and a post behind it. This
+ * is not an optimisation. A `DELETE /weight/{date}` for a date the server has never held a
+ * reading on is a 404, which `classifyAttempt` reads as permanent, and that is what keeps a
+ * correction made on a train from landing in the refused list.
+ */
+export async function correctWeight(
+  user: UserResponse,
+  weightKg: number,
+  date: LocalDate,
+): Promise<WeightEntryResponse> {
+  const recordedAt = instantFor(date, user.timezone, user.dayBoundaryHour);
+
+  const optimistic: WeightEntryResponse = {
+    id: uuidv7(),
+    userId: user.id,
+    weightKg,
+    localDate: date,
+    recordedAt: recordedAt.toISOString(),
+  };
+
+  await cacheLocally(date, (day) => withWeight(day, optimistic));
+
+  const queued = (await database.outbox.orderBy('key').reverse().toArray()).find(
+    (entry) =>
+      entry.subject === weightSubject(date) &&
+      entry.failure === null &&
+      (entry.method ?? 'POST') !== 'DELETE',
+  );
+  const body = { weightKg, recordedAt: optimistic.recordedAt };
+
+  // Zero means the drain took it between the read above and this write, so the server has the
+  // superseded reading after all and the correction belongs behind a delete like any other, see
+  // the same race called out on editMeal.
+  if (queued !== undefined && (await database.outbox.update(queued.key, { body })) > 0) {
+    announce();
+    void drain();
+
+    return optimistic;
+  }
+
+  await enqueue({
+    path: `/weight/${date}`,
+    method: 'DELETE',
+    date,
+    subject: weightSubject(date),
+    body: undefined,
+  });
+
+  await enqueue({ path: '/weight', date, subject: weightSubject(date), body });
+
+  return optimistic;
+}
+
+/**
+ * Remove the reading recorded for this day, and put the day back to having none.
+ *
+ * Queued unconditionally, the same reasoning `deleteMeal` gives: a reading whose own POST has
+ * not drained yet needs nothing special, since both writes are in one queue in the order they
+ * were made and the server sees the create and then the delete.
+ */
+export async function removeWeight(date: LocalDate): Promise<void> {
+  await cacheLocally(date, withoutWeight);
+
+  await enqueue({
+    path: `/weight/${date}`,
+    method: 'DELETE',
+    date,
+    subject: weightSubject(date),
+    body: undefined,
+  });
 }
 
 /**

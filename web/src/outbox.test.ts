@@ -1,17 +1,32 @@
-import { PROBLEM, type ProblemDetails } from '@portionium/schemas';
-import { describe, expect, it } from 'vitest';
+// A real IndexedDB, in-memory and gone with the process: what the coalescing tests below need
+// and the reason they are not pure. Imported for its side effect alone, and first, so it is in
+// place before ./db's `database` is ever constructed.
+import 'fake-indexeddb/auto';
+
+import { PROBLEM, type ProblemDetails, type UserResponse } from '@portionium/schemas';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { ApiError } from './api';
-import { localDateFor } from './db';
-import { backoffMs, classifyAttempt, instantFor } from './outbox';
+import { database, localDateFor } from './db';
+import {
+  backoffMs,
+  classifyAttempt,
+  correctWeight,
+  instantFor,
+  removeWeight,
+  weightSubject,
+} from './outbox';
 
 /**
  * Two things worth pinning down without a browser: whether a refusal is worth retrying, which
  * decides between a queue that never empties and a meal that is silently dropped, and what
  * instant a write for a past day gets stamped with, which is what POR-62 fixed.
  *
- * The queue mechanics around both, the actual enqueue and drain over IndexedDB, need a real one
- * and arrive with the browser tests on POR-43, see the scope note on POR-41.
+ * Sending and draining still need a real browser and arrive with those tests on POR-43, see the
+ * scope note on POR-41. What correctWeight and removeWeight decide to put in the queue is worth
+ * pinning down here too, POR-74, since getting the coalescing wrong is a silent duplicate row or
+ * a correction that lands in the refused list, and a fake IndexedDB is enough to see the queue
+ * without a browser around it.
  */
 
 function problem(type: ProblemDetails['type'], status: number): ApiError {
@@ -110,5 +125,87 @@ describe('backoffMs', () => {
 
   it('does not wait less than the base, whatever it is handed', () => {
     expect(backoffMs(0)).toBe(1_000);
+  });
+});
+
+const user: UserResponse = {
+  id: '01930000-0000-7000-8000-0000000000ff',
+  email: 'weight-test@example.com',
+  displayName: 'Weight test',
+  role: 'user',
+  timezone: 'Europe/Berlin',
+  dayBoundaryHour: 4,
+  locale: null,
+};
+const date = '2026-09-13';
+
+// No real network here: a stub that always refuses, so the drain that enqueue fires and forgets
+// finds nothing to send, retries silently and never deletes an entry out from under an
+// assertion below. See classifyAttempt: anything that is not an ApiError retries.
+globalThis.fetch = () => Promise.reject(new Error('no network in a unit test'));
+
+describe('correctWeight', () => {
+  afterEach(async () => {
+    await database.outbox.clear();
+  });
+
+  it('queues a delete and a post when the reading being corrected has already drained', async () => {
+    await correctWeight(user, 74.5, date);
+
+    const queued = await database.outbox.orderBy('key').toArray();
+
+    // Delete first, so the queue drains to one row for the day: see correctWeight. The post's
+    // own method is omitted rather than written as 'POST', the same convention logWeight's own
+    // enqueue call follows, since a reader defaults an absent one to it, see OutboxEntry.method.
+    expect(queued.map((entry) => entry.method ?? 'POST')).toEqual(['DELETE', 'POST']);
+    expect(queued[0]).toMatchObject({ path: `/weight/${date}`, subject: weightSubject(date) });
+    expect(queued[1]).toMatchObject({
+      path: '/weight',
+      subject: weightSubject(date),
+      body: { weightKg: 74.5 },
+    });
+  });
+
+  it('rewrites the queued body and queues nothing new for a reading that has not drained yet', async () => {
+    await database.outbox.add({
+      key: '01930000-0000-7000-8000-000000000001',
+      path: '/weight',
+      method: 'POST',
+      date,
+      subject: weightSubject(date),
+      body: { weightKg: 70, recordedAt: '2026-09-13T06:00:00.000Z' },
+      attempts: 0,
+      nextAttemptAt: 0,
+      failure: null,
+    });
+
+    await correctWeight(user, 74.5, date);
+
+    const queued = await database.outbox.orderBy('key').toArray();
+
+    // The same entry, corrected in place, rather than a delete and a post behind it: queuing a
+    // delete here would be a 404 for a date the server has never held a reading on.
+    expect(queued).toHaveLength(1);
+    expect(queued[0]).toMatchObject({
+      key: '01930000-0000-7000-8000-000000000001',
+      method: 'POST',
+      body: { weightKg: 74.5 },
+    });
+  });
+});
+
+describe('removeWeight', () => {
+  afterEach(async () => {
+    await database.outbox.clear();
+  });
+
+  it('queues a delete', async () => {
+    await removeWeight(date);
+
+    const queued = await database.outbox.orderBy('key').toArray();
+
+    expect(queued).toMatchObject([
+      { method: 'DELETE', path: `/weight/${date}`, subject: weightSubject(date) },
+    ]);
   });
 });

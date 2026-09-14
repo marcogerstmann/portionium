@@ -43,6 +43,8 @@ export const en = {
   todayTrendForming: 'Trend forming',
   todayTrendKg: 'Trend {trend} kg',
   todayAddWeight: 'Add',
+  todayCorrectWeight: 'Correct weight',
+  todayRemoveWeight: 'Remove weight',
   todayWeightKgLabel: 'Weight in kg',
   todaySave: 'Save',
   todayNotSentYet: 'not sent yet',

@@ -344,6 +344,11 @@ export function withWeight(day: DayResponse, weightEntry: WeightEntryResponse): 
   return { ...day, weightEntry };
 }
 
+/** A day with its reading taken off it, the optimistic half of removing one, see removeWeight. */
+export function withoutWeight(day: DayResponse): DayResponse {
+  return { ...day, weightEntry: null };
+}
+
 /** A day with nothing on it, so an optimistic write has something to be applied to. */
 export function emptyDay(date: LocalDate): DayResponse {
   return { date, meals: [], weightEntry: null, colourCounts: countColours([]), foods: [] };

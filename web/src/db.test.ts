@@ -10,6 +10,7 @@ import {
   withClassification,
   withMeal,
   withoutMeal,
+  withoutWeight,
   withWeight,
 } from './db';
 
@@ -261,5 +262,21 @@ describe('withWeight', () => {
     });
 
     expect(day.weightEntry?.weightKg).toBe(81.2);
+  });
+});
+
+describe('withoutWeight', () => {
+  it('takes the reading off the day, the empty state POR-74 removing one falls back to', () => {
+    const entry = {
+      id: '01930000-0000-7000-8000-000000000003',
+      userId: '01930000-0000-7000-8000-0000000000ff',
+      weightKg: 81.4,
+      localDate: '2026-09-13',
+      recordedAt: '2026-09-13T06:00:00.000Z',
+    };
+
+    const day = withoutWeight(withWeight(emptyDay('2026-09-13'), entry));
+
+    expect(day.weightEntry).toBeNull();
   });
 });
