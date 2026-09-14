@@ -745,8 +745,55 @@ describe('meal suggestions', () => {
     });
 
     const body = response.json<MealSuggestionResponse[]>();
-    expect(body[0]?.entries).toEqual([{ foodId: skyr.id, category: 'green' }]);
+    expect(body[0]?.entries).toEqual([{ foodId: skyr.id, foodName: 'Skyr', category: 'green' }]);
     expect(body[0]?.mealId).toEqual(expect.any(String) as string);
+  });
+
+  it("resolves a suggested food's colour to the caller's own override, not the shared one", async () => {
+    const { app, fixtures } = await buildTestApp();
+    const skyr = fixtures.create.food({ name: 'Skyr' });
+    fixtures.create.classification(skyr, { category: 'green' });
+    const token = fixtures.create.session(fixtures.userA);
+
+    fixtures.create.meal(fixtures.userA, {
+      type: 'breakfast',
+      entries: [{ foodId: skyr.id }],
+    });
+    fixtures.create.classification(skyr, {
+      userId: fixtures.userA.id,
+      source: 'user',
+      category: 'orange',
+    });
+
+    const response = await app.inject({
+      url: `${SUGGESTIONS}?type=breakfast`,
+      headers: browser(token),
+    });
+
+    const body = response.json<MealSuggestionResponse[]>();
+    expect(body[0]?.entries).toEqual([{ foodId: skyr.id, foodName: 'Skyr', category: 'orange' }]);
+  });
+
+  it('suggests a composition made of a bare colour, with no food name to carry', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+
+    for (let day = 1; day <= 2; day += 1) {
+      fixtures.create.meal(fixtures.userA, {
+        type: 'snack',
+        loggedAt: new Date(2026, 3, day, 12),
+        entries: [{ category: 'green' }],
+      });
+    }
+
+    const response = await app.inject({
+      url: `${SUGGESTIONS}?type=snack`,
+      headers: browser(token),
+    });
+
+    const body = response.json<MealSuggestionResponse[]>();
+    expect(body).toHaveLength(1);
+    expect(body[0]?.entries).toEqual([{ category: 'green' }]);
   });
 
   it('treats the same foods logged in a different order as one composition', async () => {
@@ -808,7 +855,34 @@ describe('pinning a favourite', () => {
     expect(response.statusCode).toBe(201);
     const body = response.json<FavouriteResponse>();
     expect(body).toMatchObject({ name: 'Standard Frühstück', type: 'breakfast' });
-    expect(body.entries).toEqual([{ foodId: skyr.id, quantity: 200, category: 'green' }]);
+    expect(body.entries).toEqual([
+      { foodId: skyr.id, foodName: 'Skyr', quantity: 200, category: 'green' },
+    ]);
+  });
+
+  it('resolves a food entry to a name and colour, and leaves a bare entry with neither to look up', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const skyr = fixtures.create.food({ name: 'Skyr' });
+    fixtures.create.classification(skyr, { category: 'green' });
+    const token = fixtures.create.session(fixtures.userA);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: FAVOURITES,
+      headers: browser(token),
+      payload: {
+        name: 'Mixed',
+        type: 'snack',
+        entries: [{ foodId: skyr.id }, { category: 'orange' }],
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    const body = response.json<FavouriteResponse>();
+    expect(body.entries).toEqual([
+      { foodId: skyr.id, foodName: 'Skyr', category: 'green' },
+      { category: 'orange' },
+    ]);
   });
 
   it('rejects an empty favourite as a domain error rather than an empty row', async () => {

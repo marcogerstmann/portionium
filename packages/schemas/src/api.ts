@@ -235,9 +235,14 @@ export type UpdateMealRequest = z.infer<typeof updateMealRequestSchema>;
  * One entry of a suggestion or a favourite. Unlike a logged entry's, this colour is resolved for
  * whoever asked, because a composition is a preset rather than history: it says what logging
  * this again would give you now, see docs/adr/011-an-entry-is-a-colour.md.
+ *
+ * `foodName` is what makes this renderable without a lookup per entry, the same reasoning
+ * GET /days/{date} already applies to its own `foods` list. It exists exactly when `foodId`
+ * does: a bare colour names no food and so has nothing to call it.
  */
 export const mealCompositionEntryResponseSchema = z.object({
   foodId: idSchema.optional(),
+  foodName: foodSchema.shape.name.optional(),
   quantity: entrySchema.shape.quantity,
   category: categorySchema.nullable(),
 });

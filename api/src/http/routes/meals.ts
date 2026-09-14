@@ -188,7 +188,8 @@ function groupEntriesByMeal(entries: readonly EntryRecord[]): Map<string, EntryR
 /**
  * One entry of a suggestion or a favourite. A composition is a preset rather than history, so
  * unlike a logged entry this resolves: it answers what logging this again would give the caller
- * now. A bare colour names no food and simply keeps the colour it was pinned with.
+ * now. A bare colour names no food and simply keeps the colour it was pinned with, and has no
+ * name to carry either.
  */
 function toCompositionEntryResponse(
   entry: {
@@ -197,9 +198,12 @@ function toCompositionEntryResponse(
     quantity?: number | undefined;
   },
   resolved: ReadonlyMap<string, FoodClassificationRecord>,
+  names: ReadonlyMap<string, string>,
 ): MealCompositionEntryResponse {
   return {
-    ...(entry.foodId === undefined ? {} : { foodId: entry.foodId }),
+    ...(entry.foodId === undefined
+      ? {}
+      : { foodId: entry.foodId, foodName: names.get(entry.foodId) }),
     ...(entry.quantity === undefined ? {} : { quantity: entry.quantity }),
     category:
       entry.foodId === undefined
@@ -208,16 +212,17 @@ function toCompositionEntryResponse(
   };
 }
 
-/** A favourite on its way out, with every entry's colour resolved for whoever pinned it. */
+/** A favourite on its way out, with every entry's colour and food name resolved for the caller. */
 function toFavouriteResponse(
   favourite: MealFavouriteRecord,
   resolved: ReadonlyMap<string, FoodClassificationRecord>,
+  names: ReadonlyMap<string, string>,
 ) {
   return {
     id: favourite.id,
     name: favourite.name,
     type: favourite.type,
-    entries: favourite.entries.map((entry) => toCompositionEntryResponse(entry, resolved)),
+    entries: favourite.entries.map((entry) => toCompositionEntryResponse(entry, resolved, names)),
   };
 }
 
@@ -284,6 +289,14 @@ export const mealRoutes: FastifyPluginCallbackZod<MealRouteOptions> = (app, opti
   /** The colours these foods have for this caller right now, in one query however many there are. */
   function coloursFor(userId: string, foodIds: readonly string[]) {
     return resolveClassifications(findClassificationsForFoods(db, foodIds, userId), userId);
+  }
+
+  /**
+   * The names these foods carry right now, one query for a whole page. A composition renders
+   * from this map alone, the same reasoning GET /days/{date} already applies to its `foods` list.
+   */
+  function namesFor(foodIds: readonly string[]): Map<string, string> {
+    return new Map(findFoodsByIds(db, foodIds).map((food) => [food.id, food.name]));
   }
 
   /**
@@ -633,14 +646,15 @@ export const mealRoutes: FastifyPluginCallbackZod<MealRouteOptions> = (app, opti
 
       // A suggestion is a preset, so its colours are the ones logging it again would give,
       // resolved now, rather than the ones the meal it came from was logged with.
-      const resolved = coloursFor(
-        userId,
-        entries.flatMap((entry) => (entry.foodId === null ? [] : [entry.foodId])),
-      );
+      const foodIds = entries.flatMap((entry) => (entry.foodId === null ? [] : [entry.foodId]));
+      const resolved = coloursFor(userId, foodIds);
+      const names = namesFor(foodIds);
 
       return rankMealSuggestions(historyMeals, limit).map((suggestion) => ({
         mealId: suggestion.mealId,
-        entries: suggestion.entries.map((entry) => toCompositionEntryResponse(entry, resolved)),
+        entries: suggestion.entries.map((entry) =>
+          toCompositionEntryResponse(entry, resolved, names),
+        ),
       }));
     },
   );
@@ -678,11 +692,12 @@ export const mealRoutes: FastifyPluginCallbackZod<MealRouteOptions> = (app, opti
       });
 
       const resolved = coloursFor(userId, foodIds);
+      const names = namesFor(foodIds);
 
       request.log.info({ userId, favouriteId: stored.id }, 'favourite created');
 
       reply.code(201);
-      return toFavouriteResponse(stored, resolved);
+      return toFavouriteResponse(stored, resolved, names);
     },
   );
 
@@ -711,9 +726,10 @@ export const mealRoutes: FastifyPluginCallbackZod<MealRouteOptions> = (app, opti
         favourite.entries.flatMap((entry) => (entry.foodId === undefined ? [] : [entry.foodId])),
       );
       const resolved = coloursFor(userId, foodIds);
+      const names = namesFor(foodIds);
 
       return {
-        items: favourites.map((favourite) => toFavouriteResponse(favourite, resolved)),
+        items: favourites.map((favourite) => toFavouriteResponse(favourite, resolved, names)),
         nextCursor: page.length > limit ? (favourites.at(-1)?.id ?? null) : null,
       };
     },
