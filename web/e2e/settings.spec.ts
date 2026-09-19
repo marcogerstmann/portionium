@@ -36,7 +36,10 @@ test('shows the account and saves a changed display name on its own', async ({ p
   await expect(page.getByText(ACCOUNT.email)).toBeVisible();
 
   await page.getByLabel('Display name').fill('Zora');
-  await page.getByRole('button', { name: 'Save' }).click();
+  // Exact, because this screen now carries a second saving control, the weekly limits' own
+  // "Save limits". A role name matches as a substring unless it is told not to, so the loose
+  // spelling started resolving to both the moment that section arrived.
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
 
   await expect(page.getByText('Zora', { exact: true })).toBeVisible();
 
