@@ -1,4 +1,9 @@
-import { PROBLEM, type ProblemDetails, type UserResponse } from '@portionium/schemas';
+import {
+  PROBLEM,
+  type ProblemDetails,
+  type UserResponse,
+  type WeeklyBudgets,
+} from '@portionium/schemas';
 import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -27,6 +32,7 @@ import {
 const WEB_ORIGIN = 'http://localhost:5173';
 const ME = `${API_PREFIX}/me`;
 const PASSWORD = `${API_PREFIX}/me/password`;
+const BUDGETS = `${API_PREFIX}/me/budgets`;
 
 let open: { app: FastifyInstance; fixtures: TestFixtures } | undefined;
 
@@ -420,5 +426,101 @@ describe('changing the password', () => {
         .where(eq(sessionTable.userId, fixtures.userB.id))
         .all(),
     ).toHaveLength(1);
+  });
+});
+
+/**
+ * The allowance itself, not what a week does against it, which is stats.test.ts.
+ *
+ * The distinction worth holding on to here is null against zero and null against absent. They
+ * are three different things in one small object: unlimited, none this week, and untouched.
+ */
+describe('the weekly allowance', () => {
+  async function read(app: FastifyInstance, token: string): Promise<WeeklyBudgets> {
+    const response = await app.inject({ url: BUDGETS, headers: browser(token) });
+    expect(response.statusCode).toBe(200);
+
+    return response.json<WeeklyBudgets>();
+  }
+
+  async function put(app: FastifyInstance, token: string, payload: object) {
+    return await app.inject({ method: 'PUT', url: BUDGETS, headers: browser(token), payload });
+  }
+
+  it('starts unlimited on every category, so an untouched account behaves as it always did', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+
+    expect(await read(app, token)).toEqual({ green: null, yellow: null, orange: null });
+  });
+
+  it('sets the categories it names and answers with the whole allowance', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+
+    const response = await app.inject({
+      method: 'PUT',
+      url: BUDGETS,
+      headers: browser(token),
+      payload: { yellow: 12, orange: 4 },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json<WeeklyBudgets>()).toEqual({ green: null, yellow: 12, orange: 4 });
+    expect(await read(app, token)).toEqual({ green: null, yellow: 12, orange: 4 });
+  });
+
+  /** A category the body does not name is untouched, which is what makes the update partial. */
+  it('leaves a category the body does not name exactly as it was', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+    await put(app, token, { yellow: 12, orange: 4 });
+
+    await put(app, token, { orange: 2 });
+
+    expect(await read(app, token)).toEqual({ green: null, yellow: 12, orange: 2 });
+  });
+
+  /** Zero is an intention, null is the absence of one, and neither may collapse into the other. */
+  it('keeps a limit of 0 distinct from unlimited', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+
+    await put(app, token, { orange: 0, yellow: null });
+
+    expect(await read(app, token)).toEqual({ green: null, yellow: null, orange: 0 });
+  });
+
+  it('takes an explicit null as going back to unlimited rather than as untouched', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+    await put(app, token, { orange: 4 });
+
+    await put(app, token, { orange: null });
+
+    expect(await read(app, token)).toEqual({ green: null, yellow: null, orange: null });
+  });
+
+  it('refuses a negative limit, a fractional one and a category nobody declared', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+
+    expect((await put(app, token, { orange: -1 })).statusCode).toBe(400);
+    expect((await put(app, token, { orange: 1.5 })).statusCode).toBe(400);
+    expect((await put(app, token, { grey: 3 })).statusCode).toBe(400);
+    expect(await read(app, token)).toEqual({ green: null, yellow: null, orange: null });
+  });
+
+  /** There is no id in either path, so one account's allowance is not addressable from another. */
+  it('never lets one account read or write the other one', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const tokenA = fixtures.create.session(fixtures.userA);
+    const tokenB = fixtures.create.session(fixtures.userB);
+
+    await put(app, tokenA, { orange: 4 });
+
+    expect(await read(app, tokenB)).toEqual({ green: null, yellow: null, orange: null });
+    await put(app, tokenB, { orange: 9 });
+    expect(await read(app, tokenA)).toEqual({ green: null, yellow: null, orange: 4 });
   });
 });

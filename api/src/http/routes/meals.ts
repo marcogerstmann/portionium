@@ -15,7 +15,6 @@ import {
   toWeightEntryResponse,
   updateMealRequestSchema,
   type Category,
-  type ColourCounts,
   type EntryInput,
   type EntryResponse,
   type MealCompositionEntryResponse,
@@ -24,7 +23,7 @@ import {
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
-import { findUserById, type UserRecord } from '../../db/auth.js';
+import { findUserById, weeklyBudgetsOf, type UserRecord } from '../../db/auth.js';
 import type { Db } from '../../db/client.js';
 import {
   findClassificationsForFoods,
@@ -38,6 +37,7 @@ import {
   type MealFavouriteRecord,
 } from '../../db/meal-favourite.js';
 import {
+  findEntriesForDateRange,
   findEntriesForMeals,
   findMealById,
   findMealsForDay,
@@ -49,6 +49,7 @@ import {
   type MealRecord,
 } from '../../db/meal.js';
 import { findLatestWeightEntryForDay } from '../../db/weight.js';
+import { computeBudgetStatus } from '../../domain/budget.js';
 import { resolveClassifications } from '../../domain/classification.js';
 import { DomainError, ResourceNotFoundError, UnauthenticatedError } from '../../domain/errors.js';
 import {
@@ -60,6 +61,8 @@ import {
   type NewMeal,
 } from '../../domain/meal.js';
 import { rankMealSuggestions, type SuggestionHistoryMeal } from '../../domain/meal-suggestions.js';
+import { countColours } from '../../domain/stats.js';
+import { isoWeekOf } from '../../domain/weekly-summary.js';
 import {
   authenticatedProblemResponses,
   idempotencyProblemResponses,
@@ -224,16 +227,6 @@ function toFavouriteResponse(
     type: favourite.type,
     entries: favourite.entries.map((entry) => toCompositionEntryResponse(entry, resolved, names)),
   };
-}
-
-/** How many of these entries landed in each colour, the ones still waiting for one included. */
-function countColours(entries: readonly EntryRecord[]): ColourCounts {
-  const counts: ColourCounts = { green: 0, yellow: 0, orange: 0, unclassified: 0 };
-  for (const entry of entries) {
-    counts[entry.category ?? 'unclassified'] += 1;
-  }
-
-  return counts;
 }
 
 export const mealRoutes: FastifyPluginCallbackZod<MealRouteOptions> = (app, options, done) => {
@@ -571,16 +564,24 @@ export const mealRoutes: FastifyPluginCallbackZod<MealRouteOptions> = (app, opti
       const { userId } = request.auth;
       const { date } = request.params;
 
-      // Five queries whatever the day contains: the meals, their entries in one go, the foods
-      // those entries name in one more, the current colours of those foods in one more, and the
-      // weight reading. A day with twenty entries costs the same round trip as a day with two,
-      // which is the point.
+      // Seven queries whatever the day contains: the meals, their entries in one go, the foods
+      // those entries name in one more, the current colours of those foods in one more, the
+      // weight reading, the account row, and the week's entries for the budget. A day with
+      // twenty entries costs the same round trip as a day with two, which is the point.
       const meals = findMealsForDay(db, userId, date);
       const { entries, byMeal } = entriesForMeals(meals.map((meal) => meal.id));
       const foodIds = entries.flatMap((entry) => (entry.foodId === null ? [] : [entry.foodId]));
       const foods = findFoodsByIds(db, foodIds);
       const resolved = coloursFor(userId, foodIds);
       const weightEntry = findLatestWeightEntryForDay(db, userId, date);
+
+      // The week's allowance, so the Today screen draws it without a second request. The
+      // week is the one this date falls in, taken from the same isoWeekOf that numbers weeks
+      // for GET /stats/weekly and GET /stats/budget, and no timezone is involved: `date` is
+      // already a local date, which is what a week here is defined over.
+      const week = isoWeekOf(date);
+      const weekEntries = findEntriesForDateRange(db, userId, week.startDate, week.endDate);
+      const budget = computeBudgetStatus(weekEntries, weeklyBudgetsOf(requireUser(userId)));
 
       return {
         date,
@@ -592,6 +593,7 @@ export const mealRoutes: FastifyPluginCallbackZod<MealRouteOptions> = (app, opti
         // as it stands now. An entry logged before somebody recoloured its food keeps the colour
         // it was logged with, so the two can differ here, and the entry's is the one to render.
         foods: foods.map((food) => toFoodResponse(food, resolved.get(food.id))),
+        budget,
       };
     },
   );

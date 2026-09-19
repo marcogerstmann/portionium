@@ -14,6 +14,7 @@ import {
   type MealSuggestionResponse,
   type MealType,
   type Timezone,
+  type WeeklyBudgetStatus,
   type WeightEntryResponse,
 } from '@portionium/schemas';
 import Dexie, { type EntityTable } from 'dexie';
@@ -349,9 +350,32 @@ export function withoutWeight(day: DayResponse): DayResponse {
   return { ...day, weightEntry: null };
 }
 
+/**
+ * The weekly allowance as a day nobody has fetched yet knows it: unset, and nothing counted.
+ *
+ * ponytail: the optimistic day helpers above leave `budget` as they found it rather than
+ * recounting the week, so a meal logged offline shows in the day's own counts immediately and
+ * in the week's on the refresh behind it. Nothing renders this yet, so nobody can see the gap.
+ * Recount it here the day a screen draws the allowance, the way countColours already does for
+ * the day, and the input is the whole cached week rather than the one day in hand.
+ */
+const NO_BUDGET: WeeklyBudgetStatus = {
+  green: { limit: null, count: 0, remaining: null },
+  yellow: { limit: null, count: 0, remaining: null },
+  orange: { limit: null, count: 0, remaining: null },
+  unclassified: 0,
+};
+
 /** A day with nothing on it, so an optimistic write has something to be applied to. */
 export function emptyDay(date: LocalDate): DayResponse {
-  return { date, meals: [], weightEntry: null, colourCounts: countColours([]), foods: [] };
+  return {
+    date,
+    meals: [],
+    weightEntry: null,
+    colourCounts: countColours([]),
+    foods: [],
+    budget: NO_BUDGET,
+  };
 }
 
 /**

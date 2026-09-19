@@ -50,25 +50,48 @@ function requireIsoWeek(date: Temporal.PlainDate): Pick<IsoWeek, 'isoYear' | 'is
   return { isoYear: yearOfWeek, isoWeek: weekOfYear };
 }
 
+/** The Monday to Sunday span a Monday starts, numbered. The one place a week becomes an IsoWeek. */
+function weekFromMonday(monday: Temporal.PlainDate): IsoWeek {
+  const end = monday.add({ days: 6 });
+
+  return {
+    ...requireIsoWeek(monday),
+    startDate: monday.toString(),
+    endDate: end.toString(),
+  };
+}
+
+function mondayOf(date: LocalDate): Temporal.PlainDate {
+  const current = Temporal.PlainDate.from(date);
+
+  return current.subtract({ days: current.dayOfWeek - 1 });
+}
+
+/**
+ * The ISO week one local date falls in.
+ *
+ * The weekly budget puts a second endpoint on this definition, so it is a function rather
+ * than a convention two call sites happen to share: GET /stats/budget and GET /stats/weekly number
+ * their weeks with the same code, and GET /days/{date} counts against the same span. They
+ * cannot disagree about where a week starts because there is nowhere for them to disagree.
+ *
+ * `date` is a caller's own local date, never a UTC one, for the reason isoWeeksEnding gives.
+ */
+export function isoWeekOf(date: LocalDate): IsoWeek {
+  return weekFromMonday(mondayOf(date));
+}
+
 /**
  * `count` ISO weeks ending with the week `today` falls in, oldest first. `today` is the
  * caller's local date, not a UTC one, so the current week always includes today even when the
  * account is far enough from UTC that the server's own calendar date has already turned over.
  */
 export function isoWeeksEnding(today: LocalDate, count: number): IsoWeek[] {
-  const current = Temporal.PlainDate.from(today);
-  const currentMonday = current.subtract({ days: current.dayOfWeek - 1 });
+  const currentMonday = mondayOf(today);
 
-  return Array.from({ length: count }, (_, index) => {
-    const start = currentMonday.subtract({ weeks: count - 1 - index });
-    const end = start.add({ days: 6 });
-
-    return {
-      ...requireIsoWeek(start),
-      startDate: start.toString(),
-      endDate: end.toString(),
-    };
-  });
+  return Array.from({ length: count }, (_, index) =>
+    weekFromMonday(currentMonday.subtract({ weeks: count - 1 - index })),
+  );
 }
 
 const ZERO_COUNTS: ColourCounts = { green: 0, yellow: 0, orange: 0, unclassified: 0 };

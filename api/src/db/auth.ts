@@ -1,4 +1,10 @@
-import { emailSchema, type Locale, type Scope } from '@portionium/schemas';
+import {
+  emailSchema,
+  type Locale,
+  type Scope,
+  type UpdateBudgetsRequest,
+  type WeeklyBudgets,
+} from '@portionium/schemas';
 import { and, count, desc, eq, gt, isNull, or } from 'drizzle-orm';
 
 import type { Db } from './client.js';
@@ -62,9 +68,9 @@ export function findUserById(db: Db, userId: string): UserRecord | undefined {
 }
 
 /**
- * The three fields a user owns about themselves. Email and role are not here: an address
- * identifies the account and a role is granted rather than chosen, so neither is something a
- * profile update can reach even if a caller sends one.
+ * The fields a user owns about themselves. Email and role are not here: an address identifies
+ * the account and a role is granted rather than chosen, so neither is something a profile
+ * update can reach even if a caller sends one.
  *
  * Undefined means untouched. Drizzle drops undefined values from a set and then refuses one
  * with nothing left in it, so an empty patch is answered with the row as it stands rather than
@@ -76,6 +82,10 @@ export interface ProfileChanges {
   dayBoundaryHour?: number | undefined;
   /** Absent is untouched. Null is a choice: go back to following the browser's own language. */
   locale?: Locale | null | undefined;
+  /** Absent is untouched. Null is a choice: back to unlimited. See weeklyBudgetLimitSchema. */
+  weeklyBudgetGreen?: number | null | undefined;
+  weeklyBudgetYellow?: number | null | undefined;
+  weeklyBudgetOrange?: number | null | undefined;
 }
 
 export function updateUserProfile(
@@ -93,6 +103,47 @@ export function updateUserProfile(
     .where(and(eq(userTable.id, userId), isNull(userTable.deletedAt)))
     .returning()
     .get();
+}
+
+/**
+ * The three allowance columns as one object, which is the shape every caller wants and the
+ * only place the column names are spelled next to the category names they mean. The row is
+ * already in hand wherever this is called, so this is a projection rather than a read.
+ */
+export function weeklyBudgetsOf(user: UserRecord): WeeklyBudgets {
+  return {
+    green: user.weeklyBudgetGreen,
+    yellow: user.weeklyBudgetYellow,
+    orange: user.weeklyBudgetOrange,
+  };
+}
+
+/**
+ * The other direction, for PUT /me/budgets. A category the request did not name is left out of
+ * the patch altogether rather than written back as it was read, which is what makes a partial
+ * update partial: two clients changing two different colours do not overwrite each other.
+ *
+ * Written as three checks rather than a loop over CATEGORIES because the target is a column
+ * name, and a loop would need a category-to-column map that says the same thing this does with
+ * more indirection. See weeklyBudgetsOf for the same pairing the other way round.
+ */
+export function updateWeeklyBudgets(
+  db: Db,
+  userId: string,
+  budgets: UpdateBudgetsRequest,
+): UserRecord | undefined {
+  const changes: ProfileChanges = {};
+  if (budgets.green !== undefined) {
+    changes.weeklyBudgetGreen = budgets.green;
+  }
+  if (budgets.yellow !== undefined) {
+    changes.weeklyBudgetYellow = budgets.yellow;
+  }
+  if (budgets.orange !== undefined) {
+    changes.weeklyBudgetOrange = budgets.orange;
+  }
+
+  return updateUserProfile(db, userId, changes);
 }
 
 export function insertUser(db: Db, user: NewUser): UserRecord {

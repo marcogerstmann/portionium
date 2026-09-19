@@ -610,6 +610,12 @@ describe('one local day', () => {
       weightEntry: null,
       colourCounts: { green: 0, yellow: 0, orange: 0, unclassified: 0 },
       foods: [],
+      budget: {
+        green: { limit: null, count: 0, remaining: null },
+        yellow: { limit: null, count: 0, remaining: null },
+        orange: { limit: null, count: 0, remaining: null },
+        unclassified: 0,
+      },
     });
   });
 
@@ -642,6 +648,39 @@ describe('one local day', () => {
     const response = await app.inject({ url: days(localDate), headers: browser(token) });
 
     expect(response.json<DayResponse>().meals).toHaveLength(1);
+  });
+
+  /**
+   * The point of it being here at all: the Today screen draws the week's allowance
+   * without asking a second endpoint for it. The week is the ISO one this date falls in, so a
+   * meal from Monday counts towards the number a Wednesday shows.
+   */
+  it("carries the week's budget status, counting the whole ISO week rather than the day", async () => {
+    freezeTime('2026-03-11T10:00:00.000Z');
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+    await app.inject({
+      method: 'PUT',
+      url: `${API_PREFIX}/me/budgets`,
+      headers: browser(token),
+      payload: { orange: 4 },
+    });
+    // Monday and Wednesday of the week 2026-03-09 to 2026-03-15, plus the Sunday before it.
+    for (const date of ['2026-03-09', '2026-03-11', '2026-03-08']) {
+      fixtures.create.meal(fixtures.userA, {
+        loggedAt: new Date(`${date}T05:00:00.000Z`),
+        entries: [{ category: 'orange' }],
+      });
+    }
+
+    const { colourCounts, budget } = (
+      await app.inject({ url: days('2026-03-11'), headers: browser(token) })
+    ).json<DayResponse>();
+
+    // The day counts one, the week counts the two inside it and not the Sunday outside.
+    expect(colourCounts.orange).toBe(1);
+    expect(budget.orange).toEqual({ limit: 4, count: 2, remaining: 2 });
+    expect(budget.green).toEqual({ limit: null, count: 0, remaining: null });
   });
 });
 

@@ -40,4 +40,20 @@ export const userTable = sqliteTable('user', {
    * web/src/i18n.ts.
    */
   locale: text('locale', { enum: LOCALES }),
+  /**
+   * The weekly allowance per category, or null for unlimited, which is the default for
+   * all three so an untouched account behaves exactly as it did before this existed.
+   *
+   * Three columns on the account rather than a `weekly_budgets` table. A table would buy a row
+   * per category and cost a repository, an upsert and a join on the two hot read paths that
+   * want these, GET /days/{date} and GET /stats/budget, both of which already have this row in
+   * hand. There are exactly three categories and CATEGORIES is a closed union, so the thing a
+   * table would make cheap, adding a fourth, is a migration either way.
+   *
+   * Nullable with no default, and zero is a different value: null is "no intention recorded",
+   * zero is "none of this colour this week". See weeklyBudgetLimitSchema.
+   */
+  weeklyBudgetGreen: integer('weekly_budget_green'),
+  weeklyBudgetYellow: integer('weekly_budget_yellow'),
+  weeklyBudgetOrange: integer('weekly_budget_orange'),
 });

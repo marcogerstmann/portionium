@@ -512,6 +512,126 @@ export const weightEntryCreateResponseSchema = weightEntryResponseSchema.extend(
 export type WeightEntryCreateResponse = z.infer<typeof weightEntryCreateResponseSchema>;
 
 /**
+ * A weekly allowance per category, and where a week stands against it.
+ *
+ * The allowance is a soft lock and the word is load bearing. Nothing here is ever enforced:
+ * logging succeeds at any count, there is no warning field, no streak, no flag, and no
+ * judgement word like "exceeded" anywhere in these shapes. The API answers with numbers and
+ * lets the client decide what, if anything, to say about them.
+ */
+
+/**
+ * One category's allowance, or `null` for unlimited.
+ *
+ * Null and zero are different answers and both are storable. Null is "no intention recorded",
+ * which is the default for every category and what green is expected to stay. Zero is an
+ * intention: none of this colour this week. Conflating them is the one mistake this field
+ * exists to make impossible, which is why it is nullable rather than defaulted to a large
+ * number nobody chose.
+ */
+export const weeklyBudgetLimitSchema = z.int().nonnegative().nullable();
+
+/**
+ * The allowance for all three, as `GET /me/budgets` answers it. Every category is present,
+ * carrying `null` when it is unlimited, so a client reads three keys rather than feeling around
+ * for which ones exist. Green is uniform with the other two here rather than special cased: it
+ * is expected to stay null in practice, and that is a user's choice rather than a schema's.
+ */
+export const weeklyBudgetsSchema = z.object({
+  green: weeklyBudgetLimitSchema,
+  yellow: weeklyBudgetLimitSchema,
+  orange: weeklyBudgetLimitSchema,
+});
+
+export type WeeklyBudgets = z.infer<typeof weeklyBudgetsSchema>;
+
+/**
+ * Setting them. Every field optional, the same convention updateProfileRequestSchema follows
+ * and for the same reason: absent is untouched, so a client sends the one category it is
+ * changing instead of writing back the two it read a minute ago.
+ *
+ * `null` is therefore not "untouched" here either. It is the choice to go back to unlimited,
+ * exactly as it is for `locale`. Untouched is the key being absent altogether.
+ */
+export const updateBudgetsRequestSchema = weeklyBudgetsSchema.partial().strict();
+
+export type UpdateBudgetsRequest = z.infer<typeof updateBudgetsRequestSchema>;
+
+/**
+ * Where one category stands this week: what was asked for, what was logged, and the difference.
+ *
+ * `remaining` goes negative once the count passes the limit, and stays a plain number when it
+ * does. Clamping it at zero would throw away the one number somebody past their allowance
+ * actually wants, and a separate boolean saying they are over would be the judgement this
+ * feature exists not to make.
+ *
+ * With no limit set, `limit` and `remaining` are both null and `count` still counts. Never a
+ * made up ceiling: a client that wants to draw a bar needs to know there is nothing to draw it
+ * against, and `Infinity` does not survive JSON.
+ */
+export const budgetCategoryStatusSchema = z.object({
+  limit: weeklyBudgetLimitSchema,
+  count: z.int().nonnegative(),
+  remaining: z.int().nullable(),
+});
+
+export type BudgetCategoryStatus = z.infer<typeof budgetCategoryStatusSchema>;
+
+/**
+ * All three categories against their allowances, plus the entries no allowance can apply to.
+ *
+ * `unclassified` is a bare count and carries no limit of its own. An entry nobody has judged
+ * yet has no colour to charge, and silently charging it to one would make the review queue
+ * change a number it has nothing to do with. It is reported rather than dropped because a week
+ * whose counts look low because half of it is grey is a different week from a disciplined one,
+ * and that is the client's to say.
+ */
+export const weeklyBudgetStatusSchema = z.object({
+  green: budgetCategoryStatusSchema,
+  yellow: budgetCategoryStatusSchema,
+  orange: budgetCategoryStatusSchema,
+  unclassified: z.int().nonnegative(),
+});
+
+export type WeeklyBudgetStatus = z.infer<typeof weeklyBudgetStatusSchema>;
+
+/**
+ * Which week to ask about. Absent means the one the caller is in now, resolved against their
+ * own timezone and day boundary rather than the server's calendar.
+ *
+ * A date rather than a `2026-W38` string, because the week is defined as the ISO week some
+ * local date falls in and this is that date. It reuses localDateSchema, so there is no second
+ * date format on this API and no week parser to keep in step with Temporal's own numbering.
+ * The response says which week the date resolved to, so a client never has to work it out.
+ */
+export const statsBudgetQuerySchema = z.strictObject({ date: localDateSchema.optional() });
+
+export type StatsBudgetQuery = z.infer<typeof statsBudgetQuerySchema>;
+
+/**
+ * The week, named, and where it stands.
+ *
+ * The week is the ISO week the requested date falls in, numbered by the same function
+ * GET /stats/weekly numbers its weeks with, see isoWeekOf in api/src/domain/weekly-summary.ts.
+ * The two endpoints cannot disagree about what a week is because there is one definition.
+ *
+ * Counts are evaluated against whatever limit is configured right now, including for a week
+ * long past. Changing a limit therefore takes effect immediately for the current week, which is
+ * the point, and also silently rewrites what a past week looks like, which is the price. There
+ * is no history of limits and no carry over between weeks; if a past week's verdict ever has to
+ * stay as it was, that is a limit history table rather than a change here.
+ */
+export const statsBudgetResponseSchema = z.object({
+  isoYear: z.int(),
+  isoWeek: z.int().min(1).max(53),
+  startDate: localDateSchema,
+  endDate: localDateSchema,
+  budget: weeklyBudgetStatusSchema,
+});
+
+export type StatsBudgetResponse = z.infer<typeof statsBudgetResponseSchema>;
+
+/**
  * Everything the app needs the moment it opens: the day's meals with their entries and colours,
  * today's weight if there is one, and the counts a summary bar draws without re-deriving them
  * from the meal list. See the performance note on GET /days/{date} for why this is assembled
@@ -532,6 +652,16 @@ export const dayResponseSchema = z.object({
    * with no network renders a column of identifiers.
    */
   foods: z.array(foodResponseSchema),
+  /**
+   * Where the ISO week this day falls in stands against the caller's weekly allowance, so the
+   * Today screen draws it without a second request, see weeklyBudgetStatusSchema.
+   *
+   * The whole week is counted, not the part of it up to this date. For the week containing
+   * today those are the same thing, because a meal cannot be logged into the future by more
+   * than a clock skew, see assertNotTooFarInFuture; for a day further back it is that week's
+   * totals, which is the number somebody paging through their history is asking about anyway.
+   */
+  budget: weeklyBudgetStatusSchema,
 });
 
 export type DayResponse = z.infer<typeof dayResponseSchema>;

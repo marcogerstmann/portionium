@@ -1,4 +1,5 @@
 import type {
+  StatsBudgetResponse,
   StatsDaysResponse,
   StatsWeeklyResponse,
   StatsWeightResponse,
@@ -21,6 +22,8 @@ const WEB_ORIGIN = 'http://localhost:5173';
 const STATS = `${API_PREFIX}/stats/days`;
 const WEIGHT_STATS = `${API_PREFIX}/stats/weight`;
 const WEEKLY_STATS = `${API_PREFIX}/stats/weekly`;
+const BUDGET_STATS = `${API_PREFIX}/stats/budget`;
+const BUDGETS = `${API_PREFIX}/me/budgets`;
 
 let open: { app: FastifyInstance; fixtures: TestFixtures } | undefined;
 
@@ -514,5 +517,246 @@ describe('GET /stats/weekly', () => {
 
     const tooMany = await app.inject({ url: `${WEEKLY_STATS}?weeks=53`, headers: browser(token) });
     expect(tooMany.statusCode).toBe(400);
+  });
+});
+
+/**
+ * The week here is always the ISO week of 2026-03-09 to 2026-03-15, which TODAY falls
+ * in, so an assertion about a count is also an assertion that the right week was counted.
+ */
+describe('GET /stats/budget', () => {
+  const TODAY = '2026-03-11T10:00:00.000Z';
+
+  /** Logged at 05:00 UTC, which is 06:00 in Berlin and so past userA's 04:00 boundary. */
+  function logOn(fixtures: TestFixtures, date: string, category: 'green' | 'yellow' | 'orange') {
+    fixtures.create.meal(fixtures.userA, {
+      loggedAt: new Date(`${date}T05:00:00.000Z`),
+      entries: [{ category }],
+    });
+  }
+
+  async function setBudgets(
+    app: FastifyInstance,
+    token: string,
+    budgets: Record<string, number | null>,
+  ) {
+    const response = await app.inject({
+      method: 'PUT',
+      url: BUDGETS,
+      headers: browser(token),
+      payload: budgets,
+    });
+    expect(response.statusCode).toBe(200);
+  }
+
+  it("defaults to the ISO week the caller's own local date falls in", async () => {
+    freezeTime(TODAY);
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+
+    const response = await app.inject({ url: BUDGET_STATS, headers: browser(token) });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json<StatsBudgetResponse>()).toMatchObject({
+      isoYear: 2026,
+      isoWeek: 11,
+      startDate: '2026-03-09',
+      endDate: '2026-03-15',
+    });
+  });
+
+  /**
+   * The acceptance criterion that the two endpoints can never disagree about a week, asserted
+   * against the answer GET /stats/weekly gives for the same instant rather than against a date
+   * written down twice here.
+   */
+  it('numbers its week exactly as GET /stats/weekly numbers the current one', async () => {
+    freezeTime(TODAY);
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+
+    const budget = (
+      await app.inject({ url: BUDGET_STATS, headers: browser(token) })
+    ).json<StatsBudgetResponse>();
+    const { weeks } = (
+      await app.inject({ url: `${WEEKLY_STATS}?weeks=1`, headers: browser(token) })
+    ).json<StatsWeeklyResponse>();
+
+    expect(weeks.at(-1)).toMatchObject({
+      isoYear: budget.isoYear,
+      isoWeek: budget.isoWeek,
+      startDate: budget.startDate,
+      endDate: budget.endDate,
+    });
+  });
+
+  it('answers the week a given date falls in, not the current one', async () => {
+    freezeTime(TODAY);
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+
+    const response = await app.inject({
+      url: `${BUDGET_STATS}?date=2026-03-03`,
+      headers: browser(token),
+    });
+
+    expect(response.json<StatsBudgetResponse>()).toMatchObject({
+      isoWeek: 10,
+      startDate: '2026-03-02',
+      endDate: '2026-03-08',
+    });
+  });
+
+  it('counts the whole week against the limits and reports what is left', async () => {
+    freezeTime(TODAY);
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+    await setBudgets(app, token, { yellow: 12, orange: 4 });
+
+    // Monday, which is the week's first day, through today, plus the Sunday just outside it.
+    // Nothing is logged past today because nothing can be, see assertNotTooFarInFuture, which
+    // is why counting the whole week and counting it to date are the same answer here.
+    logOn(fixtures, '2026-03-09', 'yellow');
+    logOn(fixtures, '2026-03-10', 'yellow');
+    logOn(fixtures, '2026-03-11', 'orange');
+    logOn(fixtures, '2026-03-08', 'orange');
+
+    const { budget } = (
+      await app.inject({ url: BUDGET_STATS, headers: browser(token) })
+    ).json<StatsBudgetResponse>();
+
+    expect(budget.yellow).toEqual({ limit: 12, count: 2, remaining: 10 });
+    expect(budget.orange).toEqual({ limit: 4, count: 1, remaining: 3 });
+    expect(budget.green).toEqual({ limit: null, count: 0, remaining: null });
+  });
+
+  /** A soft lock: logging past the limit is never refused and the overshoot is just a number. */
+  it('keeps accepting meals past the limit and reports a negative remaining', async () => {
+    freezeTime(TODAY);
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+    await setBudgets(app, token, { orange: 1 });
+
+    for (const date of ['2026-03-09', '2026-03-10', '2026-03-11']) {
+      logOn(fixtures, date, 'orange');
+    }
+    const late = await app.inject({
+      method: 'POST',
+      url: `${API_PREFIX}/meals`,
+      headers: browser(token),
+      payload: { type: 'dinner', entries: [{ category: 'orange' }] },
+    });
+
+    expect(late.statusCode).toBe(201);
+    const { budget } = (
+      await app.inject({ url: BUDGET_STATS, headers: browser(token) })
+    ).json<StatsBudgetResponse>();
+    expect(budget.orange).toEqual({ limit: 1, count: 4, remaining: -3 });
+  });
+
+  it('counts unclassified entries separately and charges them to no category', async () => {
+    freezeTime(TODAY);
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+    await setBudgets(app, token, { green: 5, yellow: 5, orange: 5 });
+    // A food nobody has judged, so the entry is logged with no colour at all.
+    const unjudged = fixtures.create.food();
+    fixtures.create.meal(fixtures.userA, {
+      loggedAt: new Date('2026-03-11T05:00:00.000Z'),
+      entries: [{ foodId: unjudged.id }],
+    });
+
+    const { budget } = (
+      await app.inject({ url: BUDGET_STATS, headers: browser(token) })
+    ).json<StatsBudgetResponse>();
+
+    expect(budget.unclassified).toBe(1);
+    expect([budget.green.count, budget.yellow.count, budget.orange.count]).toEqual([0, 0, 0]);
+  });
+
+  /** Nothing is materialised, so an edit to a meal already in the week lands on the next read. */
+  it('changes immediately when a meal in the week is backdated into or out of it', async () => {
+    freezeTime(TODAY);
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+    await setBudgets(app, token, { orange: 4 });
+    const { meal } = fixtures.create.meal(fixtures.userA, {
+      loggedAt: new Date('2026-03-11T05:00:00.000Z'),
+      entries: [{ category: 'orange' }],
+    });
+
+    const before = (
+      await app.inject({ url: BUDGET_STATS, headers: browser(token) })
+    ).json<StatsBudgetResponse>();
+    expect(before.budget.orange).toEqual({ limit: 4, count: 1, remaining: 3 });
+
+    // Moved back into the week before this one, which is a local date outside [start, end].
+    const moved = await app.inject({
+      method: 'PATCH',
+      url: `${API_PREFIX}/meals/${meal.id}`,
+      headers: browser(token),
+      payload: { loggedAt: '2026-03-04T05:00:00.000Z' },
+    });
+    expect(moved.statusCode).toBe(200);
+
+    const after = (
+      await app.inject({ url: BUDGET_STATS, headers: browser(token) })
+    ).json<StatsBudgetResponse>();
+    expect(after.budget.orange).toEqual({ limit: 4, count: 0, remaining: 4 });
+  });
+
+  /**
+   * The documented simplification: there is no history of limits, so the limit in force is
+   * always the one configured now, for the current week and for one long past alike.
+   */
+  it('applies a limit changed mid week to the week already in progress', async () => {
+    freezeTime(TODAY);
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+    await setBudgets(app, token, { orange: 10 });
+    logOn(fixtures, '2026-03-09', 'orange');
+    logOn(fixtures, '2026-03-10', 'orange');
+
+    await setBudgets(app, token, { orange: 1 });
+
+    const { budget } = (
+      await app.inject({ url: BUDGET_STATS, headers: browser(token) })
+    ).json<StatsBudgetResponse>();
+    expect(budget.orange).toEqual({ limit: 1, count: 2, remaining: -1 });
+  });
+
+  it("never counts another account's meals, even in the same week", async () => {
+    freezeTime(TODAY);
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+    await setBudgets(app, token, { orange: 4 });
+    fixtures.create.meal(fixtures.userB, {
+      loggedAt: new Date('2026-03-10T20:00:00.000Z'),
+      entries: [{ category: 'orange' }],
+    });
+
+    const { budget } = (
+      await app.inject({ url: BUDGET_STATS, headers: browser(token) })
+    ).json<StatsBudgetResponse>();
+
+    expect(budget.orange).toEqual({ limit: 4, count: 0, remaining: 4 });
+  });
+
+  it('rejects a query parameter it does not declare, and a date that is not one', async () => {
+    freezeTime(TODAY);
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+
+    const extra = await app.inject({
+      url: `${BUDGET_STATS}?week=2026-W11`,
+      headers: browser(token),
+    });
+    const bad = await app.inject({
+      url: `${BUDGET_STATS}?date=last-monday`,
+      headers: browser(token),
+    });
+
+    expect(extra.statusCode).toBe(400);
+    expect(bad.statusCode).toBe(400);
   });
 });

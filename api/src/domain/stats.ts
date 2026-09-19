@@ -33,6 +33,24 @@ export function everyLocalDate(from: LocalDate, to: LocalDate): LocalDate[] {
 
 const ZERO_COUNTS: ColourCounts = { green: 0, yellow: 0, orange: 0, unclassified: 0 };
 
+/**
+ * How many entries landed in each colour. The one definition of that tally: GET /days/{date}
+ * counts a day with it and the weekly budget counts a week with it, so the day's summary bar and
+ * the week's allowance can never be counting slightly different things.
+ *
+ * A null `category` is an entry whose food nobody has judged yet. It is counted as
+ * `unclassified` rather than dropped or charged to a colour, which is what keeps a week that
+ * looks disciplined because half of it is grey distinguishable from one that is.
+ */
+export function countColours(entries: readonly Pick<DateRangeEntry, 'category'>[]): ColourCounts {
+  const counts: ColourCounts = { ...ZERO_COUNTS };
+  for (const entry of entries) {
+    counts[entry.category ?? 'unclassified'] += 1;
+  }
+
+  return counts;
+}
+
 /** Each count as a fraction of the total, 0 across the board when nothing was logged rather than
  * a division by zero. Exported for POR-38's weekly summary, which sums a week's days into the
  * same shape and wants the same share math over the total rather than a second copy of it. */

@@ -313,6 +313,8 @@ const COVERAGE: Record<string, Coverage> = {
 
   'GET /api/v1/me': { personal: 'the caller, and no spelling of it takes an id' },
   'PATCH /api/v1/me': { personal: 'the caller, and no spelling of it takes an id' },
+  'GET /api/v1/me/budgets': { personal: 'the caller own allowance, and no spelling takes an id' },
+  'PUT /api/v1/me/budgets': { personal: 'sets the caller own allowance, nobody else reachable' },
   'POST /api/v1/me/password': { personal: 'the caller, on a session rather than a token' },
 
   'POST /api/v1/meals': { personal: 'logs one for the caller; fromMealId is probed below' },
@@ -325,6 +327,9 @@ const COVERAGE: Record<string, Coverage> = {
   'GET /api/v1/meals/favourites': { owned: 'favourite' },
   'DELETE /api/v1/meals/favourites/:id': { owned: 'favourite' },
 
+  'GET /api/v1/stats/budget': {
+    personal: 'counts the caller own week against the caller own limits',
+  },
   'GET /api/v1/stats/days': { personal: 'aggregates the caller own meals over a date range' },
   'GET /api/v1/stats/weight': { personal: 'aggregates the caller own weight over a date range' },
   'GET /api/v1/stats/weekly': { personal: 'both of the above, for one week' },

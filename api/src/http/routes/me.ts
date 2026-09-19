@@ -1,8 +1,10 @@
 import {
   changePasswordRequestSchema,
   toUserResponse,
+  updateBudgetsRequestSchema,
   updateProfileRequestSchema,
   userResponseSchema,
+  weeklyBudgetsSchema,
 } from '@portionium/schemas';
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -11,6 +13,8 @@ import {
   findUserById,
   setPasswordHash,
   updateUserProfile,
+  updateWeeklyBudgets,
+  weeklyBudgetsOf,
   type UserRecord,
 } from '../../db/auth.js';
 import type { Db } from '../../db/client.js';
@@ -28,7 +32,7 @@ import {
 } from '../problem.js';
 
 /**
- * The account, as its owner sees and edits it. Three endpoints and one row.
+ * The account, as its owner sees and edits it. Five endpoints and one row.
  *
  * There is no id in any of these paths. The caller is `request.auth` and nothing else, so
  * `/me` is the only spelling of "my profile" and there is no version of it that could be
@@ -109,6 +113,60 @@ export const meRoutes: FastifyPluginCallbackZod<MeRouteOptions> = (app, options,
       );
 
       return toUserResponse(updated);
+    },
+  );
+
+  app.get(
+    '/me/budgets',
+    {
+      config: { auth: 'read' },
+      schema: {
+        summary: "The caller's weekly allowance per category, null for unlimited",
+        response: {
+          200: weeklyBudgetsSchema,
+          ...authenticatedProblemResponses,
+          ...problemResponses,
+        },
+      },
+    },
+    (request) => weeklyBudgetsOf(currentUser(db, request.auth.userId)),
+  );
+
+  app.put(
+    '/me/budgets',
+    {
+      config: { auth: 'write' },
+      schema: {
+        summary: 'Set the weekly allowance per category; absent is untouched, null is unlimited',
+        description:
+          'A soft lock and nothing more. No count is ever refused and no limit is enforced ' +
+          'anywhere, see GET /api/v1/stats/budget. A limit of 0 is valid and means none of ' +
+          'that colour this week, which is not the same as null.',
+        body: updateBudgetsRequestSchema,
+        response: {
+          200: weeklyBudgetsSchema,
+          ...authenticatedProblemResponses,
+          ...idempotencyProblemResponses,
+          ...problemResponses,
+        },
+      },
+    },
+    (request) => {
+      // PUT rather than PATCH because the body is the whole of this resource, but a category
+      // the body does not name is still untouched rather than reset: there are three of them
+      // and a client changing one should not have to write back the two it read, which is the
+      // same reasoning PATCH /me gives. See updateWeeklyBudgets.
+      const updated = updateWeeklyBudgets(db, request.auth.userId, request.body);
+      if (updated === undefined) {
+        throw new UnauthenticatedError();
+      }
+
+      request.log.info(
+        { userId: updated.id, categories: Object.keys(request.body) },
+        'weekly budgets updated',
+      );
+
+      return weeklyBudgetsOf(updated);
     },
   );
 

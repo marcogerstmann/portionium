@@ -1,9 +1,12 @@
 import {
+  statsBudgetQuerySchema,
+  statsBudgetResponseSchema,
   statsDaysResponseSchema,
   statsRangeQuerySchema,
   statsWeeklyQuerySchema,
   statsWeeklyResponseSchema,
   statsWeightResponseSchema,
+  type StatsBudgetResponse,
   type StatsWeeklyResponse,
   type StatsWeightResponse,
   type WeightTrendChange,
@@ -11,14 +14,15 @@ import {
 } from '@portionium/schemas';
 import type { FastifyPluginCallbackZod } from 'fastify-type-provider-zod';
 
-import { findUserById, type UserRecord } from '../../db/auth.js';
+import { findUserById, weeklyBudgetsOf, type UserRecord } from '../../db/auth.js';
 import type { Db } from '../../db/client.js';
 import { findEntriesForDateRange } from '../../db/meal.js';
 import { listWeightHistoryForUser } from '../../db/weight.js';
+import { computeBudgetStatus } from '../../domain/budget.js';
 import { UnauthenticatedError } from '../../domain/errors.js';
 import { resolveLocalDate } from '../../domain/local-date.js';
 import { computeDailyColourStats } from '../../domain/stats.js';
-import { computeWeeklySummary, isoWeeksEnding } from '../../domain/weekly-summary.js';
+import { computeWeeklySummary, isoWeekOf, isoWeeksEnding } from '../../domain/weekly-summary.js';
 import {
   computeWeightTrend,
   type WeightTrendChange as TrendChange,
@@ -217,6 +221,58 @@ export const statsRoutes: FastifyPluginCallbackZod<StatsRouteOptions> = (app, op
           },
           versusPreviousWeek: week.versusPreviousWeek,
         })),
+      };
+
+      return response;
+    },
+  );
+
+  app.get(
+    '/stats/budget',
+    {
+      config: { auth: 'read' },
+      schema: {
+        summary:
+          'How one ISO week stands against the weekly allowance: the limit, the count and ' +
+          'what is left, per category',
+        description:
+          'A soft lock. Nothing here is enforced and logging past a limit always succeeds; ' +
+          '`remaining` simply goes negative. The week is the ISO week the `date` query falls ' +
+          "in, defaulting to the caller's own current local date, and is numbered by the same " +
+          'function GET /api/v1/stats/weekly uses, so the two cannot disagree about where a ' +
+          'week starts. Counts are evaluated against whatever limits are configured now, past ' +
+          'weeks included: there is no history of limits, so changing one takes effect ' +
+          'immediately for the current week and also changes how an old week reads.',
+        querystring: statsBudgetQuerySchema,
+        response: {
+          200: statsBudgetResponseSchema,
+          ...authenticatedProblemResponses,
+          ...problemResponses,
+        },
+      },
+    },
+    (request) => {
+      const { userId } = request.auth;
+      const user = requireUser(userId);
+
+      // The caller's own local date rather than the server's calendar day, the same resolution
+      // GET /stats/weekly makes: an account far enough from UTC is still in the week it thinks
+      // it is in. An explicit `date` needs no such resolution, it already is a local date.
+      const week = isoWeekOf(
+        request.query.date ?? resolveLocalDate(new Date(), user.timezone, user.dayBoundaryHour),
+      );
+
+      // One query, the same one GET /stats/days makes, bounded by the week rather than by a
+      // requested range. Counting at read time is what makes a backdated edit show up in the
+      // week's numbers on the very next request, with nothing to recompute.
+      const entries = findEntriesForDateRange(db, userId, week.startDate, week.endDate);
+
+      const response: StatsBudgetResponse = {
+        isoYear: week.isoYear,
+        isoWeek: week.isoWeek,
+        startDate: week.startDate,
+        endDate: week.endDate,
+        budget: computeBudgetStatus(entries, weeklyBudgetsOf(user)),
       };
 
       return response;
