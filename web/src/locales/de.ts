@@ -72,6 +72,21 @@ export const de: typeof en = {
     other: '{count} warten auf eine Farbe',
   },
 
+  budgetWeekLabel: 'Diese Woche',
+  budgetSpokenWeek: 'Diese Woche: {positions}.',
+  budgetSpokenCount: '{count} {label}',
+  budgetSpokenOfLimit: '{count} von {limit} {label}',
+  budgetRowAction: 'Wochenlimits ändern',
+  budgetTitle: 'Wochenlimits',
+  budgetNotEnforced:
+    'Limits werden nie erzwungen. Eintragen funktioniert immer, egal was die Zahlen sagen. Sie machen einen Vorsatz sichtbar, sie bewerten die Woche nicht.',
+  budgetNoLimit: 'Kein Limit',
+  budgetLimitFor: 'Limit für {label}',
+  budgetPerWeek: 'pro Woche',
+  budgetSave: 'Limits speichern',
+  budgetSaving: 'Speichern läuft',
+  budgetDone: 'Fertig',
+
   reviewTitle: 'Farbe geben',
   reviewDone: 'Fertig',
   reviewIntro:

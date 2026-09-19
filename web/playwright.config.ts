@@ -62,6 +62,7 @@ export const ACCOUNTS = {
   correct: fixture('correct'),
   favourites: fixture('favourites'),
   weight: fixture('weight'),
+  budget: fixture('budget'),
 };
 
 /**

@@ -69,6 +69,21 @@ export const en = {
   todayReviewQueue: 'Foods with no colour',
   todayReviewCount: { one: '{count} waiting for a colour', other: '{count} waiting for a colour' },
 
+  budgetWeekLabel: 'This week',
+  budgetSpokenWeek: 'This week: {positions}.',
+  budgetSpokenCount: '{count} {label}',
+  budgetSpokenOfLimit: '{count} of {limit} {label}',
+  budgetRowAction: 'Change weekly limits',
+  budgetTitle: 'Weekly limits',
+  budgetNotEnforced:
+    'Limits are never enforced. Logging always works, whatever the numbers say. They are here to make an intention visible, not to grade the week.',
+  budgetNoLimit: 'No limit',
+  budgetLimitFor: 'Limit for {label}',
+  budgetPerWeek: 'per week',
+  budgetSave: 'Save limits',
+  budgetSaving: 'Saving',
+  budgetDone: 'Done',
+
   reviewTitle: 'Give a colour',
   reviewDone: 'Done',
   reviewIntro:

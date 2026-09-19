@@ -232,6 +232,74 @@ describe('withClassification', () => {
   });
 });
 
+/**
+ * The week behind the allowance row moving with an optimistic write, which is what makes logging
+ * on a phone with no signal change the number on screen rather than waiting for a refresh that
+ * is not coming. See withWeekCounts.
+ */
+describe("the week's counts", () => {
+  /** A day whose week already holds entries logged on its other days, as the server reports it. */
+  function dayInAWeek(): ReturnType<typeof emptyDay> {
+    const day = emptyDay('2026-09-16');
+
+    return {
+      ...day,
+      budget: {
+        green: { limit: null, count: 5, remaining: null },
+        yellow: { limit: 12, count: 7, remaining: 5 },
+        orange: { limit: 4, count: 3, remaining: 1 },
+        unclassified: 2,
+      },
+    };
+  }
+
+  it('adds a logged meal to the week as well as to the day', () => {
+    const after = withMeal(dayInAWeek(), meal('orange', 'green'), []);
+
+    expect(after.budget.orange).toEqual({ limit: 4, count: 4, remaining: 0 });
+    expect(after.budget.green).toEqual({ limit: null, count: 6, remaining: null });
+    expect(after.colourCounts.orange).toBe(1);
+  });
+
+  /** withMeal replaces as often as it appends, so an edit must not count the meal twice. */
+  it('counts an edited meal once rather than twice', () => {
+    const first = meal('orange');
+    const logged = withMeal(dayInAWeek(), first, []);
+
+    const edited = withMeal(logged, { ...first, entries: meal('orange', 'orange').entries }, []);
+
+    expect(edited.budget.orange.count).toBe(5);
+  });
+
+  it('takes a deleted meal back out of the week', () => {
+    const eaten = meal('yellow', 'yellow');
+    const logged = withMeal(dayInAWeek(), eaten, []);
+
+    const after = withoutMeal(logged, eaten.id);
+
+    expect(after.budget.yellow).toEqual({ limit: 12, count: 7, remaining: 5 });
+  });
+
+  /** Past the allowance is a negative remaining, the server's own rule rather than a clamp. */
+  it('lets the week go past a limit rather than stopping at it', () => {
+    const after = withMeal(dayInAWeek(), meal('orange', 'orange', 'orange'), []);
+
+    expect(after.budget.orange).toEqual({ limit: 4, count: 6, remaining: -2 });
+  });
+
+  it('moves a colour out of unclassified when the food behind it is judged', () => {
+    const eaten = meal(null);
+    const foodId = eaten.entries[0]?.foodId ?? '';
+    const logged = withMeal(dayInAWeek(), eaten, []);
+    expect(logged.budget.unclassified).toBe(3);
+
+    const after = withClassification(logged, foodId, 'green');
+
+    expect(after.budget.unclassified).toBe(2);
+    expect(after.budget.green.count).toBe(6);
+  });
+});
+
 describe('shiftDate', () => {
   it('moves whole calendar days, across a month and a year boundary', () => {
     expect(shiftDate('2026-09-13', -1)).toBe('2026-09-12');

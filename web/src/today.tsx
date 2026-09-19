@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type FormEvent, type TouchEvent } from 'react';
 
+import { budgetPositions, hasAnyLimit, spokenBudget } from './budget';
+import { Budgets } from './budgets';
 import { Compose } from './compose';
 import { dayLabel, mealTypeAt, mealTypeLabel, orderMeals, pageTo } from './day';
 import {
@@ -124,6 +126,62 @@ function Summary({ day }: { day: DayResponse }) {
         <Dot key={entry.id} category={dotFor(entry)} silent />
       ))}
     </p>
+  );
+}
+
+/**
+ * Where the week stands against the allowance, under the day's own dots.
+ *
+ * Rendered from the day response and nothing else, so it costs no request: the server counts
+ * the ISO week the displayed day falls in and stamps the limits beside it, which is also what
+ * makes paging back show that week's position rather than this week's. See the budget field on
+ * dayResponseSchema.
+ *
+ * Nothing is drawn at all until at least one limit is set, which is what keeps the screen
+ * exactly as it was for everybody who never asked for this. There is no bar, no ring and no
+ * percentage: the numbers are the whole of it, phrased as a position rather than a verdict, so
+ * a week at 12 of 12 says so by being 12 of 12 and not by turning red.
+ *
+ * The emphasis on a category at its limit is a heavier weight and nothing else. Colour cannot
+ * carry it, since every item here is already a colour and a red one would read as a fourth
+ * traffic light; an icon or a capitalised word would be the telling-off this feature exists not
+ * to deliver.
+ *
+ * One button, whose accessible name is the whole row as a sentence, with the dots and numbers
+ * inside it hidden from the accessibility tree. That is the same arrangement Summary above uses
+ * and for the same reason: read item by item this is "green, fourteen, yellow, seven, twelve",
+ * which is not a position anybody can hold in their head.
+ */
+function Allowance({ day, onEdit }: { day: DayResponse; onEdit: () => void }) {
+  const t = useT();
+  const locale = useLocale();
+
+  if (!hasAnyLimit(day.budget)) {
+    return null;
+  }
+
+  return (
+    <button
+      type="button"
+      className="row mb-4"
+      aria-label={`${spokenBudget(day.budget, locale)} ${t('budgetRowAction')}`}
+      onClick={onEdit}
+    >
+      <span aria-hidden="true" className="text-sm text-muted">
+        {t('budgetWeekLabel')}
+      </span>
+
+      <span aria-hidden="true" className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1">
+        {budgetPositions(day.budget).map(({ category, count, limit, atLimit }) => (
+          <span key={category} className="flex items-center gap-1.5">
+            <Dot category={category} silent />
+            <span className={atLimit ? 'font-semibold' : undefined}>
+              {limit === null ? count : `${count}/${limit}`}
+            </span>
+          </span>
+        ))}
+      </span>
+    </button>
   );
 }
 
@@ -556,13 +614,24 @@ function Rejected({
  * What is in front of the person. A composer with no meal is a new one and a composer with one
  * is that meal being corrected, which is the same screen either way, see ./compose.tsx.
  */
-type Screen = { kind: 'day' } | { kind: 'compose'; meal?: MealResponse } | { kind: 'review' };
+type Screen =
+  | { kind: 'day' }
+  | { kind: 'compose'; meal?: MealResponse }
+  | { kind: 'review' }
+  | { kind: 'budgets' };
 
 export function Today({
   user,
+  active,
   onComposingChange,
 }: {
   user: UserResponse;
+  /**
+   * Whether this tab is the one on screen. This screen stays mounted behind the other two, see
+   * App, so without it a day read at sign in would still be on screen an hour and a settings
+   * change later. The same reload trigger ./statistics.tsx already takes and for the same reason.
+   */
+  active: boolean;
   /** So the tab bar in App can get out of the composer's way, see there. */
   onComposingChange: (composing: boolean) => void;
 }) {
@@ -636,9 +705,15 @@ export function Today({
     }
   }, []);
 
+  // On the day changing and on this tab becoming the visible one, never while it is hidden: a
+  // limit set in Settings changes what the allowance row draws and clears the cached days behind
+  // it, see invalidateDays, and coming back to a screen that still holds the old answer in state
+  // is how a saved change looks like one that was not saved.
   useEffect(() => {
-    void load(date);
-  }, [date, load]);
+    if (active) {
+      void load(date);
+    }
+  }, [date, load, active]);
 
   // The rest of the window, behind the day in front of the person, so paging back works with no
   // network. Once per launch: the days do not change while somebody is reading one.
@@ -781,6 +856,29 @@ export function Today({
     );
   }
 
+  if (screen.kind === 'budgets') {
+    return (
+      <Budgets
+        // The limits the day response already carried, so opening the editor costs no request
+        // either. They are the same three numbers the row was just drawn from.
+        budgets={{
+          green: day.budget.green.limit,
+          yellow: day.budget.yellow.limit,
+          orange: day.budget.orange.limit,
+        }}
+        onDone={(saved) => {
+          setScreen({ kind: 'day' });
+
+          // Only after a save. The counts behind the row are the server's and a new limit
+          // changes what it draws, so the day is read again rather than patched here.
+          if (saved !== undefined) {
+            void load(date);
+          }
+        }}
+      />
+    );
+  }
+
   if (screen.kind === 'review') {
     return (
       <Review
@@ -837,6 +935,10 @@ export function Today({
       </nav>
 
       <Summary day={day} />
+
+      {/* Under the day's own dots and above the one button this screen is for, so it is read on
+          the way past rather than competing with logging. */}
+      <Allowance day={day} onEdit={() => setScreen({ kind: 'budgets' })} />
 
       <Rejected entries={queue.failed} onDiscard={(key) => void discardWrite(key)} />
 

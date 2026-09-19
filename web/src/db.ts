@@ -254,6 +254,45 @@ export function countColours(meals: readonly MealResponse[]): ColourCounts {
 }
 
 /**
+ * The week's allowance, moved by whatever this day's entries just became.
+ *
+ * `day.budget` counts the whole ISO week and `day.colourCounts` counts this day inside it, and
+ * both came off the same response, so the week without this day is the difference between them.
+ * Adding the day's new counts back gives the week as the server will report it, which is what
+ * makes logging a meal move the row on the Today screen rather than waiting for a refresh that,
+ * on a phone with no signal, is not coming. It handles adding, editing, deleting and recolouring
+ * with one rule, because all four are "this day's counts changed" and none of them can be
+ * expressed as a simple increment: withMeal replaces a meal as often as it appends one.
+ *
+ * ponytail: a colour given to a food also recolours that food's entries on the other days of the
+ * week, see classifyCachedDays, and each of those days only moves its own contribution to its own
+ * copy of the week. So a classification can leave this number low by the entries it fixed
+ * elsewhere until the refresh behind it lands. Fix it by counting the week out of the cached days
+ * when one screen needs to be right offline immediately after a classification, which no screen
+ * does today.
+ */
+function withWeekCounts(day: DayResponse, meals: readonly MealResponse[]): WeeklyBudgetStatus {
+  const before = day.colourCounts;
+  const after = countColours(meals);
+
+  // The server's own rule, and the only place it is spelled on this side: a null limit has
+  // nothing to be remaining against, and past the limit is a negative number rather than a zero.
+  const moved = (category: Category) => {
+    const { limit } = day.budget[category];
+    const count = day.budget[category].count - before[category] + after[category];
+
+    return { limit, count, remaining: limit === null ? null : limit - count };
+  };
+
+  return {
+    green: moved('green'),
+    yellow: moved('yellow'),
+    orange: moved('orange'),
+    unclassified: day.budget.unclassified - before.unclassified + after.unclassified,
+  };
+}
+
+/**
  * A day with this meal on it, as the server will report it once the outbox has drained.
  *
  * This is the whole of "the UI never waits on the network": what a screen renders after logging
@@ -285,6 +324,7 @@ export function withMeal(
     // the same way the server's answer would if the catalog entry had gone: see foodNames.
     foods: [...day.foods, ...added.filter((food) => !known.has(food.id))],
     colourCounts: countColours(meals),
+    budget: withWeekCounts(day, meals),
   };
 }
 
@@ -298,7 +338,7 @@ export function withMeal(
 export function withoutMeal(day: DayResponse, mealId: string): DayResponse {
   const meals = day.meals.filter((meal) => meal.id !== mealId);
 
-  return { ...day, meals, colourCounts: countColours(meals) };
+  return { ...day, meals, colourCounts: countColours(meals), budget: withWeekCounts(day, meals) };
 }
 
 /**
@@ -329,6 +369,7 @@ export function withClassification(
     meals,
     foods: day.foods.map((food) => (food.id === foodId ? { ...food, category } : food)),
     colourCounts: countColours(meals),
+    budget: withWeekCounts(day, meals),
   };
 }
 
@@ -353,11 +394,10 @@ export function withoutWeight(day: DayResponse): DayResponse {
 /**
  * The weekly allowance as a day nobody has fetched yet knows it: unset, and nothing counted.
  *
- * ponytail: the optimistic day helpers above leave `budget` as they found it rather than
- * recounting the week, so a meal logged offline shows in the day's own counts immediately and
- * in the week's on the refresh behind it. Nothing renders this yet, so nobody can see the gap.
- * Recount it here the day a screen draws the allowance, the way countColours already does for
- * the day, and the input is the whole cached week rather than the one day in hand.
+ * No limits means the Today screen shows no allowance row at all, see hasAnyLimit, so a day
+ * that is not on the device yet renders exactly as it did before this feature existed and gains
+ * the row a moment later when the server answers. That is the same understatement the rest of
+ * this screen makes rather than a spinner, see the note on ./today.tsx.
  */
 const NO_BUDGET: WeeklyBudgetStatus = {
   green: { limit: null, count: 0, remaining: null },

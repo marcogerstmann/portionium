@@ -1,6 +1,6 @@
-import type { Category } from '@portionium/schemas';
+import type { Category, Locale } from '@portionium/schemas';
 
-import { t, type TranslationKey } from './i18n';
+import { t, translate, type TranslationKey } from './i18n';
 
 /**
  * The traffic light, as a component, because it is the one thing this product says and three
@@ -46,6 +46,16 @@ const CATEGORY_KEYS: Record<DotCategory, TranslationKey> = {
  */
 export function categoryLabel(category: DotCategory): string {
   return t(CATEGORY_KEYS[category]);
+}
+
+/**
+ * The same name, in a language handed to it rather than the active one, so the plain functions
+ * that already take an explicit `Locale` can say a colour out loud without reaching for the
+ * active language. The same split `translate` is to `t`, and the reason ./budget.ts can stay a
+ * set of pure functions. One map behind both, so the two can never disagree about a word.
+ */
+export function categoryLabelIn(category: DotCategory, locale: Locale): string {
+  return translate(locale, CATEGORY_KEYS[category]);
 }
 
 /** A colour as a dot takes it: null on the wire is a state, not a missing value. */

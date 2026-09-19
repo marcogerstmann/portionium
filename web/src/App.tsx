@@ -234,7 +234,7 @@ export function App() {
           by finding it first. The padding below each is a floor generous enough to clear the tab
           bar's own height plus the safe area, so the bar never sits over a screen's last row. */}
       <div hidden={tab !== 'today'} className={composing ? undefined : CLEAR_TAB_BAR}>
-        <Today user={user} onComposingChange={setComposing} />
+        <Today user={user} active={tab === 'today'} onComposingChange={setComposing} />
       </div>
       <div hidden={tab !== 'stats'} className={CLEAR_TAB_BAR}>
         <Stats user={user} active={tab === 'stats'} />

@@ -1,15 +1,18 @@
 import {
   userResponseSchema,
+  weeklyBudgetsSchema,
   LOCALES,
   type Locale,
   type UpdateProfileRequest,
   type UserResponse,
+  type WeeklyBudgets,
 } from '@portionium/schemas';
 import { LogOut } from 'lucide-react';
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { z } from 'zod';
 
 import { ApiError, request } from './api';
+import { BudgetFields } from './budgets';
 import { invalidateDays } from './db';
 import { useT } from './i18n';
 
@@ -125,6 +128,51 @@ function PasswordForm({ onChanged }: { onChanged: () => void }) {
         {error}
       </p>
     </form>
+  );
+}
+
+/**
+ * The weekly allowance, as a section of this screen rather than only as the editor the Today
+ * screen's row opens. That row is hidden while no limit is set, which is what keeps the default
+ * experience untouched, so this is where a first one is set and the only entry point that is
+ * always there.
+ *
+ * One request, made when this tab is opened. The Today screen gets the same three numbers free
+ * on the day response and never asks for them, but a screen somebody navigated to deliberately
+ * can afford a fetch, the same trade ./review.tsx makes.
+ *
+ * Nothing is rendered until the answer lands. An unanswered request and an account with no
+ * limits look identical for a moment and mean opposite things, which is the reasoning the
+ * review queue's empty state spells out.
+ */
+function BudgetSection() {
+  const t = useT();
+  const [budgets, setBudgets] = useState<WeeklyBudgets | undefined>(undefined);
+
+  useEffect(() => {
+    void request('/me/budgets', weeklyBudgetsSchema)
+      .then(setBudgets)
+      .catch(() => undefined);
+  }, []);
+
+  if (budgets === undefined) {
+    return null;
+  }
+
+  return (
+    <section className="mt-6">
+      <h2>{t('budgetTitle')}</h2>
+      <BudgetFields
+        budgets={budgets}
+        onSaved={(saved) => {
+          setBudgets(saved);
+          // Every cached day carries the limits it was fetched with, so a changed limit makes
+          // each of them wrong about the row the Today screen draws. The same reason changing
+          // the timezone clears them, see invalidateDays.
+          void invalidateDays();
+        }}
+      />
+    </section>
   );
 }
 
@@ -263,6 +311,8 @@ export function Settings({
           {dayBoundaryHour.error}
         </p>
       )}
+
+      <BudgetSection />
 
       <PasswordForm onChanged={onSignedOut} />
 
