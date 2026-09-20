@@ -109,6 +109,8 @@ test('logs a meal from the keyboard alone: type, arrow down, enter, repeat', asy
 
   for (const name of KEYBOARD_FOODS) {
     await page.keyboard.type(name);
+    // The catalog has this one, so wait for the row rather than arrowing over a stale list.
+    await expect(page.getByRole('option').first()).toHaveText(new RegExp(`^.?${name}$`));
     await page.keyboard.press('ArrowDown');
     await page.keyboard.press('Enter');
     await expect(page.getByRole('listitem').filter({ hasText: name }).first()).toBeVisible();

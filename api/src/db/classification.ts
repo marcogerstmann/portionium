@@ -41,7 +41,7 @@ function withdrawnSince(db: Db, userId: string) {
 }
 
 export function insertClassifications(
-  db: Db,
+  db: Omit<Db, '$client'>,
   verdicts: readonly NewClassification[],
 ): FoodClassificationRecord[] {
   if (verdicts.length === 0) {

@@ -1,6 +1,7 @@
 import {
   PROBLEM,
   type BulkClassifyResponse,
+  type ClassifyFoodResponse,
   type FoodClassificationResponse,
   type FoodDetailResponse,
   type FoodResponse,
@@ -12,7 +13,8 @@ import type { FastifyInstance } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { parseConfig } from '../../src/config.js';
-import { foodTable } from '../../src/db/schema/index.js';
+import { entryTable, foodTable } from '../../src/db/schema/index.js';
+import type { FoodClassifier } from '../../src/domain/classification/classifier.js';
 import { API_PREFIX, buildApp } from '../../src/http/app.js';
 import { SESSION_COOKIE_NAME } from '../../src/http/plugins/auth.js';
 import { createTestFixtures, type FoodRow, type TestFixtures } from '../helpers/fixtures.js';
@@ -27,11 +29,12 @@ afterEach(async () => {
   open = undefined;
 });
 
-async function buildTestApp() {
+async function buildTestApp(classifier?: FoodClassifier) {
   const fixtures = createTestFixtures();
   const app = await buildApp({
     config: parseConfig({ LOG_LEVEL: 'fatal', WEB_ORIGIN }),
     database: fixtures,
+    ...(classifier === undefined ? {} : { classifier }),
   });
   await app.ready();
 
@@ -1283,5 +1286,127 @@ describe('the review queue', () => {
 
       expect(response.statusCode).toBe(401);
     });
+  });
+});
+
+describe('classifying free text', () => {
+  const CLASSIFY = `${FOODS}/classify`;
+
+  function answering(name: string, category: 'green' | 'yellow' | 'orange'): FoodClassifier {
+    return () =>
+      Promise.resolve({
+        status: 'classified',
+        name,
+        category,
+        confidence: 0.85,
+        model: 'gpt-test',
+        promptVersion: 'v1',
+      });
+  }
+
+  async function classify(app: FastifyInstance, token: string, text: string) {
+    return app.inject({
+      method: 'POST',
+      url: CLASSIFY,
+      headers: browser(token),
+      payload: { text },
+    });
+  }
+
+  it('creates the food and logs the ai_text verdict with its provenance', async () => {
+    const { app, fixtures } = await buildTestApp(answering('Nussschnecke', 'orange'));
+    const token = fixtures.create.session(fixtures.userA);
+
+    const response = await classify(app, token, 'nussschnecke vom bäcker');
+
+    expect(response.statusCode).toBe(200);
+    const suggestion = response.json<ClassifyFoodResponse>();
+    expect(suggestion).toMatchObject({
+      name: 'Nussschnecke',
+      category: 'orange',
+      confidence: 0.85,
+    });
+
+    const history = (await historyOf(app, suggestion.foodId, token)).json<
+      FoodClassificationResponse[]
+    >();
+    expect(history).toEqual([
+      expect.objectContaining({
+        source: 'ai_text',
+        category: 'orange',
+        model: 'gpt-test',
+        promptVersion: 'v1',
+        confidence: 0.85,
+      }),
+    ]);
+  });
+
+  it('reuses the catalog row the returned name already names', async () => {
+    const { app, fixtures } = await buildTestApp(answering('Nussschnecke', 'orange'));
+    const token = fixtures.create.session(fixtures.userA);
+    const existing = fixtures.create.food({ name: 'nussschnecke' });
+
+    const response = await classify(app, token, 'Nussschnecke vom Bäcker');
+
+    expect(response.json<ClassifyFoodResponse>().foodId).toBe(existing.id);
+    expect(response.json<ClassifyFoodResponse>().name).toBe('nussschnecke');
+  });
+
+  it('leaves the entries already logged grey, because a suggestion is not a confirmation', async () => {
+    const { app, fixtures } = await buildTestApp(answering('Skyr', 'green'));
+    const token = fixtures.create.session(fixtures.userA);
+    const skyr = fixtures.create.food({ name: 'Skyr' });
+    const { entries } = fixtures.create.meal(fixtures.userA, { entries: [{ foodId: skyr.id }] });
+
+    await classify(app, token, 'skyr');
+
+    const stored = fixtures.db
+      .select()
+      .from(entryTable)
+      .where(eq(entryTable.id, entries[0]!.id))
+      .get();
+    expect(stored?.category).toBeNull();
+  });
+
+  it('charges once for a retry carrying the same key', async () => {
+    let calls = 0;
+    const counting: FoodClassifier = (input) => {
+      calls += 1;
+      return answering('Skyr', 'green')(input);
+    };
+    const { app, fixtures } = await buildTestApp(counting);
+    const headers = {
+      ...browser(fixtures.create.session(fixtures.userA)),
+      'idempotency-key': 'classify-skyr',
+    };
+    const payload = { text: 'skyr' };
+
+    await app.inject({ method: 'POST', url: CLASSIFY, headers, payload });
+    const retry = await app.inject({ method: 'POST', url: CLASSIFY, headers, payload });
+
+    expect(retry.headers['idempotent-replayed']).toBe('true');
+    expect(calls).toBe(1);
+  });
+
+  it('answers its own problem type when no key is configured, so a client can tell it from a 500', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const token = fixtures.create.session(fixtures.userA);
+
+    const response = await classify(app, token, 'skyr');
+
+    expect(response.statusCode).toBe(503);
+    expect(problem(response.body).type).toBe(PROBLEM.classifierUnavailable);
+  });
+
+  it('needs a credential', async () => {
+    const { app } = await buildTestApp(answering('Skyr', 'green'));
+
+    const response = await app.inject({
+      method: 'POST',
+      url: CLASSIFY,
+      payload: { text: 'skyr' },
+    });
+
+    expect(response.statusCode).toBe(401);
   });
 });

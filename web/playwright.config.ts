@@ -29,6 +29,7 @@ export const ACCOUNTS = {
   favourites: fixture('favourites'),
   weight: fixture('weight'),
   budget: fixture('budget'),
+  classify: fixture('classify'),
 };
 
 const SERVE_FRESHLY_SEEDED = [

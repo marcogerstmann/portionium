@@ -106,6 +106,11 @@ const DOMAIN_PROBLEMS: Record<
     title: 'Idempotency-Key reused for a different request',
     status: 422,
   },
+  classifier_unavailable: {
+    type: PROBLEM.classifierUnavailable,
+    title: 'No classification available',
+    status: 503,
+  },
   not_ready: {
     type: PROBLEM.notReady,
     title: 'Not ready',

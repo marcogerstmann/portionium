@@ -86,6 +86,7 @@ export const de: typeof en = {
     'Diese Lebensmittel hat noch niemand eingeordnet, am häufigsten gegessene zuerst. Eine Farbe hier gilt für jeden künftigen Eintrag dieses Lebensmittels und füllt die bereits eingetragenen, die noch warten.',
   reviewEmpty: 'Nichts zu prüfen. Jedes eingetragene Lebensmittel hat eine Farbe.',
   reviewFoodsLabel: 'Lebensmittel ohne Farbe',
+  reviewSuggested: 'Vorgeschlagen',
   reviewConfirm: {
     one: '{count} Lebensmittel bestätigen',
     other: '{count} Lebensmittel bestätigen',
@@ -123,6 +124,10 @@ export const de: typeof en = {
   composeFoodsLabel: 'Lebensmittel',
   composeAdding: '{name} wird hinzugefügt',
   composeAddAsNew: '{name} als neues Lebensmittel hinzufügen',
+  composeAsk: 'Farbe per KI vorschlagen',
+  composeAsking: 'Farbe für {name} wird vorgeschlagen',
+  composeAskError: 'Es konnte keine Farbe vorgeschlagen werden. Wähle selbst eine.',
+  composeAddSuggested: '{name} hinzufügen',
   composeColoursLabel: 'Oder einfach eine Farbe',
   composeLog: '{mealType} eintragen',
   composeSave: 'Änderungen speichern',

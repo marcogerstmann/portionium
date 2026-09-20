@@ -24,6 +24,7 @@ export const PROBLEM = {
   mealFromIdWithEntries: `${PROBLEM_NAMESPACE}/meal-from-id-with-entries`,
   favouriteHasNoEntries: `${PROBLEM_NAMESPACE}/favourite-has-no-entries`,
   implausibleWeight: `${PROBLEM_NAMESPACE}/implausible-weight`,
+  classifierUnavailable: `${PROBLEM_NAMESPACE}/classifier-unavailable`,
   notReady: `${PROBLEM_NAMESPACE}/not-ready`,
   internalError: `${PROBLEM_NAMESPACE}/internal-error`,
 } as const;

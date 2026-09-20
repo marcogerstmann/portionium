@@ -18,12 +18,19 @@ import { useStatistic } from './statistics';
 
 const QUEUE_LIMIT = 50;
 
+/**
+ * A model verdict is a colour, so a food carrying one is not unjudged and would never reach this
+ * screen. This is the line the prompt is calibrated against: at 0.7 the model is saying the
+ * preparation decides the answer, which is exactly the question a person should be asked.
+ */
+const REVIEW_CONFIDENCE = 0.7;
+
 const QUEUE = z.array(unclassifiedFoodResponseSchema);
 
 export function useUnclassifiedCount(reloadOn?: unknown): number {
   const answer = useStatistic(
     'unclassified',
-    '/foods/unclassified/count',
+    `/foods/unclassified/count?minConfidence=${REVIEW_CONFIDENCE}`,
     unclassifiedCountResponseSchema,
     reloadOn,
   );
@@ -42,8 +49,25 @@ export function Review({ onDone, onConfirmed }: { onDone: () => void; onConfirme
   useEffect(() => {
     let live = true;
 
-    void request(`/foods/unclassified?limit=${QUEUE_LIMIT}`, QUEUE).then(
-      (foods) => live && setQueue(foods),
+    const url = `/foods/unclassified?limit=${QUEUE_LIMIT}&minConfidence=${REVIEW_CONFIDENCE}`;
+
+    void request(url, QUEUE).then(
+      (foods) => {
+        if (!live) {
+          return;
+        }
+
+        setQueue(foods);
+        // Pre-marked rather than merely shown: the batch is confirmed as it stands, so a queue of
+        // suggestions is one button away from being accepted.
+        setMarked(
+          Object.fromEntries(
+            foods.flatMap((food) =>
+              food.suggestion === null ? [] : [[food.id, food.suggestion.category]],
+            ),
+          ),
+        );
+      },
       (cause: unknown) =>
         live && setError(cause instanceof ApiError ? cause.problem.detail : t('loginNetworkError')),
     );
@@ -108,6 +132,11 @@ export function Review({ onDone, onConfirmed }: { onDone: () => void; onConfirme
               <p className="row justify-start">
                 <Dot category={choice ?? UNCLASSIFIED} />
                 <span>{food.name}</span>
+                {food.suggestion !== null && choice === food.suggestion.category && (
+                  <span className="ml-auto shrink-0 text-sm text-muted">
+                    {t('reviewSuggested')}
+                  </span>
+                )}
               </p>
 
               <p className="mb-2 flex gap-2 pl-4">

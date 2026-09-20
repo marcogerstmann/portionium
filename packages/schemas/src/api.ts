@@ -206,6 +206,21 @@ export const unclassifiedCountResponseSchema = z.object({ count: z.int().nonnega
 
 export type UnclassifiedCountResponse = z.infer<typeof unclassifiedCountResponseSchema>;
 
+export const classifyFoodRequestSchema = z.strictObject({
+  text: z.string().trim().min(1).max(200),
+});
+
+export type ClassifyFoodRequest = z.infer<typeof classifyFoodRequestSchema>;
+
+export const classifyFoodResponseSchema = z.object({
+  foodId: idSchema,
+  name: foodSchema.shape.name,
+  category: categorySchema,
+  confidence: z.number().min(0).max(1),
+});
+
+export type ClassifyFoodResponse = z.infer<typeof classifyFoodResponseSchema>;
+
 export const bulkClassifyItemSchema = z.strictObject({
   foodId: idSchema,
   category: categorySchema,

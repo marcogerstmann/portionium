@@ -69,7 +69,7 @@ export function findFoodById(db: Db, id: string): FoodRecord | undefined {
     .get();
 }
 
-export function findFoodByName(db: Db, name: string): FoodRecord | undefined {
+export function findFoodByName(db: Omit<Db, '$client'>, name: string): FoodRecord | undefined {
   const target = normalizeFoodName(name);
 
   return db
@@ -80,7 +80,7 @@ export function findFoodByName(db: Db, name: string): FoodRecord | undefined {
     .find((row) => normalizeFoodName(row.name) === target);
 }
 
-export function insertFood(db: Db, food: NewFood): FoodRecord {
+export function insertFood(db: Omit<Db, '$client'>, food: NewFood): FoodRecord {
   return db.insert(foodTable).values(food).returning().get();
 }
 

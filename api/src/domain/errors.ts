@@ -18,6 +18,7 @@ export type DomainErrorCode =
   | 'food_in_use'
   | 'idempotency_key_mismatch'
   | 'idempotency_request_in_progress'
+  | 'classifier_unavailable'
   | 'not_ready';
 
 export class DomainError extends Error {
@@ -142,6 +143,17 @@ export class IdempotencyRequestInProgressError extends DomainError {
       'A request with this Idempotency-Key is still being processed. Retry shortly.',
     );
     this.name = 'IdempotencyRequestInProgressError';
+  }
+}
+
+/**
+ * Its own type rather than a 500: an instance with no key is working correctly, and the composer
+ * hides the row instead of showing an error beside a search that answers.
+ */
+export class ClassifierUnavailableError extends DomainError {
+  constructor() {
+    super('classifier_unavailable', 'No colour could be suggested for this. Pick one yourself.');
+    this.name = 'ClassifierUnavailableError';
   }
 }
 

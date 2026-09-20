@@ -1,8 +1,11 @@
 import {
   CATEGORIES,
+  classifyFoodResponseSchema,
   favouriteResponseSchema,
   foodResponseSchema,
   MEAL_TYPES,
+  PROBLEM,
+  type ClassifyFoodResponse,
   type EntryInput,
   type FavouriteResponse,
   type FoodResponse,
@@ -13,7 +16,7 @@ import {
   type MealType,
   type UserResponse,
 } from '@portionium/schemas';
-import { Check, Star, X } from 'lucide-react';
+import { Check, Sparkles, Star, X } from 'lucide-react';
 import { uuidv7 } from 'uuidv7';
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { z } from 'zod';
@@ -28,11 +31,17 @@ import {
   refreshSuggestions,
 } from './db';
 import { categoryLabel, Dot, dotOf } from './dot';
-import { isNewName, matchFoods } from './food-search';
+import { isNewName, matchFoods, normalizeName } from './food-search';
 import { useLocale, useT } from './i18n';
-import { editMeal, logMeal, type ComposedEntry } from './outbox';
+import { classifyFood, editMeal, logMeal, type ComposedEntry } from './outbox';
 
 const SEARCH_DEBOUNCE_MS = 200;
+
+/**
+ * An instance with no key refuses every text the same way, and a key is not added while the app is
+ * open, so one refusal is the whole answer for this session.
+ */
+let classifierOffered = true;
 
 const SEARCH_LIMIT = 20;
 
@@ -151,6 +160,9 @@ export function Compose({
   const [results, setResults] = useState<FoodResponse[]>([]);
   const [active, setActive] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [asked, setAsked] = useState<{ text: string; answer?: ClassifyFoodResponse } | undefined>(
+    undefined,
+  );
   const [error, setError] = useState<string | undefined>(undefined);
   const [favourites, setFavourites] = useState<FavouriteResponse[]>([]);
   const [suggestions, setSuggestions] = useState<MealSuggestionResponse[]>([]);
@@ -218,7 +230,19 @@ export function Compose({
   const trimmedNotes = notes.trim();
   const typed = query.trim();
   const creatable = isNewName(results, typed);
-  const optionCount = results.length + (creatable ? 1 : 0);
+
+  // Offline the row is not offered at all: minting a food id needs the server, which is already
+  // true of the plain create row.
+  const askable = creatable && classifierOffered && navigator.onLine;
+
+  // Tagged with the text it answers rather than cleared by an effect, so an answer to one word can
+  // never be rendered against another.
+  const suggestion = asked?.text === typed ? asked.answer : undefined;
+  const asking = asked?.text === typed && asked.answer === undefined;
+
+  const createIndex = results.length;
+  const askIndex = createIndex + 1;
+  const optionCount = results.length + (creatable ? 1 : 0) + (askable ? 1 : 0);
 
   function add(entry: ComposedEntry) {
     setChosen((current) => [...current, entry]);
@@ -331,14 +355,66 @@ export function Compose({
     );
   }
 
+  /** Reached by choosing the row and never by a keystroke: one of these is a model call. */
+  async function ask() {
+    const text = typed;
+
+    setAsked({ text });
+    setError(undefined);
+
+    try {
+      // Keyed by the text, so a retry of a question already answered replays rather than pays.
+      const answer = await request('/foods/classify', classifyFoodResponseSchema, {
+        method: 'POST',
+        body: { text },
+        idempotencyKey: `classify:${normalizeName(text)}`,
+      });
+
+      setAsked({ text, answer });
+    } catch (cause) {
+      setAsked(undefined);
+
+      if (cause instanceof ApiError) {
+        // Nothing this session will answer differently, so the row goes rather than repeat itself.
+        classifierOffered = cause.problem.type !== PROBLEM.classifierUnavailable;
+        setError(cause.problem.detail);
+      } else {
+        setError(t('composeAskError'));
+      }
+    }
+  }
+
   function choose(index: number) {
     const food = results[index];
 
     if (food !== undefined) {
       add(food);
-    } else if (creatable) {
+    } else if (index === createIndex && creatable) {
       void create(typed);
+    } else if (index === askIndex && askable) {
+      if (suggestion === undefined) {
+        if (!asking) {
+          void ask();
+        }
+      } else {
+        accept(suggestion);
+      }
     }
+  }
+
+  /**
+   * Reading the suggestion and picking it is the human confirmation, so this writes a `user`
+   * verdict over the model's. See docs/adr/011-an-entry-is-a-colour.md.
+   */
+  function accept(answer: ClassifyFoodResponse) {
+    add({
+      id: answer.foodId,
+      name: answer.name,
+      kind: 'ingredient',
+      category: answer.category,
+    });
+
+    void classifyFood(date, answer.foodId, answer.category);
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -581,13 +657,32 @@ export function Compose({
 
         {creatable &&
           option(
-            results.length,
+            createIndex,
             <>
               <Dot category={dotOf(null)} silent />
               <span>
                 {busy ? t('composeAdding', { name: typed }) : t('composeAddAsNew', { name: typed })}
               </span>
             </>,
+          )}
+
+        {/* Once answered, the dot speaks, unlike every other row in this listbox: the colour is
+            the thing being confirmed, and hue alone would leave a colour blind reader confirming
+            nothing. */}
+        {askable &&
+          option(
+            askIndex,
+            suggestion === undefined ? (
+              <>
+                <Sparkles aria-hidden="true" className="size-5 shrink-0 text-brand" />
+                <span>{asking ? t('composeAsking', { name: typed }) : t('composeAsk')}</span>
+              </>
+            ) : (
+              <>
+                <Dot category={suggestion.category} />
+                <span>{t('composeAddSuggested', { name: suggestion.name })}</span>
+              </>
+            ),
           )}
       </ul>
 

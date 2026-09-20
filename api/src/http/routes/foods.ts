@@ -1,6 +1,8 @@
 import {
   bulkClassifyRequestSchema,
   bulkClassifyResponseSchema,
+  classifyFoodRequestSchema,
+  classifyFoodResponseSchema,
   createClassificationRequestSchema,
   createFoodRequestSchema,
   foodClassificationResponseSchema,
@@ -49,8 +51,10 @@ import {
   listUnclassifiedFoods,
   type UnclassifiedFood,
 } from '../../db/unclassified.js';
+import type { FoodClassifier } from '../../domain/classification/classifier.js';
 import { resolveClassification, resolveClassifications } from '../../domain/classification.js';
 import {
+  ClassifierUnavailableError,
   FoodInUseError,
   InsufficientScopeError,
   ResourceNotFoundError,
@@ -63,6 +67,7 @@ import {
 
 export interface FoodRouteOptions {
   db: Db;
+  classifier: FoodClassifier;
 }
 
 const idParamsSchema = z.strictObject({ id: z.uuidv7() });
@@ -70,6 +75,13 @@ const idParamsSchema = z.strictObject({ id: z.uuidv7() });
 const notFoundResponse = {
   404: {
     description: 'No such food, or it has been deleted',
+    content: { [PROBLEM_CONTENT_TYPE]: { schema: problemDetailsSchema } },
+  },
+} as const;
+
+const unavailableResponse = {
+  503: {
+    description: 'No classifier is configured, or the model could not be reached',
     content: { [PROBLEM_CONTENT_TYPE]: { schema: problemDetailsSchema } },
   },
 } as const;
@@ -127,7 +139,7 @@ function toUnclassifiedFoodResponse({
 }
 
 export const foodRoutes: FastifyPluginCallbackZod<FoodRouteOptions> = (app, options, done) => {
-  const { db } = options;
+  const { db, classifier } = options;
 
   function classificationFor(
     food: FoodRecord,
@@ -327,6 +339,67 @@ export const foodRoutes: FastifyPluginCallbackZod<FoodRouteOptions> = (app, opti
       );
 
       return { results };
+    },
+  );
+
+  app.post(
+    '/foods/classify',
+    {
+      config: { auth: 'write' },
+      schema: {
+        summary: 'Ask the model for a name and a colour for something somebody typed',
+        body: classifyFoodRequestSchema,
+        response: {
+          200: classifyFoodResponseSchema,
+          ...authenticatedProblemResponses,
+          ...idempotencyProblemResponses,
+          ...unavailableResponse,
+          ...problemResponses,
+        },
+      },
+    },
+    async (request) => {
+      const { userId } = request.auth;
+
+      const result = await classifier({ name: request.body.text });
+
+      if (result.status === 'unavailable') {
+        request.log.info({ userId, reason: result.reason }, 'classifier unavailable');
+        throw new ClassifierUnavailableError();
+      }
+
+      // The food is created before anybody accepts, so abandoning the suggestion degrades to the
+      // state the plain create row already produces: a name in the review queue.
+      const { food, created } = db.transaction((tx) => {
+        const existing = findFoodByName(tx, result.name);
+        const food =
+          existing ?? insertFood(tx, { name: result.name, kind: 'ingredient', createdBy: userId });
+
+        insertClassifications(tx, [
+          {
+            foodId: food.id,
+            category: result.category,
+            source: 'ai_text',
+            model: result.model,
+            promptVersion: result.promptVersion,
+            confidence: result.confidence,
+          },
+        ]);
+
+        return { food, created: existing === undefined };
+      });
+
+      request.log.info(
+        { userId, foodId: food.id, created, model: result.model, confidence: result.confidence },
+        'food classified from text',
+      );
+
+      return {
+        foodId: food.id,
+        name: food.name,
+        category: result.category,
+        confidence: result.confidence,
+      };
     },
   );
 

@@ -12,6 +12,8 @@ import { z } from 'zod';
 import type { Config } from '../config.js';
 import type { DatabaseHandle } from '../db/client.js';
 import { createLoginThrottle } from '../domain/auth.js';
+import { unavailableClassifier, type FoodClassifier } from '../domain/classification/classifier.js';
+import { createOpenAIClassifier } from '../domain/classification/openai.js';
 import { createRateLimiter } from '../domain/rate-limit.js';
 import { loggerOptions } from './logging.js';
 import { registerAuth } from './plugins/auth.js';
@@ -41,9 +43,27 @@ function sessionTtlMs(config: Config): number {
 export interface AppDependencies {
   config: Config;
   database: DatabaseHandle;
+  /** Only a test passes one: every other caller gets the classifier the configuration describes. */
+  classifier?: FoodClassifier;
 }
 
-export async function buildApp({ config, database }: AppDependencies): Promise<FastifyInstance> {
+function classifierFor(config: Config): FoodClassifier {
+  return config.OPENAI_API_KEY === ''
+    ? unavailableClassifier
+    : createOpenAIClassifier({
+        apiKey: config.OPENAI_API_KEY,
+        model: config.OPENAI_MODEL,
+        baseUrl: config.OPENAI_BASE_URL,
+        timeoutMs: config.OPENAI_TIMEOUT_MS,
+        maxCallsPerDay: config.OPENAI_MAX_CALLS_PER_DAY,
+      });
+}
+
+export async function buildApp({
+  config,
+  database,
+  classifier,
+}: AppDependencies): Promise<FastifyInstance> {
   const app = Fastify({
     logger: loggerOptions(config.LOG_LEVEL),
     trustProxy: true,
@@ -143,7 +163,10 @@ export async function buildApp({ config, database }: AppDependencies): Promise<F
         cookieSecure: config.WEB_ORIGIN.startsWith('https://'),
       });
 
-      void v1.register(foodRoutes, { db: database.db });
+      void v1.register(foodRoutes, {
+        db: database.db,
+        classifier: classifier ?? classifierFor(config),
+      });
 
       void v1.register(mealRoutes, { db: database.db });
 

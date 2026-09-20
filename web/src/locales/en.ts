@@ -81,6 +81,7 @@ export const en = {
     'These are the foods nothing has judged yet, most eaten first. A colour here decides every future entry of that food, and fills in the entries already logged that are still waiting.',
   reviewEmpty: 'Nothing to review. Every food you have logged has a colour.',
   reviewFoodsLabel: 'Foods with no colour',
+  reviewSuggested: 'Suggested',
   reviewConfirm: { one: 'Confirm {count} food', other: 'Confirm {count} foods' },
 
   navLabel: 'Destinations',
@@ -115,6 +116,10 @@ export const en = {
   composeFoodsLabel: 'Foods',
   composeAdding: 'Adding {name}',
   composeAddAsNew: 'Add {name} as a new food',
+  composeAsk: 'Suggest a colour with AI',
+  composeAsking: 'Suggesting a colour for {name}',
+  composeAskError: 'No colour could be suggested. Pick one yourself.',
+  composeAddSuggested: 'Add {name}',
   composeColoursLabel: 'Or just a colour',
   composeLog: 'Log {mealType}',
   composeSave: 'Save changes',

@@ -218,6 +218,9 @@ const COVERAGE: Record<string, Coverage> = {
   'GET /api/v1/foods/unclassified/count': { resolved: 'the same question, counted' },
   'POST /api/v1/foods/unclassified/confirm': { resolved: 'writes verdicts owned by the caller' },
   'POST /api/v1/foods': { shared: 'adds to the one catalog, or returns the entry that matches' },
+  'POST /api/v1/foods/classify': {
+    shared: 'adds to the one catalog, and the model verdict it writes belongs to everybody',
+  },
   'GET /api/v1/foods/:id': { resolved: 'a catalog entry, coloured for the caller' },
   'GET /api/v1/foods/:id/classification/history': {
     resolved: 'the shared verdicts and the caller own, never a third account',
