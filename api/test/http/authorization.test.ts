@@ -328,7 +328,7 @@ describe('where a handler is allowed to learn who is calling', () => {
   const sourceRoot = fileURLToPath(new URL('../../src/', import.meta.url));
 
   const adapterSources = readdirSync(sourceRoot, { recursive: true, encoding: 'utf8' })
-    .filter((file) => /^(http|mcp)\/.*\.ts$/.test(file) && !file.endsWith('.test.ts'))
+    .filter((file) => /^http\/.*\.ts$/.test(file) && !file.endsWith('.test.ts'))
     .map((file) => [file, readFileSync(sourceRoot + file, 'utf8')] as const);
 
   it('finds the adapter sources it is meant to be checking', () => {

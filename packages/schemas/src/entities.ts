@@ -79,10 +79,6 @@ export const entrySchema = z.object({
    * docs/adr/011-an-entry-is-a-colour.md.
    */
   category: categorySchema.nullable(),
-  /**
-   * Deliberately unused. Portions are not part of the product; the field exists so the MCP adapter
-   * can carry one.
-   */
   quantity: z.number().positive().optional(),
   position: z.int().nonnegative(),
 });

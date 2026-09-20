@@ -32,7 +32,7 @@ module.exports = {
         'data in or define a port in domain and implement it in db/.',
       severity: 'error',
       from: { path: '^api/src/domain/' },
-      to: { path: '^api/src/(db|http|mcp)/' },
+      to: { path: '^api/src/(db|http)/' },
     },
     {
       name: 'domain-has-no-frameworks',
@@ -47,16 +47,7 @@ module.exports = {
       comment: 'db/ sits below the adapters. It may import domain/ and nothing else from api/src.',
       severity: 'error',
       from: { path: '^api/src/db/' },
-      to: { path: '^api/src/(http|mcp)/' },
-    },
-    {
-      name: 'http-and-mcp-do-not-meet',
-      comment:
-        'http/ and mcp/ are sibling adapters over the same domain services. Sharing between them ' +
-        'means the shared thing belongs in domain/.',
-      severity: 'error',
-      from: { path: '^api/src/(http|mcp)/' },
-      to: { path: '^api/src/(http|mcp)/', pathNot: '^api/src/$1/' },
+      to: { path: '^api/src/http/' },
     },
     {
       name: 'cli-does-not-import-adapters',
@@ -66,7 +57,7 @@ module.exports = {
         'whatever it wanted from there belongs in domain/ or db/.',
       severity: 'error',
       from: { path: '^api/src/cli/' },
-      to: { path: '^api/src/(http|mcp)/' },
+      to: { path: '^api/src/http/' },
     },
     {
       name: 'drizzle-lives-only-in-db',

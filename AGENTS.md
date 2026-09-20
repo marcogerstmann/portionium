@@ -42,11 +42,10 @@ docker compose up -d          # http://localhost:8080, migrations and seed inclu
 Three pnpm workspaces, `api`, `web` and `packages/*`.
 
 ```
-api/                @portionium/api, Fastify server and MCP adapter
+api/                @portionium/api, the Fastify server
   src/domain/       entities, services, pure logic, no framework imports
   src/db/           Drizzle schema, migrations, repositories
   src/http/         Fastify app, plugins, routes
-  src/mcp/          MCP adapter over the domain services
   src/cli/          account administration and backups, from a terminal
   test/             integration tests that need a database
   test/helpers/     the test database, the factories and the frozen clock
@@ -73,9 +72,9 @@ Plain `node` is the exception and cannot load it: type stripping does not remap 
 run against this source tree fails on the first relative import. Nothing in development does
 that. The container does, and ships the package's `dist/` build instead, see Containers.
 
-Layering inside `api`: `domain` imports nothing from `db`, `http`, `mcp` and no framework or
-database library. `db` may import `domain` and is the only place Drizzle appears. `http`, `mcp`
-and `cli` may import `domain` and `db`, hold no business logic, and never import each other.
+Layering inside `api`: `domain` imports nothing from `db`, `http` and no framework or database
+library. `db` may import `domain` and is the only place Drizzle appears. `http` and `cli` may
+import `domain` and `db`, hold no business logic, and never import each other.
 
 Layering between workspaces: `packages/schemas` imports Zod and nothing else, never anything
 from `api` or `web`. `web` may import `@portionium/schemas` and never anything from `api`, the
@@ -486,7 +485,7 @@ header on a page's behalf.
 
 ### API tokens
 
-The other credential, for the MCP server and anything else without a browser.
+The other credential, for a script or anything else without a browser.
 `POST /auth/tokens` mints one, `GET /auth/tokens` lists them without the tokens, and
 `DELETE /auth/tokens/:id` revokes one. Rows live in `api_token` and store a SHA-256, a name, the
 granted scopes, `last_used_at`, `expires_at` and `revoked_at`.
