@@ -31,19 +31,8 @@ import {
   problemResponses,
 } from '../problem.js';
 
-/**
- * Weight: the outcome signal beside the colour log, and strictly private, with no read path
- * anywhere that shows one account's readings to another. See docs/adr/003-multi-user-authorization.md.
- *
- * There is no unique constraint on (user_id, local_date): people weigh themselves twice in a
- * day and both readings are real, see the comment on weight_entry in db/schema/weight-entry.ts.
- * "The" reading for a day, what GET /days/{date} shows and DELETE below removes, is the most
- * recently recorded one, findLatestWeightEntryForDay.
- */
-
 export interface WeightRouteOptions {
   db: Db;
-  /** How far a reading may drift from the nearest one before it is flagged, not blocked. */
   maxDriftPerDay: number;
 }
 
@@ -58,10 +47,6 @@ const notFoundResponse = {
 
 const noContentResponse = { 204: z.null().describe('Deleted') } as const;
 
-/**
- * Spread after the idempotency responses, which already declare a 422 of their own, the same
- * pattern mealUpdateProblemResponses in meals.ts follows: one status, two reasons.
- */
 const weightCreateProblemResponses = {
   422: {
     description:
@@ -74,7 +59,6 @@ const weightCreateProblemResponses = {
 export const weightRoutes: FastifyPluginCallbackZod<WeightRouteOptions> = (app, options, done) => {
   const { db, maxDriftPerDay } = options;
 
-  /** The row behind request.auth, the same reasoning as meals.ts's requireUser. */
   function requireUser(userId: string): UserRecord {
     const user = findUserById(db, userId);
     if (user === undefined) {
@@ -112,9 +96,6 @@ export const weightRoutes: FastifyPluginCallbackZod<WeightRouteOptions> = (app, 
         localDate: resolveLocalDate(recordedAt, user.timezone, user.dayBoundaryHour),
       };
 
-      // Throws implausible_weight for a reading outside the absolute human range. A believable
-      // range but a fast jump only returns a warning, it never blocks the write, see
-      // createWeightEntry in domain/weight.ts.
       const { entry, warning } = createWeightEntry(
         newEntry,
         listWeightHistoryForUser(db, userId),
@@ -151,8 +132,6 @@ export const weightRoutes: FastifyPluginCallbackZod<WeightRouteOptions> = (app, 
       const { userId } = request.auth;
       const { limit, cursor, from, to } = request.query;
 
-      // One row more than asked for, the same trick listMeals uses to tell the last page from a
-      // full one without a second, potentially stale, count query.
       const page = listWeightEntries(db, { userId, limit: limit + 1, cursor, from, to });
       const entries = page.slice(0, limit);
 

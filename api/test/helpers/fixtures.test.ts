@@ -5,11 +5,6 @@ import { mealTable } from '../../src/db/schema/index.js';
 import { createTestFixtures, type TestFixtures } from './fixtures.js';
 import { freezeTime } from './time.js';
 
-/**
- * The helpers every later story leans on, so they get the same treatment as the code they
- * support. A factory that quietly stops deriving a local date would turn a whole suite green
- * against rows the application could never produce.
- */
 describe('the test fixtures', () => {
   let fixtures: TestFixtures;
 
@@ -51,7 +46,6 @@ describe('the test fixtures', () => {
   });
 
   it('dates a meal through the owner’s day boundary, not the clock’s', () => {
-    // 01:00 on the 7th in Berlin, still the 6th under the 04:00 default boundary.
     const { meal } = fixtures.create.meal(fixtures.userA, {
       loggedAt: new Date('2026-09-06T23:00:00.000Z'),
     });
@@ -60,13 +54,10 @@ describe('the test fixtures', () => {
   });
 
   it('dates the same instant differently for the two users, which is the point of them', () => {
-    const loggedAt = new Date('2026-09-06T23:00:00.000Z'); // 19:00 in New York.
+    const loggedAt = new Date('2026-09-06T23:00:00.000Z');
 
     expect(fixtures.create.meal(fixtures.userA, { loggedAt }).meal.localDate).toBe('2026-09-06');
     expect(fixtures.create.meal(fixtures.userB, { loggedAt }).meal.localDate).toBe('2026-09-06');
-    // Both still say the 6th above, for different reasons: Berlin is past midnight but short
-    // of the boundary, New York has not reached midnight. Six hours on they part, which is the
-    // case a service reading the wrong user's day context gets wrong.
     const morning = new Date('2026-09-07T05:00:00.000Z');
     expect(fixtures.create.meal(fixtures.userA, { loggedAt: morning }).meal.localDate).toBe(
       '2026-09-07',

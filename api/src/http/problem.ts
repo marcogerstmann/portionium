@@ -12,34 +12,6 @@ import { hasZodFastifySchemaValidationErrors } from 'fastify-type-provider-zod';
 import { isDomainError, ThrottledError, type DomainErrorCode } from '../domain/errors.js';
 import type { ServeWebApp } from './plugins/static.js';
 
-/**
- * The one place an error becomes an HTTP response.
- *
- * Everything that can fail a request arrives here: a schema rejection from the validator, a
- * typed failure thrown by the domain, an error the framework raised before a handler ran, and
- * whatever nobody predicted. Each leaves as RFC 9457 Problem Details, so a client has one
- * response shape to parse and one field to branch on.
- *
- * The domain does not know any of this. It throws a DomainError carrying a code, and the map
- * below is the only thing in the codebase that decides what that code means over HTTP.
- */
-
-/**
- * Domain failures, mapped. A Record over the code union rather than a switch with a default,
- * so adding a code in domain/errors.ts without deciding what it means here does not compile.
- *
- * The two 422s are 422 rather than 400. The request was well formed and the client could not
- * have known it would be refused: the shape was right, the meaning was not. A 400 would tell a
- * client to fix its serialization, which is the wrong advice.
- *
- * The two authentication failures are the reason this map holds a status per code rather than
- * one status for all of them. Neither says anything a client could use to work out whether the
- * address it sent belongs to an account, which is a property of the strings written here.
- *
- * `resource_not_found` is a 404 for a row that is missing and for one belonging to somebody
- * else, which is the whole point of it. A 403 there would answer "does this id exist" to
- * anybody willing to ask, see docs/adr/003-multi-user-authorization.md.
- */
 const DOMAIN_PROBLEMS: Record<
   DomainErrorCode,
   Pick<ProblemDetails, 'type' | 'title' | 'status'>
@@ -146,25 +118,9 @@ const DOMAIN_PROBLEMS: Record<
   },
 };
 
-/**
- * What the client is told when something unexpected broke. Deliberately says nothing: the
- * cause is in the log, addressed by the request id that is in this same body.
- */
 const INTERNAL_DETAIL =
   'The request could not be completed. Quote the request id when reporting this.';
 
-/**
- * Spread into a route's `response` map, so the generated OpenAPI document describes the errors
- * a route can answer with and not only its happy path. Declaring them also means the error
- * body is serialized through the schema, so a problem that does not match the contract fails
- * in the test suite rather than in a client.
- *
- * 400, 429 and 500 are on every route by construction: any route can be sent a request its
- * schemas reject, any route can be sent too fast, and any route can hit a bug. The 429 is
- * raised by the rate limit plugin before a route runs, so no route raises it itself, see
- * http/plugins/rate-limit.ts. Statuses that depend on what a route does, a 404 for a resource
- * that is looked up, are declared by that route.
- */
 export const problemResponses = {
   400: {
     description: 'The request does not match the schema',
@@ -180,12 +136,6 @@ export const problemResponses = {
   },
 } as const;
 
-/**
- * Spread into the `response` map of every route that needs a credential, which is every route
- * this API serves except the three in the public list. Raised by the auth plugin before a
- * handler runs, so no route raises them itself and none would otherwise document them. See
- * http/plugins/auth.ts.
- */
 export const authenticatedProblemResponses = {
   401: {
     description: 'No credential, or one that no longer resolves to anybody',
@@ -197,11 +147,6 @@ export const authenticatedProblemResponses = {
   },
 } as const;
 
-/**
- * Spread into the `response` map of every route that changes something. These are answered by
- * the idempotency plugin before the handler runs, so a route never raises them itself and
- * would not otherwise know to document them. See http/plugins/idempotency.ts.
- */
 export const idempotencyProblemResponses = {
   409: {
     description: 'The first request carrying this Idempotency-Key has not finished',
@@ -213,11 +158,6 @@ export const idempotencyProblemResponses = {
   },
 } as const;
 
-/**
- * `instance` and `requestId` are filled in here rather than by any caller. They are properties
- * of the request, not of the failure, and a caller that had to remember them is a caller that
- * eventually forgets.
- */
 function sendProblem(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -225,8 +165,6 @@ function sendProblem(
 ): FastifyReply {
   const body: ProblemDetails = {
     ...problem,
-    // The occurrence, as far as a URL can name one. The request id is what actually
-    // distinguishes this occurrence from the next one at the same path.
     instance: request.url,
     requestId: request.id,
   };
@@ -234,20 +172,9 @@ function sendProblem(
   return reply.code(body.status).type(PROBLEM_CONTENT_TYPE).send(body);
 }
 
-/**
- * Installs the two handlers on the root instance, so every route registered anywhere under it
- * answers errors the same way. Called once, from buildApp.
- *
- * `serveWebApp` is how the built client gets served without a second server or a wildcard
- * route, see http/plugins/static.ts. It is consulted for a URL the router did not match and
- * declines anything that is not a page or an asset, so an unknown path under the API prefix
- * still leaves as a problem document. Absent on an instance serving no client, which is every
- * test and every development run.
- */
 export function registerProblemHandlers(app: FastifyInstance, serveWebApp?: ServeWebApp): void {
-  // A route that does not exist never reaches the error handler, Fastify answers it on a
-  // separate path. Without this it would be the one response in the API that is not a problem
-  // document, which is exactly the special case a client forgets to handle.
+  // Fastify answers an unmatched route on a separate path, so without this it would be the one
+  // response in the API that is not a problem document.
   app.setNotFoundHandler((request, reply) => {
     if (serveWebApp?.(request, reply) === true) {
       return reply;
@@ -262,9 +189,6 @@ export function registerProblemHandlers(app: FastifyInstance, serveWebApp?: Serv
   });
 
   app.setErrorHandler((error: FastifyError, request, reply) => {
-    // Validation, first, because it is the only failure that can say something more useful
-    // than its status code. The issues come from the Zod error the validator already
-    // produced, so the field paths are derived rather than described.
     if (hasZodFastifySchemaValidationErrors(error)) {
       return sendProblem(request, reply, {
         type: PROBLEM.validationFailed,
@@ -272,35 +196,24 @@ export function registerProblemHandlers(app: FastifyInstance, serveWebApp?: Serv
         status: 400,
         detail: `The request ${error.validationContext ?? 'payload'} does not match the schema.`,
         errors: error.validation.map(({ instancePath, message }) => ({
-          // An issue about the payload itself, an unrecognized key at the top level, has no
-          // path. Fastify writes that as "/", RFC 6901 spells the whole document as "".
+          // Fastify writes the root path as "/", where RFC 6901 spells the whole document as "".
           path: instancePath === '/' ? '' : instancePath,
-          // Optional in Fastify's own type, always set by the Zod validator.
           message: message ?? 'Invalid value',
         })),
       });
     }
 
     if (isDomainError(error)) {
-      // The one family of failures that carries something a client can act on. A 429 with no
-      // Retry-After leaves a caller guessing, and a caller that guesses retries too soon or
-      // gives up. Matched on the base class, so a third throttle cannot forget the header.
       if (error instanceof ThrottledError) {
         reply.header('Retry-After', error.retryAfterSeconds);
       }
 
       return sendProblem(request, reply, {
         ...DOMAIN_PROBLEMS[error.code],
-        // Domain messages are written for a person to read and carry no internals, see
-        // domain/errors.ts.
         detail: error.message,
       });
     }
 
-    // Everything the framework raises before or around a handler: an unparseable body, a
-    // media type nobody registered, a rate limit later on. These carry a status and a message
-    // that is already meant for the client, and nothing a client would branch on beyond the
-    // status, which is what about:blank is for.
     const status = error.statusCode ?? 500;
     if (status >= 400 && status < 500) {
       return sendProblem(request, reply, {
@@ -311,9 +224,6 @@ export function registerProblemHandlers(app: FastifyInstance, serveWebApp?: Serv
       });
     }
 
-    // Anything left is a bug: an exception nobody expected, or a response that did not match
-    // its own schema. The stack goes to the log, under the request id that the client is
-    // holding, and the client is told nothing else.
     request.log.error({ err: error }, 'Unhandled error');
 
     return sendProblem(request, reply, {

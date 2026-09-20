@@ -14,12 +14,6 @@ import {
 import { createTestFixtures, type TestFixtures } from '../helpers/fixtures.js';
 import { freezeTime } from '../helpers/time.js';
 
-/**
- * A retried write, over the real app and a real table. The shipped token endpoints are the
- * writes under test, because they are the ones that exist. Two routes are declared here on
- * top: one slow enough for two copies of a request to overlap, and one that breaks.
- */
-
 const WEB_ORIGIN = 'http://localhost:5173';
 
 let open: { app: FastifyInstance; fixtures: TestFixtures } | undefined;
@@ -59,7 +53,6 @@ function url(path: string): string {
   return `${API_PREFIX}${path}`;
 }
 
-/** A browser with the outbox header on: cookie, origin, and the key it chose for this write. */
 function browser(token: string, key?: string) {
   return {
     cookie: `${SESSION_COOKIE_NAME}=${token}`,
@@ -92,7 +85,6 @@ describe('replaying a successful write', () => {
     expect(second.statusCode).toBe(201);
     expect(second.headers[IDEMPOTENT_REPLAYED_HEADER.toLowerCase()]).toBe('true');
     expect(first.headers[IDEMPOTENT_REPLAYED_HEADER.toLowerCase()]).toBeUndefined();
-    // Byte for byte, including the one time secret. The retry is the same request.
     expect(second.payload).toBe(first.payload);
     expect(second.headers['content-type']).toBe(first.headers['content-type']);
     expect(fixtures.db.select().from(apiTokenTable).all()).toHaveLength(1);

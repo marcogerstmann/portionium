@@ -10,8 +10,7 @@ export default tseslint.config(
 
   js.configs.recommended,
 
-  // Type aware linting, TypeScript sources only. The project service is deliberately
-  // scoped here so the config files at the repository root are never fed to it.
+  // Scoped to TypeScript sources so the root config files are never fed to the project service.
   {
     files: ['**/*.ts', '**/*.tsx'],
     extends: [tseslint.configs.recommendedTypeChecked],
@@ -23,14 +22,11 @@ export default tseslint.config(
       },
     },
     rules: {
-      // verbatimModuleSyntax enforces the emit side of type only imports, this enforces
-      // the authoring side so the two never disagree.
       '@typescript-eslint/consistent-type-imports': ['error', { fixStyle: 'inline-type-imports' }],
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },
   },
 
-  // Tooling config at the repository root. Not part of any tsconfig, so no type aware rules.
   {
     files: ['**/*.js', '**/*.cjs'],
     extends: [tseslint.configs.disableTypeChecked],
@@ -41,9 +37,7 @@ export default tseslint.config(
     languageOptions: { sourceType: 'commonjs' },
   },
 
-  // The one file that runs in a service worker rather than in Node or in the page. Workbox
-  // imports it into the worker it generates, so it has `self` and `clients` and none of the
-  // DOM, see web/public/sw-drain.js.
+  // Runs inside the generated service worker: `self` and `clients`, no DOM.
   {
     files: ['web/public/*.js'],
     languageOptions: { globals: globals.serviceworker },

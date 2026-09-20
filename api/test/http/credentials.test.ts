@@ -17,14 +17,6 @@ import { API_PREFIX, buildApp } from '../../src/http/app.js';
 import { SESSION_COOKIE_NAME } from '../../src/http/plugins/auth.js';
 import { createTestFixtures, type TestFixtures, type UserRow } from '../helpers/fixtures.js';
 
-/**
- * The two credentials, over the real app and a real database.
- *
- * Everything here is about what happens on the second request rather than the first: whether a
- * session slid, whether a revocation bit, whether a cookie alone was enough to change something.
- * None of that can be checked against a stub, so none of it is.
- */
-
 const WEB_ORIGIN = 'http://localhost:5173';
 
 let open: { app: FastifyInstance; fixtures: TestFixtures } | undefined;
@@ -34,12 +26,6 @@ afterEach(async () => {
   open = undefined;
 });
 
-/**
- * The shipped app, plus one route that requires `admin`. Nothing in the API needs that scope
- * yet, so without it the rule that a token never carries more than its owner's role does would
- * have nothing to be asserted against until the first admin endpoint arrives, which is the
- * wrong moment to find out it does not hold.
- */
 async function buildTestApp(env: NodeJS.ProcessEnv = {}) {
   const fixtures = createTestFixtures();
   const app = await buildApp({
@@ -59,12 +45,10 @@ function url(path: string): string {
   return `${API_PREFIX}${path}`;
 }
 
-/** A browser: the cookie, and the Origin header a browser always attaches to a mutation. */
 function browser(token: string) {
   return { cookie: `${SESSION_COOKIE_NAME}=${token}`, origin: WEB_ORIGIN };
 }
 
-/** A script: a bearer header and no origin at all, which is what a script actually sends. */
 function script(token: string) {
   return { authorization: `Bearer ${token}` };
 }
@@ -73,7 +57,6 @@ function problem(payload: string): ProblemDetails {
   return JSON.parse(payload) as ProblemDetails;
 }
 
-/** Mints a token through the endpoint rather than the factory, when the endpoint is the point. */
 async function mintToken(
   app: FastifyInstance,
   sessionToken: string,
@@ -104,10 +87,6 @@ describe('the sliding expiry', () => {
     expect(after.lastActivityAt.getTime()).toBeGreaterThan(stale.getTime());
   });
 
-  /**
-   * The reason the refresh is throttled at all. Without this, every read this API serves is
-   * also a write to the session row that authorised it.
-   */
   it('writes nothing when the session was touched a moment ago', async () => {
     const { app, fixtures } = await buildTestApp();
     const token = fixtures.create.session(fixtures.userA, { lastActivityAt: new Date() });
@@ -129,7 +108,6 @@ describe('the sliding expiry', () => {
     await app.inject({ url: url('/auth/sessions'), headers: browser(token) });
 
     const { expiresAt } = fixtures.db.select().from(sessionTable).get()!;
-    // A day from now, not thirty. Two minutes of slack for a slow machine.
     expect(expiresAt.getTime() - Date.now()).toBeLessThan(24 * 60 * 60 * 1000 + 120_000);
   });
 });
@@ -149,7 +127,6 @@ describe('listing and revoking sessions', () => {
     const sessions = response.json<SessionResponse[]>();
     expect(sessions).toHaveLength(2);
     expect(sessions.filter((session) => session.current)).toHaveLength(1);
-    // Nothing resembling a credential is in the list. The id is what a session is revoked by.
     expect(response.payload).not.toContain(current);
   });
 
@@ -188,7 +165,6 @@ describe('listing and revoking sessions', () => {
     ).toBe(200);
   });
 
-  /** ADR 003: somebody else's row is answered exactly as a row that was never there. */
   it("answers 404 for another user's session", async () => {
     const { app, fixtures } = await buildTestApp();
     const mine = fixtures.create.session(fixtures.userA);
@@ -207,7 +183,6 @@ describe('listing and revoking sessions', () => {
 
     expect(response.statusCode).toBe(404);
     expect(problem(response.payload).type).toBe(PROBLEM.notFound);
-    // Still there, which is the half a status code cannot show.
     expect(fixtures.db.select().from(sessionTable).all()).toHaveLength(2);
   });
 });
@@ -226,7 +201,6 @@ describe('logging out', () => {
     expect(response.statusCode).toBe(204);
     expect(String(response.headers['set-cookie'])).toContain('Max-Age=0');
     expect(fixtures.db.select().from(sessionTable).all()).toHaveLength(0);
-    // The credential is dead whatever a client does with that header.
     expect(
       (await app.inject({ url: url('/auth/sessions'), headers: browser(token) })).statusCode,
     ).toBe(401);
@@ -263,11 +237,6 @@ describe('the origin check', () => {
     expect(fixtures.db.select().from(sessionTable).all()).toHaveLength(1);
   });
 
-  /**
-   * Refused rather than trusted. Every browser sets Origin on a cross origin request, so its
-   * absence on a mutation is either a client nobody supports or somebody hoping this check
-   * only looks at the origins it is given.
-   */
   it('refuses a cookie authenticated mutation that names no origin at all', async () => {
     const { app, fixtures } = await buildTestApp();
     const token = fixtures.create.session(fixtures.userA);
@@ -294,13 +263,11 @@ describe('the origin check', () => {
     expect(response.statusCode).toBe(200);
   });
 
-  /** Nothing attaches a bearer header on a page's behalf, so there is no CSRF to prevent. */
   it('exempts a bearer token, which no browser sends for anybody', async () => {
     const { app, fixtures } = await buildTestApp();
     const token = fixtures.create.apiToken(fixtures.userA);
     const row = fixtures.db.select().from(apiTokenTable).get()!;
 
-    // A mutation, over a bearer header, with no Origin. Refused for a cookie, fine for this.
     const response = await app.inject({
       method: 'DELETE',
       url: url(`/auth/tokens/${row.id}`),
@@ -329,7 +296,6 @@ describe('minting an API token', () => {
     expect(row.tokenHash).toBe(hashToken(body.token));
     expect(JSON.stringify(row)).not.toContain(body.token);
 
-    // The one response that carries it. Every later read of the same token has no token in it.
     const listed = (await app.inject({ url: url('/auth/tokens'), headers: browser(session) })).json<
       ApiTokenResponse[]
     >();
@@ -360,10 +326,6 @@ describe('minting an API token', () => {
     expect(response.statusCode).toBe(201);
   });
 
-  /**
-   * A token that could mint its own successor is a token whose revocation means nothing,
-   * because whoever stole it made a fresh one before anybody noticed.
-   */
   it('refuses an API token asking for another API token', async () => {
     const { app, fixtures } = await buildTestApp();
     const token = fixtures.create.apiToken(fixtures.userA);
@@ -419,12 +381,10 @@ describe('authenticating with an API token', () => {
     });
 
     expect(listed.statusCode).toBe(200);
-    // A write with a read token, which is the entire reason scopes exist.
     expect(revoked.statusCode).toBe(403);
     expect(problem(revoked.payload).type).toBe(PROBLEM.insufficientScope);
   });
 
-  /** A user demoted out of admin must not keep an admin token that was legitimate when minted. */
   it('never grants more than the owner role does today', async () => {
     const { app, fixtures } = await buildTestApp();
     const admin: UserRow = fixtures.create.user({ role: 'admin' });
@@ -437,7 +397,6 @@ describe('authenticating with an API token', () => {
     const after = await app.inject({ url: '/admin-only', headers: script(token) });
     expect(after.statusCode).toBe(403);
     expect(problem(after.payload).type).toBe(PROBLEM.insufficientScope);
-    // Still a working credential for everything the demoted account can still do.
     expect(
       (await app.inject({ url: url('/auth/tokens'), headers: script(token) })).statusCode,
     ).toBe(200);
@@ -481,7 +440,6 @@ describe('authenticating with an API token', () => {
     await app.inject({ url: url('/auth/tokens'), headers: script(token) });
     expect(fixtures.db.select().from(apiTokenTable).get()!.lastUsedAt).toEqual(firstUse);
 
-    // Backdated past the interval, which is the only thing that makes the next request write.
     fixtures.db
       .update(apiTokenTable)
       .set({ lastUsedAt: new Date(Date.now() - 2 * ACTIVITY_INTERVAL_MS) })
@@ -495,7 +453,6 @@ describe('authenticating with an API token', () => {
 });
 
 describe('revoking an API token', () => {
-  /** The acceptance criterion, stated as the only thing that matters: the very next request. */
   it('takes effect immediately', async () => {
     const { app, fixtures } = await buildTestApp();
     const session = fixtures.create.session(fixtures.userA);
@@ -552,7 +509,6 @@ describe('revoking an API token', () => {
     expect((await del(token.id)).statusCode).toBe(204);
     expect((await del(token.id)).statusCode).toBe(404);
     expect((await del(theirRow.id)).statusCode).toBe(404);
-    // Untouched, which is the half a status code cannot show.
     expect(
       fixtures.db.select().from(apiTokenTable).where(eq(apiTokenTable.id, theirRow.id)).get()!
         .revokedAt,

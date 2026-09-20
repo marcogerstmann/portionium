@@ -9,13 +9,6 @@ import { parseConfig } from '../../src/config.js';
 import { API_PREFIX, buildApp } from '../../src/http/app.js';
 import { createTestDatabase, type TestDatabase } from '../helpers/database.js';
 
-/**
- * The built web client served by the API process, over the real app and a real directory on
- * disk. The directory is stood up here rather than pointed at web/dist, so this suite passes
- * on a checkout nobody has run a build in and says something about the rule rather than about
- * whatever Vite last emitted.
- */
-
 let root: string;
 let open: { app: FastifyInstance; database: TestDatabase } | undefined;
 
@@ -80,11 +73,6 @@ describe('serving the client', () => {
 });
 
 describe('what it refuses to answer with the shell', () => {
-  /**
-   * The reason this is served from the not found handler rather than from a wildcard route. A
-   * mistyped API path has to stay a problem document: a client that got HTML and a 200 back
-   * from an endpoint it misspelled learns nothing until it tries to parse it.
-   */
   it('leaves an unknown path under the API prefix as a problem document', async () => {
     const response = await (await buildTestApp()).inject({ url: `${API_PREFIX}/mistyped` });
 

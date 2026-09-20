@@ -1,25 +1,5 @@
 @import 'tailwindcss';
 
-/*
- * The design system, which is this file and nothing else.
- *
- * Tailwind supplies the scales, which is the reason it is here: the screens had twelve custom
- * properties and all twelve were colours, so spacing, type, radius and elevation were decided
- * per element by eye, and that is what made them read as bare rather than as designed. What
- * `@theme` adds is the half Tailwind cannot know, the palette and the one measurement this
- * product has an opinion about. Everything else is Tailwind's own scale, used as it ships.
- *
- * A scale rather than a component library, on purpose. Every component a library would supply
- * here is either already built or native: the combobox in compose.tsx is hand written around
- * `aria-activedescendant` and replacing it is a regression risk for no gain, the charts are hand
- * written SVG by the decision on WEB 5, and the rest is flexbox. What was missing was a scale.
- *
- * Light and dark follow the system setting and nothing else is themed. There is no toggle and no
- * stored preference. `color-scheme` is what does the work: it tells the browser both schemes are
- * supported, which makes form controls, scrollbars and the canvas itself follow the system on
- * their own, and it is what `light-dark()` reads to pick between the two values below.
- */
-
 @theme {
   --color-background: light-dark(#ffffff, #14161a);
   --color-text: light-dark(#14161a, #eceef2);
@@ -28,39 +8,21 @@
   --color-brand: light-dark(#2f7a37, #6bcf78);
   --color-danger: light-dark(#b3261e, #ff8a80);
 
-  /*
-   * The traffic light, which is the only thing this product says. Each pair is darkened for
-   * light mode and lightened for dark so a mark drawn on the disc keeps its contrast against the
-   * fill in both, and grey is a real fourth value rather than a faded green: "nobody has judged
-   * this yet" is a state, not a weaker verdict.
-   */
+  /* Unclassified is a fourth value rather than a faded green: unjudged is a state, not a weaker verdict. */
   --color-green: light-dark(#2f9e44, #51cf66);
   --color-yellow: light-dark(#e8a33d, #ffd43b);
   --color-orange: light-dark(#e8590c, #ff922b);
   --color-unclassified: light-dark(#adb5bd, #5c636a);
   --color-on-colour: light-dark(#ffffff, #14161a);
 
-  /* Where the arrow keys are in the composer's list. A position, not focus, see compose.tsx. */
+  /* Where the arrow keys are in the composer's list. A position, not focus. */
   --color-active: light-dark(#eef3ee, #1e2a20);
 
-  /*
-   * The smallest anything tappable may be. The WCAG target size minimum, and on a phone it is
-   * also just the width of a thumb: a control smaller than this is one people miss and stop
-   * using. On the spacing scale rather than beside it, so a control asks for it as `min-h-touch`
-   * and the floor is spelled the way every other measurement on these screens is.
-   */
+  /* The WCAG target size minimum. On the spacing scale, so a control asks for it as `min-h-touch`. */
   --spacing-touch: 2.75rem;
 }
 
-/*
- * The defaults, which is where the consistency actually comes from.
- *
- * Tailwind's preflight strips every browser default, so what a bare `<button>` or `<h1>` looks
- * like is a decision this file has to make rather than one it can decline. Making it here rather
- * than as a string of utilities per element is the point: a control added next week is on the
- * scale before anybody styles it, and the alternative is a floor somebody eventually omits. The
- * screens below override these where they mean something different, and nowhere else.
- */
+/* Preflight strips every browser default, so these are the base a control gets before anybody styles it. */
 @layer base {
   :root {
     color-scheme: light dark;
@@ -71,12 +33,6 @@
     color: var(--color-text);
   }
 
-  /*
-   * One column that widens, and no second layout. The content is a list of short rows, so a
-   * phone and a desktop want the same thing and the desktop simply has more room around it; a
-   * media query here would be a second arrangement to keep working for no gain. This is the
-   * whole of the responsive story, and the statistics screen widens it by one step.
-   */
   main {
     margin-inline: auto;
     max-width: var(--container-lg);
@@ -96,11 +52,6 @@
     margin-block: --spacing(6) --spacing(2);
   }
 
-  /*
-   * Every button, not just the ones on a phone screen. A target floor set here is one no control
-   * added later can forget, and the pointer a desktop aims with is not the reason the floor
-   * exists: a 44px row is easier to hit with a mouse too.
-   */
   button {
     border: 1px solid var(--color-line);
     border-radius: var(--radius-md);
@@ -116,14 +67,8 @@
   }
 }
 
-/*
- * One row of a list: a label on the left, the thing it is about on the right.
- *
- * The one primitive worth a name of its own. A button, a paragraph and a form all take it, so a
- * tappable row and a static one line up exactly, which is what keeps the eye on the column
- * rather than on which rows happen to be interactive. It unsets the button defaults above for
- * the same reason it exists: a row is a row whichever element it turns out to be.
- */
+/* A list row: a label on the left, the thing it is about on the right. Unsets the button defaults
+ * above, so a tappable row and a static one line up exactly. */
 @utility row {
   align-items: center;
   background: none;
@@ -142,14 +87,7 @@
   width: 100%;
 }
 
-/*
- * The one action that ends a screen: sign in, add a meal, log the meal.
- *
- * A fill rather than a border, which is the other half of what this story is for. Every control
- * looking identical is not restraint, it is the absence of a decision: a screen where the thing
- * somebody came to do looks exactly like the thing that cancels it costs a read of every label.
- * There is one of these per screen and never two, which is what keeps it meaning anything.
- */
+/* The one action that ends a screen. One per screen and never two. */
 @utility primary {
   background: var(--color-brand);
   border-color: var(--color-brand);

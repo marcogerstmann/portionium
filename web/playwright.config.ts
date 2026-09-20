@@ -3,31 +3,11 @@ import { join } from 'node:path';
 
 import { defineConfig, devices } from '@playwright/test';
 
-/**
- * The browser tests, against the application as it is actually deployed: one API process
- * serving the built client on its own origin, with a database that did not exist a moment ago.
- *
- * One origin rather than the Vite dev server with a proxy in front, because the two things
- * worth testing end to end here are exactly the two that a second origin changes. The session
- * cookie is `SameSite=Lax` and every write is checked against `WEB_ORIGIN`, so a harness that
- * quietly ran on two origins would either fail for reasons that have nothing to do with the app
- * or pass with those checks switched off.
- *
- * The harness is the deliverable as much as the test is. WEB 2 adds the offline test into it
- * without setting any of this up again.
- */
-
 const PORT = 4173;
 const ORIGIN = `http://localhost:${PORT}`;
 
-/** Thrown away and remade on every run, so a test never sees what the last one left behind. */
 const DATABASE_PATH = join(tmpdir(), 'portionium-e2e.db');
 
-/**
- * Not a credential: it exists for the lifetime of a database in a temporary directory, on an
- * instance listening on localhost, and the next run deletes both. Written down here rather than
- * generated so that a spec and the command that seeds it cannot disagree about what it is.
- */
 const PASSWORD = 'correct horse battery staple';
 
 function fixture(name: string) {
@@ -35,22 +15,8 @@ function fixture(name: string) {
 }
 
 /**
- * One account per spec file, and that is the whole isolation story.
- *
- * Spec files run in parallel, and everything a spec writes lands on one shared thing: today. On
- * one account that made every spec's meals visible to every other spec's locators, so a row
- * matched by type resolved to somebody else's meal and the run failed on whichever worker
- * happened to finish first. The convention that grew around it, claim a meal type nobody else
- * logs, cannot actually hold: there are four types and more specs than that, and the composer
- * pre-selects the type from the clock, so what the offline spec writes is not knowable when it
- * is written, only when it runs.
- *
- * An account each removes the sharing instead of rationing it. A repository read takes a
- * `userId` and a foreign row is not returned, see ADR 003, so one spec cannot see another's
- * meals, weight or history at all, whatever it logs and whenever it runs.
- *
- * Claiming still matters inside a file, where the specs do share an account and a day, and
- * compose.spec.ts says so where it claims its foods.
+ * One account per spec file. Spec files run in parallel and every meal lands on the same day, so a
+ * shared account makes one spec's rows visible to another's locators.
  */
 export const ACCOUNTS = {
   smoke: fixture('smoke'),
@@ -65,16 +31,6 @@ export const ACCOUNTS = {
   budget: fixture('budget'),
 };
 
-/**
- * Delete the database, create the accounts, start the server, in that order and in one shell, so
- * there is no question of which ran first. `user create` opens the database the same way the
- * server does, which is what applies the migrations and loads the seed catalog before the first
- * request arrives. The password is piped rather than passed as an argument, because an argument
- * is in the process list of everybody on the machine, see api/src/cli/prompt.ts.
- *
- * The first account created is an admin because there is nobody to have granted it one, and the
- * rest are not. Nothing in these specs needs the difference.
- */
 const SERVE_FRESHLY_SEEDED = [
   `rm -f '${DATABASE_PATH}' '${DATABASE_PATH}-wal' '${DATABASE_PATH}-shm'`,
   ...Object.values(ACCOUNTS).map(
@@ -87,40 +43,27 @@ const SERVE_FRESHLY_SEEDED = [
 
 export default defineConfig({
   testDir: './e2e',
-  // A `.only` somebody left in is a suite that silently stopped covering anything.
   forbidOnly: Boolean(process.env.CI),
   reporter: process.env.CI ? 'github' : 'list',
-  // Pinned rather than left to the runner's own: POR-64 makes every string on screen locale
-  // dependent, not only the dates it always was, so an assertion that expects "Breakfast" has to
-  // stop being a statement about whoever's machine is running this suite.
+  // Pinned, so an assertion expecting "Breakfast" is not a statement about the runner's locale.
   use: { baseURL: ORIGIN, trace: 'retain-on-failure', locale: 'en-US' },
   projects: [{ name: 'chromium', use: devices['Desktop Chrome'] }],
 
   webServer: {
     command: SERVE_FRESHLY_SEEDED,
-    // The liveness probe, which answers as soon as the migrations and the seed have run and the
-    // listener is open. Nothing to poll for after that.
     url: `${ORIGIN}/health`,
-    // Never a server somebody left running: this one is pointed at a database the tests own.
     reuseExistingServer: false,
     stdout: 'pipe',
     stderr: 'pipe',
     env: {
       DATABASE_PATH,
       PORT: String(PORT),
-      // The built client. Absolute, because the API takes it as given and the command above
-      // runs in a different directory than this file lives in. `e2e` builds it first.
       WEB_ROOT: join(import.meta.dirname, 'dist'),
-      // What the CSRF check compares the Origin header against, and what decides the session
-      // cookie is not marked Secure. Both have to be this, or signing in cannot work on http.
       WEB_ORIGIN: ORIGIN,
-      // Off, so the run writes nothing outside the temporary database.
       BACKUP_DIR: '',
       LOG_LEVEL: 'warn',
-      // Every browser in the run shares one address, which is the case the per-address limit
-      // exists to catch: a handful of specs in parallel look exactly like one client flooding
-      // the instance. Raised rather than switched off, so the hooks still run on every request
-      // and a change that made them refuse the wrong thing still fails here.
+      // Every browser in the run shares one address, which looks exactly like one client flooding
+      // the instance. Raised rather than switched off, so the hooks still run on every request.
       RATE_LIMIT_READ_PER_MINUTE: '2000',
       RATE_LIMIT_WRITE_PER_MINUTE: '500',
       RATE_LIMIT_AUTH_PER_MINUTE: '200',

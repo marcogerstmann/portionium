@@ -1,12 +1,3 @@
-/**
- * English (US), the language every other dictionary is checked against. See ../i18n.ts for how
- * a key is resolved and i18n.test.ts for the parity check that fails CI the moment this file and
- * ./de.ts disagree about which keys exist.
- *
- * A plural entry is picked with `Intl.PluralRules`, on a `count` variable the same placeholder
- * substitution fills in afterwards, so a caller passes one count and never chooses between this
- * language's "one" and "other" by hand.
- */
 export const en = {
   appLoading: 'Loading',
 

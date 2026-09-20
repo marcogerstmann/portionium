@@ -1,30 +1,11 @@
 import type { Category } from '@portionium/schemas';
 
-/**
- * What to suggest logging again, from history rather than from anything curated: see POR-33.
- *
- * A suggestion is not a meal, it is a composition, the set of foods a caller keeps eating
- * together for one meal type. Two logged meals with the same foods are one suggestion however
- * their entries were ordered or however long ago either happened, and how often plus how recently
- * that composition was logged is what decides where it lands. That grouping and scoring is
- * exactly the "and which of them did you mean" job domain/food-search.ts does for a search box,
- * done here in memory over a caller's own recent meals rather than in SQL, for the same reason:
- * it is a product decision, the kind of rule that gets a second, faster implementation written
- * later, and two implementations of a ranking are two different answers to the same question.
- */
-
-/**
- * One entry of a past meal, as ranking sees it. `foodId` is optional because a bare colour names
- * no food, and a composition is a set of foods, so a suggestion made only of bare colours is one
- * whose key is empty, see compositionKey.
- */
 export interface SuggestionEntry {
   foodId?: string | undefined;
   category?: Category | null | undefined;
   quantity?: number | undefined;
 }
 
-/** What ranking needs from one past meal: when it happened and what was in it. */
 export interface SuggestionHistoryMeal {
   id: string;
   loggedAt: Date;
@@ -32,44 +13,24 @@ export interface SuggestionHistoryMeal {
 }
 
 export interface MealSuggestion {
-  /** The most recently logged meal with this composition. POST /meals takes it as fromMealId. */
   mealId: string;
   entries: readonly SuggestionEntry[];
 }
 
 /**
- * How many days it takes for one occurrence's weight in the frequency score to halve. Fourteen
- * because that is the "couple of weeks" POR-33 asks a diet change to be reflected within: a
- * composition eaten daily and then abandoned drops out of the top of the list on roughly that
- * schedule, without a hard cutoff that would make an occasional weekend meal vanish between one
- * visit and the next.
+ * Fourteen days, so a composition eaten daily and then abandoned drops out of the top within a
+ * couple of weeks.
  */
 const RECENCY_HALF_LIFE_DAYS = 14;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/**
- * What "the same meal" means for suggesting it again: this set of foods, order and quantity
- * aside. Deduplicated and sorted, so a meal that named one food twice or in a different order
- * than usual still lands in the same group as every other time it was eaten.
- *
- * A bare colour contributes its colour rather than nothing, prefixed so it can never collide
- * with a food id. Two lunches of "one green thing" are the same suggestion; a lunch of one green
- * thing and a lunch of one orange thing are not.
- */
 function compositionKey(entries: readonly SuggestionEntry[]): string {
   return [...new Set(entries.map((entry) => entry.foodId ?? `:${entry.category ?? 'none'}`))]
     .sort()
     .join(' ');
 }
 
-/**
- * Groups a caller's history by composition and scores each group by recency weighted frequency,
- * newest occurrence weighted at 1 and every one before it worth less the older it is. `meals` is
- * expected already scoped to one user and one meal type; ranking itself does not filter either,
- * and an entry-less meal (which should not exist, but costs nothing to guard) is skipped rather
- * than counted as an empty composition.
- */
 export function rankMealSuggestions(
   meals: readonly SuggestionHistoryMeal[],
   limit: number,

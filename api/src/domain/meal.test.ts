@@ -7,7 +7,6 @@ const USER_ID = '0199e0e9-1c4b-7000-8f2c-6e4c1c2a9b31';
 const PORRIDGE = '0199e0e9-1c4b-7000-8f2c-6e4c1c2a9b32';
 const BERRIES = '0199e0e9-1c4b-7000-8f2c-6e4c1c2a9b33';
 
-/** 08:30 in Berlin, comfortably inside the day it was logged on. */
 const base: NewMeal = {
   userId: USER_ID,
   type: 'breakfast',
@@ -113,7 +112,6 @@ describe('createMeal', () => {
   });
 
   it('files a late night meal on the evening it belongs to', () => {
-    // 01:00 in Berlin, which is below the user's 04:00 boundary.
     const { meal } = createMeal(
       { ...base, type: 'snack', loggedAt: new Date('2026-09-06T23:00:00.000Z') },
       berliner,
@@ -195,7 +193,6 @@ describe('applyMealChanges', () => {
   });
 
   it('moves the meal to a different local date when loggedAt crosses the day boundary', () => {
-    // 08:30 UTC in Berlin's summer offset, past the 04:00 boundary on the next calendar day.
     const { meal } = applyMealChanges(
       current,
       { loggedAt: new Date('2026-09-07T06:30:00.000Z') },

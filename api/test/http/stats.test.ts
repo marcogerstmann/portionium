@@ -13,11 +13,6 @@ import { SESSION_COOKIE_NAME } from '../../src/http/plugins/auth.js';
 import { createTestFixtures, type TestFixtures } from '../helpers/fixtures.js';
 import { freezeTime } from '../helpers/time.js';
 
-/**
- * GET /stats/days, POR-36. userA is Europe/Berlin, the same reasoning as meals.test.ts: a
- * timezone that is not UTC is what makes a wrong local date visible instead of right by luck.
- */
-
 const WEB_ORIGIN = 'http://localhost:5173';
 const STATS = `${API_PREFIX}/stats/days`;
 const WEIGHT_STATS = `${API_PREFIX}/stats/weight`;
@@ -48,8 +43,6 @@ function browser(token: string) {
   return { cookie: `${SESSION_COOKIE_NAME}=${token}`, origin: WEB_ORIGIN };
 }
 
-/** A reading a day from `start`, at 05:00 UTC, which is past userA's 04:00 Berlin boundary.
- * Shared by the weight and weekly describe blocks, POR-37 and POR-38 alike. */
 function weighDaily(
   fixtures: TestFixtures,
   user: Parameters<TestFixtures['create']['weightEntry']>[0],
@@ -69,8 +62,6 @@ describe('GET /stats/days', () => {
     fixtures.create.classification(green, { category: 'green' });
     const unjudged = fixtures.create.food();
 
-    // 05:00 UTC is 06:00 in Berlin, past the default 04:00 boundary, the same offset
-    // weight.test.ts relies on.
     fixtures.create.meal(fixtures.userA, {
       loggedAt: new Date('2026-03-01T05:00:00.000Z'),
       entries: [{ foodId: green.id }, { foodId: unjudged.id }],
@@ -213,13 +204,6 @@ describe('GET /stats/days', () => {
   });
 });
 
-/**
- * GET /stats/weight, POR-37. The arithmetic is covered against synthetic series in
- * src/domain/weight-trend.test.ts, which is where a flat month of noise and a fortnight's gap
- * belong. What is left for here is the wiring: kilograms rather than grams, the trend ahead of
- * the raw reading, readings from before the range warming the line, and one account's scale
- * never appearing in another's.
- */
 describe('GET /stats/weight', () => {
   it('answers in kilograms, one entry per day, with the raw reading beside the trend', async () => {
     const { app, fixtures } = await buildTestApp();
@@ -244,11 +228,9 @@ describe('GET /stats/weight', () => {
     expect(days[0]?.trendKg).toBe(80);
     expect(days[0]?.lowConfidence).toBe(true);
 
-    // The fourth day has no reading and still has a trend, carried forward from the third.
     expect(days[3]?.rawKg).toBeNull();
     expect(days[3]?.trendKg).toBe(days[2]?.trendKg);
 
-    // Kilograms to the gram, never a float with a tail on it.
     for (const day of days) {
       expect(String(day.trendKg ?? 0)).toMatch(/^\d+(\.\d{1,3})?$/);
     }
@@ -265,8 +247,6 @@ describe('GET /stats/weight', () => {
     });
 
     const { days } = response.json<StatsWeightResponse>();
-    // Two kilos overnight is a scale, a holiday or a different pair of shoes, never two kilos
-    // of anybody. At a ten day half life the line moves about 130 grams of it.
     expect(days[1]?.rawKg).toBe(82);
     expect(days[1]?.trendKg ?? 0).toBeGreaterThan(80);
     expect(days[1]?.trendKg ?? 0).toBeLessThan(80.2);
@@ -274,7 +254,6 @@ describe('GET /stats/weight', () => {
 
   it('compares the range with the equally long stretch of days before it', async () => {
     const { app, fixtures } = await buildTestApp();
-    // A fortnight losing a hundred grams a day, then a fortnight holding steady.
     weighDaily(fixtures, fixtures.userA, '2026-03-01', [
       ...Array.from({ length: 14 }, (_, index) => 82_000 - index * 100),
       ...Array.from({ length: 14 }, () => 80_600),
@@ -293,21 +272,16 @@ describe('GET /stats/weight', () => {
     expect(previous.from).toBe('2026-03-15');
     expect(previous.to).toBe('2026-03-21');
 
-    // Both weeks are still falling as the trend pays off the lag it took on during the decline,
-    // and this one fell less than the one before it, which is the decline levelling out.
     expect(change.changeKg ?? 0).toBeLessThan(0);
     expect(change.changeKg ?? 0).toBeGreaterThan(previous.changeKg ?? 0);
-    // The rate a person reasons about, per week rather than per day.
     expect(change.changePerWeekKg).not.toBeNull();
 
-    // Subtracted on the way out, so a client draws the comparison rather than computing it.
     expect(versusPrevious.differenceKg).toBeGreaterThan(0);
     expect(versusPrevious.differencePerWeekKg).toBeGreaterThan(0);
   });
 
   it('warms the trend on readings from before the range rather than restarting it at `from`', async () => {
     const { app, fixtures } = await buildTestApp();
-    // A month at 80 kg, then one heavy morning on the first day of the range.
     weighDaily(fixtures, fixtures.userA, '2026-03-01', [
       ...Array.from({ length: 30 }, () => 80_000),
       81_500,
@@ -320,7 +294,6 @@ describe('GET /stats/weight', () => {
     });
 
     const { days } = response.json<StatsWeightResponse>();
-    // A line that started at `from` would read 81.5 and call it a kilo and a half gained.
     expect(days[0]?.rawKg).toBe(81.5);
     expect(days[0]?.trendKg ?? 0).toBeLessThan(80.2);
     expect(days[0]?.lowConfidence).toBe(false);
@@ -359,16 +332,6 @@ describe('GET /stats/weight', () => {
   });
 });
 
-/**
- * GET /stats/weekly, POR-38. The grouping arithmetic, ISO week boundaries, the sparse
- * threshold, the signed comparison, is covered against array literals in
- * src/domain/weekly-summary.test.ts. What is left for here is the wiring: today resolved in the
- * caller's own timezone, the two signals reaching this endpoint the same way they reach
- * /stats/days and /stats/weight, and one account's week never showing another's data.
- *
- * 2026-03-11T10:00:00.000Z is 11:00 in Berlin, a Wednesday past the 04:00 boundary, so "today"
- * for userA is 2026-03-11: ISO week 11, Monday 2026-03-09 to Sunday 2026-03-15.
- */
 describe('GET /stats/weekly', () => {
   const TODAY = '2026-03-11T10:00:00.000Z';
 
@@ -407,7 +370,6 @@ describe('GET /stats/weekly', () => {
     const orange = fixtures.create.food();
     fixtures.create.classification(orange, { category: 'orange' });
 
-    // Monday and Tuesday of the current week, past the Berlin boundary.
     fixtures.create.meal(fixtures.userA, {
       loggedAt: new Date('2026-03-09T05:00:00.000Z'),
       entries: [{ foodId: green.id }, { foodId: green.id }],
@@ -431,8 +393,6 @@ describe('GET /stats/weekly', () => {
     const green = fixtures.create.food();
     fixtures.create.classification(green, { category: 'green' });
 
-    // The previous week, four days logged: not sparse, and what the current week is diffed
-    // against. The current week, one day logged: sparse.
     for (const day of ['2026-03-02', '2026-03-03', '2026-03-04', '2026-03-05']) {
       fixtures.create.meal(fixtures.userA, {
         loggedAt: new Date(`${day}T05:00:00.000Z`),
@@ -450,8 +410,6 @@ describe('GET /stats/weekly', () => {
     const { weeks } = response.json<StatsWeeklyResponse>();
     expect(weeks[0]).toMatchObject({ daysLogged: 4, sparse: false });
     expect(weeks[1]).toMatchObject({ daysLogged: 1, sparse: true });
-    // One green item this week against four the week before: an absolute difference of -3,
-    // never a percentage of counts this small.
     expect(weeks[1]?.versusPreviousWeek).toEqual({
       green: -3,
       yellow: 0,
@@ -520,14 +478,9 @@ describe('GET /stats/weekly', () => {
   });
 });
 
-/**
- * The week here is always the ISO week of 2026-03-09 to 2026-03-15, which TODAY falls
- * in, so an assertion about a count is also an assertion that the right week was counted.
- */
 describe('GET /stats/budget', () => {
   const TODAY = '2026-03-11T10:00:00.000Z';
 
-  /** Logged at 05:00 UTC, which is 06:00 in Berlin and so past userA's 04:00 boundary. */
   function logOn(fixtures: TestFixtures, date: string, category: 'green' | 'yellow' | 'orange') {
     fixtures.create.meal(fixtures.userA, {
       loggedAt: new Date(`${date}T05:00:00.000Z`),
@@ -565,11 +518,6 @@ describe('GET /stats/budget', () => {
     });
   });
 
-  /**
-   * The acceptance criterion that the two endpoints can never disagree about a week, asserted
-   * against the answer GET /stats/weekly gives for the same instant rather than against a date
-   * written down twice here.
-   */
   it('numbers its week exactly as GET /stats/weekly numbers the current one', async () => {
     freezeTime(TODAY);
     const { app, fixtures } = await buildTestApp();
@@ -613,9 +561,6 @@ describe('GET /stats/budget', () => {
     const token = fixtures.create.session(fixtures.userA);
     await setBudgets(app, token, { yellow: 12, orange: 4 });
 
-    // Monday, which is the week's first day, through today, plus the Sunday just outside it.
-    // Nothing is logged past today because nothing can be, see assertNotTooFarInFuture, which
-    // is why counting the whole week and counting it to date are the same answer here.
     logOn(fixtures, '2026-03-09', 'yellow');
     logOn(fixtures, '2026-03-10', 'yellow');
     logOn(fixtures, '2026-03-11', 'orange');
@@ -630,7 +575,6 @@ describe('GET /stats/budget', () => {
     expect(budget.green).toEqual({ limit: null, count: 0, remaining: null });
   });
 
-  /** A soft lock: logging past the limit is never refused and the overshoot is just a number. */
   it('keeps accepting meals past the limit and reports a negative remaining', async () => {
     freezeTime(TODAY);
     const { app, fixtures } = await buildTestApp();
@@ -659,7 +603,6 @@ describe('GET /stats/budget', () => {
     const { app, fixtures } = await buildTestApp();
     const token = fixtures.create.session(fixtures.userA);
     await setBudgets(app, token, { green: 5, yellow: 5, orange: 5 });
-    // A food nobody has judged, so the entry is logged with no colour at all.
     const unjudged = fixtures.create.food();
     fixtures.create.meal(fixtures.userA, {
       loggedAt: new Date('2026-03-11T05:00:00.000Z'),
@@ -674,7 +617,6 @@ describe('GET /stats/budget', () => {
     expect([budget.green.count, budget.yellow.count, budget.orange.count]).toEqual([0, 0, 0]);
   });
 
-  /** Nothing is materialised, so an edit to a meal already in the week lands on the next read. */
   it('changes immediately when a meal in the week is backdated into or out of it', async () => {
     freezeTime(TODAY);
     const { app, fixtures } = await buildTestApp();
@@ -690,7 +632,6 @@ describe('GET /stats/budget', () => {
     ).json<StatsBudgetResponse>();
     expect(before.budget.orange).toEqual({ limit: 4, count: 1, remaining: 3 });
 
-    // Moved back into the week before this one, which is a local date outside [start, end].
     const moved = await app.inject({
       method: 'PATCH',
       url: `${API_PREFIX}/meals/${meal.id}`,
@@ -705,10 +646,6 @@ describe('GET /stats/budget', () => {
     expect(after.budget.orange).toEqual({ limit: 4, count: 0, remaining: 4 });
   });
 
-  /**
-   * The documented simplification: there is no history of limits, so the limit in force is
-   * always the one configured now, for the current week and for one long past alike.
-   */
   it('applies a limit changed mid week to the week already in progress', async () => {
     freezeTime(TODAY);
     const { app, fixtures } = await buildTestApp();

@@ -76,7 +76,6 @@ describe('createWeightEntry', () => {
     });
 
     it('allows a full day of slack on a second reading the same day', () => {
-      // Two percent of 82.4 kg is a little over 1.6 kg, which a day of food and water covers.
       expect(createWeightEntry(entry(83_800, '2026-09-05'), history).warning).toBeNull();
       expect(createWeightEntry(entry(88_000, '2026-09-05'), history).warning).not.toBeNull();
     });
@@ -85,14 +84,12 @@ describe('createWeightEntry', () => {
       const monthLater = entry(88_000, '2026-10-05');
 
       expect(createWeightEntry(monthLater, history).warning).toBeNull();
-      // The same jump overnight is not believable.
       expect(createWeightEntry(entry(88_000, '2026-09-06'), history).warning).not.toBeNull();
     });
 
     it('judges a backfilled reading against its own neighbours, not against today', () => {
       const longHistory = [past(95_000, '2026-01-10'), past(82_400, '2026-09-05')];
 
-      // 94 kg in January sits beside the 95 kg from January, and nowhere near today's 82 kg.
       expect(createWeightEntry(entry(94_000, '2026-01-11'), longHistory).warning).toBeNull();
     });
 
@@ -107,14 +104,11 @@ describe('createWeightEntry', () => {
     it('ignores another user’s entries entirely', () => {
       const someoneElse = [past(120_000, '2026-09-05', OTHER_USER_ID)];
 
-      // Judged as a first reading, so accepted with no warning.
       expect(createWeightEntry(entry(82_400, '2026-09-06'), someoneElse).warning).toBeNull();
-      // And their history cannot wave through something the absolute range forbids.
       expect(() => createWeightEntry(entry(8_240, '2026-09-06'), someoneElse)).toThrow(DomainError);
     });
 
     it('accepts a configured drift allowance narrower than the default', () => {
-      // Half the drift budget, so the same believable-by-default jump now warns.
       const result = createWeightEntry(entry(83_000, '2026-09-06'), history, 0.001);
       expect(result.warning).not.toBeNull();
     });

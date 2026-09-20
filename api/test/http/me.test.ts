@@ -20,15 +20,6 @@ import {
   type UserRow,
 } from '../helpers/fixtures.js';
 
-/**
- * The profile endpoints, over the real app and a real database.
- *
- * Two accounts exist in every one of these tests, because the interesting property of `/me` is
- * not that it answers, it is that it answers about exactly one of them and cannot be pointed at
- * the other. Most of what follows is that, or is about what a change to one account does to the
- * credentials belonging to it.
- */
-
 const WEB_ORIGIN = 'http://localhost:5173';
 const ME = `${API_PREFIX}/me`;
 const PASSWORD = `${API_PREFIX}/me/password`;
@@ -53,7 +44,6 @@ async function buildTestApp() {
   return { app, fixtures };
 }
 
-/** A browser: the cookie, and the Origin header a browser always attaches to a mutation. */
 function browser(token: string) {
   return { cookie: `${SESSION_COOKIE_NAME}=${token}`, origin: WEB_ORIGIN };
 }
@@ -400,8 +390,6 @@ describe('changing the password', () => {
     });
     expect(tooShort.statusCode).toBe(400);
 
-    // A wrong current password of any length is the same refusal, never a 400 that would say
-    // "we would not have stored that anyway".
     const wrongAndShort = await change(app, token, {
       currentPassword: 'x',
       newPassword: NEW_PASSWORD,
@@ -429,12 +417,6 @@ describe('changing the password', () => {
   });
 });
 
-/**
- * The allowance itself, not what a week does against it, which is stats.test.ts.
- *
- * The distinction worth holding on to here is null against zero and null against absent. They
- * are three different things in one small object: unlimited, none this week, and untouched.
- */
 describe('the weekly allowance', () => {
   async function read(app: FastifyInstance, token: string): Promise<WeeklyBudgets> {
     const response = await app.inject({ url: BUDGETS, headers: browser(token) });
@@ -470,7 +452,6 @@ describe('the weekly allowance', () => {
     expect(await read(app, token)).toEqual({ green: null, yellow: 12, orange: 4 });
   });
 
-  /** A category the body does not name is untouched, which is what makes the update partial. */
   it('leaves a category the body does not name exactly as it was', async () => {
     const { app, fixtures } = await buildTestApp();
     const token = fixtures.create.session(fixtures.userA);
@@ -481,7 +462,6 @@ describe('the weekly allowance', () => {
     expect(await read(app, token)).toEqual({ green: null, yellow: 12, orange: 2 });
   });
 
-  /** Zero is an intention, null is the absence of one, and neither may collapse into the other. */
   it('keeps a limit of 0 distinct from unlimited', async () => {
     const { app, fixtures } = await buildTestApp();
     const token = fixtures.create.session(fixtures.userA);
@@ -511,7 +491,6 @@ describe('the weekly allowance', () => {
     expect(await read(app, token)).toEqual({ green: null, yellow: null, orange: null });
   });
 
-  /** There is no id in either path, so one account's allowance is not addressable from another. */
   it('never lets one account read or write the other one', async () => {
     const { app, fixtures } = await buildTestApp();
     const tokenA = fixtures.create.session(fixtures.userA);

@@ -10,32 +10,12 @@ import type { Db } from './client.js';
 import { visibleClassifications, type FoodRecord } from './food.js';
 import { entryTable, foodClassificationTable, foodTable, mealTable } from './schema/index.js';
 
-/**
- * The human-in-the-loop queue, see POR-30 and docs/adr/007-append-only-classification-log.md.
- *
- * A food belongs here for one of two reasons: nothing visible to this caller resolves to a
- * colour at all, or the winning verdict is an AI guess too unsure to stand on its own. The first
- * case is exactly what `unclassified` on GET /foods already answers in SQL, see
- * visibleClassifications in food.ts. The second only exists once `minConfidence` is asked for,
- * and needs resolveClassification's own priority order run in memory: a low confidence AI guess
- * that a user has since overridden is not pending, it is answered.
- */
 const MODEL_SOURCES = new Set(['ai_text', 'ai_vision']);
 
 function isModelVerdict(row: FoodClassificationRecord): boolean {
   return MODEL_SOURCES.has(row.source);
 }
 
-/**
- * Every pending food id for this caller, mapped to the AI suggestion behind it where one
- * exists. Undefined means nobody, human or model, has said anything about this food at all.
- *
- * `minConfidence` is optional and changes what counts as pending: left out, only a food with no
- * visible verdict qualifies. Given, a food whose winning verdict is a low confidence AI guess
- * qualifies too, found by first asking SQL which foods have such a row at all and only then
- * running resolution over their full history, so a user override or a later confident guess
- * takes it back out of the queue without this function reimplementing that priority order.
- */
 export function findPendingFoods(
   db: Db,
   userId: string,
@@ -56,9 +36,6 @@ export function findPendingFoods(
     return pending;
   }
 
-  // Candidates, not answers: a food can have a low confidence AI row and still resolve to
-  // something else, a user override or a newer, more confident guess. Only the ids come from
-  // SQL, the winner comes from resolveClassifications the same as everywhere else.
   const candidateIds = db
     .selectDistinct({ foodId: foodClassificationTable.foodId })
     .from(foodClassificationTable)
@@ -106,10 +83,6 @@ export interface UnclassifiedFood {
   suggestion: FoodClassificationRecord | undefined;
 }
 
-/**
- * How often the caller has eaten each of these foods, for the ids already known to be pending.
- * The same question food-search.ts asks of the whole catalog, asked here of a handful of ids.
- */
 function usageCounts(db: Db, userId: string, foodIds: readonly string[]): Map<string, number> {
   const rows = db
     .select({ foodId: entryTable.foodId, uses: count() })
@@ -125,16 +98,9 @@ function usageCounts(db: Db, userId: string, foodIds: readonly string[]): Map<st
     .groupBy(entryTable.foodId)
     .all();
 
-  // A bare entry names no food and cannot group under one, so the null key is dropped rather
-  // than counted: `inArray` above already excludes it, this is the type following suit.
   return new Map(rows.flatMap((row) => (row.foodId === null ? [] : [[row.foodId, row.uses]])));
 }
 
-/**
- * The queue itself: pending foods, ordered by how often the caller eats each one, most first.
- * Not a page, the same reasoning as searchFoods: this is a ranking, meaningful only from the
- * top, not a list somebody scrolls to the bottom of.
- */
 export function listUnclassifiedFoods(db: Db, filters: UnclassifiedFilters): UnclassifiedFood[] {
   const pending = findPendingFoods(db, filters.userId, filters.minConfidence);
   if (pending.size === 0) {
@@ -156,12 +122,6 @@ export function listUnclassifiedFoods(db: Db, filters: UnclassifiedFilters): Unc
     .map(({ food, suggestion }) => ({ food, suggestion }));
 }
 
-/**
- * The badge count. With no `minConfidence` this is a single SQL count, which is what "cheap"
- * means in the ticket: a client can poll this on every app open without paying for the join
- * and the sort listUnclassifiedFoods does. `minConfidence` given, it costs what the list costs
- * minus the enrichment, because the resolution step cannot be skipped without reimplementing it.
- */
 export function countUnclassifiedFoods(
   db: Db,
   filters: { userId: string; minConfidence?: number | undefined },

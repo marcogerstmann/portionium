@@ -17,15 +17,6 @@ import { API_PREFIX, buildApp } from '../../src/http/app.js';
 import { SESSION_COOKIE_NAME } from '../../src/http/plugins/auth.js';
 import { createTestFixtures, type FoodRow, type TestFixtures } from '../helpers/fixtures.js';
 
-/**
- * The catalog, over the real app and a real database.
- *
- * Two accounts exist in every one of these tests, and they are here for a different reason than
- * they are in me.test.ts. A food is not owned, so the interesting property is not that user B
- * cannot reach user A's entries, it is that both reach the same entry and are told different
- * things about what colour it is.
- */
-
 const WEB_ORIGIN = 'http://localhost:5173';
 const FOODS = `${API_PREFIX}/foods`;
 
@@ -48,7 +39,6 @@ async function buildTestApp() {
   return { app, fixtures };
 }
 
-/** A browser: the cookie, and the Origin header a browser always attaches to a mutation. */
 function browser(token: string) {
   return { cookie: `${SESSION_COOKIE_NAME}=${token}`, origin: WEB_ORIGIN };
 }
@@ -163,7 +153,6 @@ describe('browsing the catalog', () => {
       headers: browser(fixtures.create.session(fixtures.userB)),
     });
 
-    // The peanut butter has a verdict, but it is user B's, so it is still on user A's pile.
     expect(forA.json<{ items: FoodResponse[] }>().items.map((item) => item.name)).toEqual([
       'Erdnussbutter',
       'Kohlrabi',
@@ -233,7 +222,6 @@ describe('adding to the catalog', () => {
       payload: { name: '  sKyR  ' },
     });
 
-    // 200 rather than 201, so a client can tell its entry is not the one that got made.
     expect(response.statusCode).toBe(200);
     expect(response.json<FoodResponse>()).toMatchObject({
       id: existing.id,
@@ -413,8 +401,6 @@ describe('correcting an entry', () => {
       payload: { name: 'Skyr Natur' },
     });
 
-    // A rename is not the gentler half of a delete on a shared catalog. It takes the entry out
-    // of the author's search and mislabels it in their history, meals included.
     expect(response.statusCode).toBe(403);
     expect(problem(response.payload).type).toBe(PROBLEM.insufficientScope);
     expect(storedFood(fixtures, food.id)?.name).toBe('Skyr');
@@ -575,18 +561,7 @@ describe('removing an entry', () => {
   });
 });
 
-/**
- * The log itself, unresolved. Every other endpoint in this file answers with the one verdict
- * that won, which is the only thing a client renders; this one answers with all of them, and
- * that is a question worth asking only because nothing ever overwrites one. See
- * docs/adr/007-append-only-classification-log.md.
- */
 describe('the classification history of a food', () => {
-  /**
-   * Verdicts a minute apart. The factory stamps `createdAt` with the clock, so a chain written
-   * in one test arrives inside a single millisecond and any assertion about its order would be
-   * asserting the tiebreak instead of the ordering.
-   */
   function minutesAgo(minutes: number): Date {
     return new Date(Date.UTC(2026, 0, 1, 12, 60 - minutes));
   }
@@ -615,8 +590,6 @@ describe('the classification history of a food', () => {
     expect(response.statusCode).toBe(200);
     expect(history.map((row) => row.source)).toEqual(['user', 'ai_text', 'seed']);
     expect(history.map((row) => row.category)).toEqual(['green', 'yellow', 'orange']);
-    // The provenance is the point of keeping the row rather than overwriting it: this is what
-    // says the model was 62 percent sure of something a human then disagreed with.
     expect(history[1]).toMatchObject({ model: 'claude-test', confidence: 0.62 });
   });
 
@@ -661,10 +634,8 @@ describe('the classification history of a food', () => {
       FoodClassificationResponse[]
     >();
 
-    // A shares the shipped verdict with B and sees nothing else. B sees their own on top of it.
     expect(forA.map((row) => row.source)).toEqual(['seed']);
     expect(forB.map((row) => row.source)).toEqual(['user', 'seed']);
-    // And the detail view agrees with the history it belongs to.
     const detail = await app.inject({
       url: `${FOODS}/${food.id}`,
       headers: browser(fixtures.create.session(fixtures.userA)),
@@ -684,8 +655,6 @@ describe('the classification history of a food', () => {
 
   it('answers 404 for a food that is not there, the same as the detail view', async () => {
     const { app, fixtures } = await buildTestApp();
-    // Created by this user, so they are allowed to remove it. A deleted food and a food that
-    // never existed get the same answer here, for the reason requireFood exists.
     const food = fixtures.create.food({ createdBy: fixtures.userA.id });
     const token = fixtures.create.session(fixtures.userA);
 
@@ -700,11 +669,6 @@ describe('the classification history of a food', () => {
   });
 });
 
-/**
- * Overriding and withdrawing a colour. The two write routes behind
- * docs/adr/007-append-only-classification-log.md: one appends, the other never touches the log
- * at all. See classification.test.ts for the same properties one layer down.
- */
 describe("a caller's own opinion", () => {
   function classificationUrl(foodId: string) {
     return `${FOODS}/${foodId}/classification`;
@@ -797,8 +761,6 @@ describe("a caller's own opinion", () => {
     expect(response.statusCode).toBe(204);
     const detail = await app.inject({ url: `${FOODS}/${food.id}`, headers: browser(token) });
     expect(detail.json<FoodDetailResponse>().category).toBe('yellow');
-    // The withdrawn verdict is not gone, only out of the resolved answer. Only the marker is a
-    // new row; the classification log itself was never touched.
     const history = (await historyOf(app, food.id, token)).json<FoodClassificationResponse[]>();
     expect(history.map((row) => row.category)).toEqual(['orange', 'yellow']);
   });
@@ -845,7 +807,6 @@ describe("a caller's own opinion", () => {
     expect(forA.json<FoodDetailResponse>().category).toBe('orange');
     expect(forB.json<FoodDetailResponse>().category).toBe('green');
 
-    // B withdraws; A's own override is untouched by it.
     await app.inject({
       method: 'DELETE',
       url: classificationUrl(food.id),
@@ -909,8 +870,6 @@ describe('searching the catalog', () => {
 
     expect(response.statusCode).toBe(200);
     const results = JSON.parse(response.payload) as FoodResponse[];
-    // The colour is here rather than a request away, which is the whole point: a dropdown that
-    // fetches a category per row is a dropdown that draws grey and then repaints.
     expect(results.map((food) => [food.name, food.category])).toEqual([
       ['Skyr Mango', 'orange'],
       ['Skyr Plain', 'green'],
@@ -1020,11 +979,6 @@ describe('searching the catalog', () => {
   });
 });
 
-/**
- * The human-in-the-loop queue, POR-30. A food lands here for the caller for one of two reasons:
- * nothing visible to them resolves to a colour, or `minConfidence` asks to see a shaky AI guess
- * too. Logging a meal is never gated on any of this, see meals.test.ts.
- */
 describe('the review queue', () => {
   const UNCLASSIFIED = `${FOODS}/unclassified`;
 

@@ -155,8 +155,6 @@ describe('entrySchema', () => {
   const entry = { id: ID, mealId: OTHER_ID, foodId: ID, category: 'green', position: 0 };
 
   it('accepts an entry with no quantity, and must keep doing so forever', () => {
-    // The product does not ask users to weigh their food. If this ever fails, quantity has
-    // become required and the product has turned into a calorie tracker.
     expect(entrySchema.safeParse(entry).success).toBe(true);
   });
 

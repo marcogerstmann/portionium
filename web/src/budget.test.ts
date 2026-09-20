@@ -3,11 +3,6 @@ import { describe, expect, it } from 'vitest';
 
 import { budgetPositions, hasAnyLimit, spokenBudget } from './budget';
 
-/**
- * The row's arithmetic and its sentence. Nothing here counts anything: the server does that and
- * this only decides what is worth showing and how it is said, see ./budget.ts.
- */
-
 function status(overrides: Partial<WeeklyBudgetStatus> = {}): WeeklyBudgetStatus {
   return {
     green: { limit: null, count: 0, remaining: null },
@@ -19,7 +14,6 @@ function status(overrides: Partial<WeeklyBudgetStatus> = {}): WeeklyBudgetStatus
 }
 
 describe('hasAnyLimit', () => {
-  /** Nothing is drawn for an account that never asked for this, which is most of them. */
   it('is false when every category is unlimited, however much was logged', () => {
     expect(hasAnyLimit(status({ green: { limit: null, count: 14, remaining: null } }))).toBe(false);
   });
@@ -28,7 +22,6 @@ describe('hasAnyLimit', () => {
     expect(hasAnyLimit(status({ orange: { limit: 4, count: 0, remaining: 4 } }))).toBe(true);
   });
 
-  /** Zero is an intention, not the absence of one, so it has to show a row like any other. */
   it('is true for a limit of zero', () => {
     expect(hasAnyLimit(status({ orange: { limit: 0, count: 0, remaining: 0 } }))).toBe(true);
   });
@@ -61,7 +54,6 @@ describe('budgetPositions', () => {
     expect(yellow?.atLimit).toBe(false);
   });
 
-  /** An unlimited category is never at a limit, however large the count gets. */
   it('never marks an unlimited category', () => {
     const [green] = budgetPositions(
       status({ green: { limit: null, count: 999, remaining: null } }),
@@ -72,10 +64,6 @@ describe('budgetPositions', () => {
 });
 
 describe('spokenBudget', () => {
-  /**
-   * The only channel that does not depend on telling this palette's green from its orange, so
-   * every category is named in words and the position is a position rather than a verdict.
-   */
   it('names every category and reads a limit as a position', () => {
     const spoken = spokenBudget(
       status({

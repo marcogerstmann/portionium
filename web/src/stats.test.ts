@@ -15,12 +15,6 @@ import {
   weekLabel,
 } from './stats';
 
-/**
- * The arithmetic behind the statistics screen. The screen itself needs a browser and is covered
- * by e2e/statistics.spec.ts, the same split src/day.test.ts describes.
- */
-
-/** One day of colour. Only the counts are read, and the share is derived from them. */
 function colourDay(date: LocalDate, green: number, orange: number): DayColourStats {
   const counts = { green, yellow: 0, orange, unclassified: 0 };
   const total = green + orange || 1;
@@ -32,7 +26,6 @@ function colourDay(date: LocalDate, green: number, orange: number): DayColourSta
   };
 }
 
-/** One day of the weight line, as the API answers it. */
 function trendDay(
   date: LocalDate,
   trendKg: number | null,
@@ -173,8 +166,6 @@ describe('versusSentence', () => {
 
 describe('weekLabel', () => {
   it('collapses a shared month into one range', () => {
-    // Locale dependent in its separator and its order, so what is asserted is that both days and
-    // the month survive and the month is said once.
     const label = weekLabel({ startDate: '2026-09-07', endDate: '2026-09-13' }, 'en-US');
 
     expect(label).toMatch(/7/);
@@ -198,7 +189,6 @@ describe('chartGeometry', () => {
     const { raw, height } = chartGeometry(days);
     const [first, last] = raw;
 
-    // 82.2 is the highest value in the series and 81.4 the lowest, so they are the two edges.
     expect(first?.y).toBeLessThan(last?.y ?? 0);
     expect(last?.y).toBeLessThanOrEqual(height);
     expect(first?.y).toBeGreaterThanOrEqual(0);

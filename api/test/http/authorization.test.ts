@@ -14,16 +14,6 @@ import { API_PREFIX, buildApp, DOCS_PATH } from '../../src/http/app.js';
 import { SESSION_COOKIE_NAME, UNANNOTATED_PUBLIC_PREFIXES } from '../../src/http/plugins/auth.js';
 import { createTestFixtures, type TestFixtures } from '../helpers/fixtures.js';
 
-/**
- * Who a request is from, and what that lets it do. Over the real app, a real database and real
- * session rows, because every part of this that could go wrong is a wiring mistake rather than
- * an arithmetic one.
- *
- * The routes below are declared in the test rather than shipped. No endpoint yet reads a row
- * that belongs to somebody, so the ownership rules would otherwise have nothing to be asserted
- * against until the first one arrives, which is the wrong time to find out they do not hold.
- */
-
 let open: { app: FastifyInstance; fixtures: TestFixtures } | undefined;
 
 afterEach(async () => {
@@ -31,12 +21,6 @@ afterEach(async () => {
   open = undefined;
 });
 
-/**
- * Three routes: one any signed in caller may have, one only an administrator may, and one that
- * reads an owned row the way every repository in this codebase does, by id and owner together.
- * That last one is the whole of the 404 rule: a row belonging to somebody else does not come
- * back from the query, so there is no branch anywhere that could have answered 403 instead.
- */
 async function buildTestApp(env: NodeJS.ProcessEnv = {}) {
   const fixtures = createTestFixtures();
   const app = await buildApp({
@@ -54,11 +38,8 @@ async function buildTestApp(env: NodeJS.ProcessEnv = {}) {
     '/mine/:id',
     { config: { auth: 'read' }, schema: { params: z.object({ id: z.string() }) } },
     (request) => {
-      // buildApp returns a plain FastifyInstance, so the type provider that would infer this
-      // from the schema above does not reach a route declared out here.
       const { id } = request.params as { id: string };
 
-      // The caller comes from the context and the id from the URL, never the other way round.
       const row = fixtures.db
         .select()
         .from(weightEntryTable)
@@ -73,8 +54,6 @@ async function buildTestApp(env: NodeJS.ProcessEnv = {}) {
     },
   );
 
-  // Writes to the context, attempted from inside a handler the way a bug or a compromised
-  // dependency would. Both are expected to fail, see the assertions at the bottom of the file.
   app.get('/tamper', { config: { auth: 'read' } }, (request) => {
     const replaced = attempt(() => {
       (request as { auth: unknown }).auth = { userId: 'someone-else' };
@@ -86,7 +65,6 @@ async function buildTestApp(env: NodeJS.ProcessEnv = {}) {
     return { replaced, edited, userId: request.auth.userId };
   });
 
-  // A public route reading a context it has no business having.
   app.get('/peek', { config: { auth: 'public' } }, (request) => ({ id: request.auth.userId }));
 
   await app.ready();
@@ -95,10 +73,6 @@ async function buildTestApp(env: NodeJS.ProcessEnv = {}) {
   return { app, fixtures };
 }
 
-/**
- * The application exactly as it ships, with none of the routes above. The audit below is about
- * what this repository exposes, so a route a test invented would be a false entry in it.
- */
 async function buildShippedApp(env: NodeJS.ProcessEnv = {}) {
   const fixtures = createTestFixtures();
   const app = await buildApp({
@@ -116,11 +90,6 @@ function problem(payload: string): ProblemDetails {
 }
 
 describe('the public surface', () => {
-  /**
-   * The allowlist the ticket asks for, and the only place it exists. Every other route in the
-   * application is authenticated, so widening this is a line in this file rather than one word
-   * on a route that nobody reviews twice.
-   */
   const PUBLIC = [
     'GET /health',
     'GET /ready',
@@ -146,8 +115,6 @@ describe('the public surface', () => {
   });
 
   it('exempts the documentation prefix the app actually serves that UI from', () => {
-    // The plugin spells the prefix out rather than importing it, because app.ts imports the
-    // plugin. This is what keeps the two spellings from drifting apart.
     expect(UNANNOTATED_PUBLIC_PREFIXES).toContain(`${API_PREFIX}${DOCS_PATH}`);
   });
 
@@ -344,12 +311,10 @@ describe('the context itself', () => {
   it('is not there at all on a public route, so reading it is a loud failure', async () => {
     const { app } = await buildTestApp();
 
-    // A 500 with nothing in the body, and the reason in the log. See http/problem.ts.
     expect((await app.inject({ url: '/peek' })).statusCode).toBe(500);
   });
 });
 
-/** Whether a write went through. Strict mode throws on a frozen field, sloppy mode ignores it. */
 function attempt(write: () => void): boolean {
   try {
     write();
@@ -360,16 +325,6 @@ function attempt(write: () => void): boolean {
 }
 
 describe('where a handler is allowed to learn who is calling', () => {
-  /**
-   * The rule is that a user id comes from the request context and from nowhere else. Two things
-   * hold it up. Every request schema in @portionium/schemas is strict, so a `userId` a client
-   * sends is a 400 rather than a value, which is asserted next to those schemas. And an adapter
-   * never reads one out of an incoming payload, which is what this checks.
-   *
-   * A grep rather than an ESLint rule, because a custom rule is a package, a build step and a
-   * plugin to maintain, and the mistake it would catch is one line long and looks like this.
-   * Write the rule the day this stops being enough.
-   */
   const sourceRoot = fileURLToPath(new URL('../../src/', import.meta.url));
 
   const adapterSources = readdirSync(sourceRoot, { recursive: true, encoding: 'utf8' })

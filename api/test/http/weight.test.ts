@@ -13,12 +13,6 @@ import { SESSION_COOKIE_NAME } from '../../src/http/plugins/auth.js';
 import { createTestFixtures, type TestFixtures } from '../helpers/fixtures.js';
 import { freezeTime } from '../helpers/time.js';
 
-/**
- * The write path for weight, over the real app and a real database. userA is Europe/Berlin and
- * userB is America/New_York, the same reasoning as meals.test.ts: a wrong local date or a
- * leaked reading shows up rather than answering right by luck.
- */
-
 const WEB_ORIGIN = 'http://localhost:5173';
 const WEIGHT = `${API_PREFIX}/weight`;
 const weightOn = (date: string) => `${WEIGHT}/${date}`;
@@ -43,7 +37,6 @@ async function buildTestApp(env: NodeJS.ProcessEnv = {}) {
   return { app, fixtures };
 }
 
-/** A browser: the cookie, and the Origin header a browser always attaches to a mutation. */
 function browser(token: string) {
   return { cookie: `${SESSION_COOKIE_NAME}=${token}`, origin: WEB_ORIGIN };
 }
@@ -57,7 +50,6 @@ describe('recording a weight', () => {
     const { app, fixtures } = await buildTestApp();
     const token = fixtures.create.session(fixtures.userA);
 
-    // 05:00 UTC is 06:00 in Berlin, past the default 04:00 boundary.
     const response = await app.inject({
       method: 'POST',
       url: WEIGHT,
@@ -125,7 +117,6 @@ describe('recording a weight', () => {
     expect(body.weightKg).toBe(92.4);
     expect(body.warning).toMatch(/82\.4 kg recorded on 2026-09-05/);
 
-    // Not blocked: a second read finds both readings.
     const list = await app.inject({ url: WEIGHT, headers: browser(token) });
     expect(
       list.json<{ items: WeightEntryResponse[]; nextCursor: string | null }>().items,
@@ -241,7 +232,6 @@ describe('deleting a weight entry', () => {
     const day = await app.inject({ url: days('2026-04-10'), headers: browser(token) });
     expect(day.json<{ weightEntry: WeightEntryResponse | null }>().weightEntry).toBeNull();
 
-    // Already gone counts as nothing to delete, so a second delete is 404 rather than 204 again.
     const second = await app.inject({
       method: 'DELETE',
       url: weightOn('2026-04-10'),
@@ -290,7 +280,6 @@ describe('deleting a weight entry', () => {
     expect(response.statusCode).toBe(404);
     expect(problem(response.payload).type).toBe(PROBLEM.notFound);
 
-    // Still there for its owner.
     const tokenB = fixtures.create.session(fixtures.userB);
     const day = await app.inject({ url: days('2026-04-10'), headers: browser(tokenB) });
     expect(day.json<{ weightEntry: WeightEntryResponse | null }>().weightEntry).not.toBeNull();

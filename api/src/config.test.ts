@@ -122,8 +122,6 @@ describe('maskedConfig', () => {
   });
 
   it('masks a value whose key names a secret, so the next one added is covered by its name', () => {
-    // Cast because no such variable exists yet. That is the point of matching on the name: the
-    // day a second credential arrives it is masked without anybody remembering to come here.
     const config = { ...parseConfig({}), SMTP_PASSWORD: 'hunter2' } as unknown as Config;
 
     expect(maskedConfig(config).SMTP_PASSWORD).toBe('[redacted]');

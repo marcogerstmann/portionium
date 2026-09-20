@@ -8,21 +8,10 @@ import { parseConfig } from '../../src/config.js';
 import { API_PREFIX, buildApp, DOCS_PATH, OPENAPI_PATH } from '../../src/http/app.js';
 import { createTestDatabase, type TestDatabase } from '../helpers/database.js';
 
-/**
- * The application shell, exercised over app.inject() against the real Fastify instance and a
- * real migrated database. Nothing here is a stub, so a test passing means the wiring a
- * request goes through actually works.
- */
-
 let open: { app: FastifyInstance; database: TestDatabase } | undefined;
 
-/**
- * Builds the app and remembers it, so a test never has to remember to close it. `app.close()`
- * closes the database too, which is the behaviour one of the tests below is about.
- */
 async function buildTestApp(env: NodeJS.ProcessEnv = {}) {
   const database = createTestDatabase();
-  // fatal keeps the request logging out of the test output without special casing the logger.
   const app = await buildApp({ config: parseConfig({ LOG_LEVEL: 'fatal', ...env }), database });
   await app.ready();
 
@@ -70,11 +59,6 @@ describe('readiness route', () => {
     expect(response.json()).toEqual({ status: 'ready' });
   });
 
-  /**
-   * The liveness probe does not touch the database, so it still answers here. That difference
-   * is the whole reason there are two of them: this instance should be taken out of rotation,
-   * not restarted.
-   */
   it('answers 503 once the database has gone away, while liveness still answers 200', async () => {
     const { app, database } = await buildTestApp();
 
@@ -88,11 +72,6 @@ describe('readiness route', () => {
     expect((await app.inject({ url: '/health' })).statusCode).toBe(200);
   });
 
-  /**
-   * Why it is not ready names the database and the schema version this build expects, which is
-   * configuration, and the caller has no credential. It goes to the log instead, under the
-   * request id this body carries.
-   */
   it('tells an unauthenticated caller nothing about the deployment', async () => {
     const { app, database } = await buildTestApp();
 
@@ -120,11 +99,6 @@ describe('readiness route', () => {
 });
 
 describe('request validation', () => {
-  /**
-   * The route is defined here rather than shipped, because the shell has no endpoint that
-   * takes a body yet. What is being tested is the validator wiring, not this route: any
-   * route declaring a strict body schema gets the same 400.
-   */
   async function buildAppWithBodyRoute() {
     const database = createTestDatabase();
     const app = await buildApp({ config: parseConfig({ LOG_LEVEL: 'fatal' }), database });
@@ -159,12 +133,10 @@ describe('request validation', () => {
     });
 
     expect(response.statusCode).toBe(400);
-    // The shape of that 400 is RFC 9457 Problem Details, see test/http/problem.test.ts.
     expect(response.json<{ type: string }>().type).toContain('validation-failed');
   });
 });
 
-/** Only the parts of the document the assertions below read. */
 interface SpecDocument {
   openapi: string;
   paths: Record<
@@ -178,8 +150,6 @@ describe('openapi document', () => {
     const { app } = await buildTestApp();
 
     const document: unknown = (await app.inject({ url: `${API_PREFIX}${OPENAPI_PATH}` })).json();
-    // validate() dereferences in place, so it gets a copy and the assertions below keep the
-    // document the server actually served.
     const result = await validate(structuredClone(document) as Parameters<typeof validate>[0]);
 
     expect(result.valid, result.valid ? '' : compileErrors(result)).toBe(true);
@@ -238,7 +208,6 @@ describe('openapi document', () => {
 
     expect(ok?.content['application/json']?.schema).toMatchObject({
       type: 'object',
-      // The literal, as JSON Schema draft 2020-12 spells one.
       properties: { status: { type: 'string', enum: ['ok'] } },
       required: ['status'],
     });

@@ -52,11 +52,6 @@ describe('createRateLimiter', () => {
     expect(() => limiter.assertWithinLimit('auth', ['ip:a'])).toThrow(RateLimitedError);
   });
 
-  /**
-   * The reason a credential is counted as well as an address. One token spread over many
-   * addresses leaves every address counter untouched, so the address key alone would see
-   * nothing at all.
-   */
   it('refuses one credential used from many addresses', () => {
     const limiter = createRateLimiter(LIMITS);
 
@@ -69,10 +64,6 @@ describe('createRateLimiter', () => {
     );
   });
 
-  /**
-   * The reason an address is counted as well as a credential. Without it, sending a different
-   * forged token on every request buys an unlimited number of buckets.
-   */
   it('refuses many forged credentials from one address', () => {
     const limiter = createRateLimiter(LIMITS);
 

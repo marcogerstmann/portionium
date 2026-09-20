@@ -14,12 +14,6 @@ import { SESSION_COOKIE_NAME } from '../../src/http/plugins/auth.js';
 import { createTestFixtures, type TestFixtures } from '../helpers/fixtures.js';
 import { freezeTime } from '../helpers/time.js';
 
-/**
- * The primary write path, over the real app and a real database. userA is Europe/Berlin and
- * userB is America/New_York, which is what makes a wrong local date or a leaked meal visible
- * rather than the same answer by luck.
- */
-
 const WEB_ORIGIN = 'http://localhost:5173';
 const MEALS = `${API_PREFIX}/meals`;
 const meal = (id: string) => `${MEALS}/${id}`;
@@ -47,7 +41,6 @@ async function buildTestApp() {
   return { app, fixtures };
 }
 
-/** A browser: the cookie, and the Origin header a browser always attaches to a mutation. */
 function browser(token: string) {
   return { cookie: `${SESSION_COOKIE_NAME}=${token}`, origin: WEB_ORIGIN };
 }
@@ -63,8 +56,6 @@ describe('logging a meal', () => {
     fixtures.create.classification(skyr, { category: 'green' });
     const token = fixtures.create.session(fixtures.userA);
 
-    // 05:00 UTC is 06:00 in Berlin, an hour past the default 04:00 boundary, so it belongs to
-    // the day it falls on rather than the day before.
     const response = await app.inject({
       method: 'POST',
       url: MEALS,
@@ -220,14 +211,12 @@ describe('editing a meal', () => {
     const { app, fixtures } = await buildTestApp();
     const food = fixtures.create.food();
     const token = fixtures.create.session(fixtures.userA);
-    // 05:00 UTC is 06:00 in Berlin, on 2026-03-02.
     const { meal: stored } = fixtures.create.meal(fixtures.userA, {
       loggedAt: new Date('2026-03-02T05:00:00.000Z'),
       entries: [{ foodId: food.id }],
     });
     expect(stored.localDate).toBe('2026-03-02');
 
-    // 03:00 UTC is 04:00 in Berlin, exactly the day boundary, so it lands on the next day.
     const response = await app.inject({
       method: 'PATCH',
       url: meal(stored.id),
@@ -238,7 +227,6 @@ describe('editing a meal', () => {
     expect(response.statusCode).toBe(200);
     expect(response.json<MealResponse>().localDate).toBe('2026-03-03');
 
-    // The day it left shows nothing, the day it landed on shows it, with no cache to catch up.
     const oldDay = await app.inject({ url: days('2026-03-02'), headers: browser(token) });
     const newDay = await app.inject({ url: days('2026-03-03'), headers: browser(token) });
     expect(oldDay.json<DayResponse>().meals).toHaveLength(0);
@@ -269,7 +257,6 @@ describe('editing a meal', () => {
     expect(response.statusCode).toBe(200);
     const body = response.json<MealResponse>();
     expect(body).toMatchObject({ type: 'dinner', notes: 'ate later than planned' });
-    // Reordered: the newly added item now leads, and positions are dense from zero.
     expect(body.entries.map((entry) => [entry.foodId, entry.position])).toEqual([
       [added.id, 0],
       [original.id, 1],
@@ -376,7 +363,6 @@ describe('deleting a meal', () => {
     const day = await app.inject({ url: days('2026-04-10'), headers: browser(token) });
     expect(day.json<DayResponse>().meals).toHaveLength(0);
 
-    // Already gone counts as nothing to delete, so a second delete is 404 rather than 204 again.
     const second = await app.inject({
       method: 'DELETE',
       url: meal(stored.id),
@@ -407,7 +393,6 @@ describe('deleting a meal', () => {
     });
     expect(deleted.statusCode).toBe(204);
 
-    // The same request the client would replay to undo its own delete: same id, same payload.
     const recreated = await app.inject({
       method: 'POST',
       url: MEALS,
@@ -418,7 +403,6 @@ describe('deleting a meal', () => {
     expect(recreated.statusCode).toBe(201);
     expect(recreated.json<MealResponse>().id).toBe(clientId);
 
-    // Live again: a normal read finds it, and a second delete has something to act on.
     const list = await app.inject({ url: MEALS, headers: browser(token) });
     expect(list.json<{ items: MealResponse[] }>().items.map((meal) => meal.id)).toContain(clientId);
   });
@@ -439,7 +423,6 @@ describe('deleting a meal', () => {
     });
     expect(deleted.statusCode).toBe(204);
 
-    // userB tries to claim userA's now-deleted id as their own new meal.
     const claimed = await app.inject({
       method: 'POST',
       url: MEALS,
@@ -556,8 +539,6 @@ describe('one local day', () => {
     expect(body.weightEntry).toBeNull();
     expect(body.colourCounts).toEqual({ green: 1, yellow: 0, orange: 1, unclassified: 1 });
 
-    // The names the items point at, resolved to the same colours the items carry. Without this
-    // a client has identifiers to render and nothing to render them as, see dayResponseSchema.
     expect(body.foods).toEqual([
       expect.objectContaining({ id: green.id, name: 'Skyr', category: 'green' }),
       expect.objectContaining({ id: orange.id, name: 'Peanut butter', category: 'orange' }),
@@ -636,7 +617,6 @@ describe('one local day', () => {
     const food = fixtures.create.food();
     const token = fixtures.create.session(fixtures.userA);
 
-    // No loggedAt: the server stamps now, which is what the frozen clock fixes for this test.
     const created = await app.inject({
       method: 'POST',
       url: MEALS,
@@ -650,11 +630,6 @@ describe('one local day', () => {
     expect(response.json<DayResponse>().meals).toHaveLength(1);
   });
 
-  /**
-   * The point of it being here at all: the Today screen draws the week's allowance
-   * without asking a second endpoint for it. The week is the ISO one this date falls in, so a
-   * meal from Monday counts towards the number a Wednesday shows.
-   */
   it("carries the week's budget status, counting the whole ISO week rather than the day", async () => {
     freezeTime('2026-03-11T10:00:00.000Z');
     const { app, fixtures } = await buildTestApp();
@@ -665,7 +640,6 @@ describe('one local day', () => {
       headers: browser(token),
       payload: { orange: 4 },
     });
-    // Monday and Wednesday of the week 2026-03-09 to 2026-03-15, plus the Sunday before it.
     for (const date of ['2026-03-09', '2026-03-11', '2026-03-08']) {
       fixtures.create.meal(fixtures.userA, {
         loggedAt: new Date(`${date}T05:00:00.000Z`),
@@ -677,7 +651,6 @@ describe('one local day', () => {
       await app.inject({ url: days('2026-03-11'), headers: browser(token) })
     ).json<DayResponse>();
 
-    // The day counts one, the week counts the two inside it and not the Sunday outside.
     expect(colourCounts.orange).toBe(1);
     expect(budget.orange).toEqual({ limit: 4, count: 2, remaining: 2 });
     expect(budget.green).toEqual({ limit: null, count: 0, remaining: null });
@@ -1007,11 +980,6 @@ describe('pinning a favourite', () => {
   });
 });
 
-/**
- * The half of "an entry is a colour" that the rest of this file only sees the shadow of: when
- * the colour is decided, and what can and cannot change it afterwards. See
- * docs/adr/011-an-entry-is-a-colour.md.
- */
 describe('an entry carries the colour it was logged with', () => {
   it('stamps a food entry from the verdict standing at the moment it was logged', async () => {
     const { app, fixtures } = await buildTestApp();
@@ -1174,8 +1142,6 @@ describe('an entry carries the colour it was logged with', () => {
     const day = await app.inject({ url: days('2026-04-01'), headers: browser(token) });
     const body = day.json<DayResponse>();
 
-    // The entry keeps what it was logged with; the catalog entry beside it carries the new
-    // verdict, which is the trap this story names out loud.
     expect(body.meals[0]?.entries[0]?.category).toBe('green');
     expect(body.foods[0]?.category).toBe('orange');
     expect(body.colourCounts).toMatchObject({ green: 1, orange: 0 });
@@ -1234,7 +1200,6 @@ describe('an entry carries the colour it was logged with', () => {
       payload: { category: 'yellow' },
     });
 
-    // userB is America/New_York, so 10:00 UTC is still the 1st there too.
     const dayB = await app.inject({ url: days('2026-04-01'), headers: browser(tokenB) });
     expect(dayB.json<DayResponse>().meals[0]?.entries[0]?.category).toBeNull();
   });
@@ -1283,7 +1248,6 @@ describe('an entry carries the colour it was logged with', () => {
       },
     });
 
-    // Both written straight through the log, which is the door an AI adapter will come in by.
     fixtures.create.classification(unjudged, { category: 'green', source: 'seed' });
     fixtures.create.classification(unjudged, { category: 'yellow', source: 'ai_text' });
 

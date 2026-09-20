@@ -18,25 +18,6 @@ import { SESSION_COOKIE_NAME } from '../../src/http/plugins/auth.js';
 import { IDEMPOTENT_REPLAYED_HEADER } from '../../src/http/plugins/idempotency.js';
 import { createTestFixtures, type TestFixtures, type UserRow } from '../helpers/fixtures.js';
 
-/**
- * What one account can reach of another's, asked of every endpoint this API has.
- *
- * The claim this file exists to hold up is that a row belonging to somebody else is not
- * refused, it is invisible: a foreign id answers exactly what a missing one answers, and the
- * row it names is untouched afterwards. ADR 003 is why that is a 404 and never a 403.
- *
- * It is built so that adding a leaky endpoint later is hard to do quietly. COVERAGE below
- * names every authenticated route and says which of four things it is, and the first test in
- * the file compares that list against the routes the router actually has. A new endpoint is
- * therefore a failing test until somebody writes down what it exposes, and writing `owned`
- * against it is not a way out: the name has to resolve to an entry in OWNED, which comes with
- * probes that run.
- *
- * Every probe runs twice, once on a session cookie and once on a bearer token, because the two
- * are resolved by different branches of the auth plugin and only one of them is exercised by a
- * browser. See CREDENTIALS.
- */
-
 const WEB_ORIGIN = 'http://localhost:5173';
 
 let open: { app: FastifyInstance; fixtures: TestFixtures } | undefined;
@@ -62,7 +43,6 @@ function problem(payload: string): ProblemDetails {
   return JSON.parse(payload) as ProblemDetails;
 }
 
-/** A row the test just wrote and therefore knows is there. */
 function must<T>(value: T | undefined, what: string): T {
   if (value === undefined) {
     throw new Error(`${what} was not written`);
@@ -71,14 +51,6 @@ function must<T>(value: T | undefined, what: string): T {
   return value;
 }
 
-/**
- * The two ways a caller proves who they are. Worth running everything twice: the plugin
- * resolves a bearer token against api_token and a cookie against session, so a filter that is
- * right on one path is not evidence about the other.
- *
- * The cookie carries an Origin because a browser always does and a mutation without one is
- * refused before anything else happens, see the CSRF check in plugins/auth.ts.
- */
 interface Credential {
   name: string;
   headers(fixtures: TestFixtures, user: UserRow): Record<string, string>;
@@ -100,46 +72,28 @@ const CREDENTIALS: readonly Credential[] = [
   },
 ];
 
-/** A row's id, and what addresses it over HTTP. The two differ for weight, see WEIGHT_ENTRY. */
 interface Address {
   id: string;
   path: string;
 }
 
-/** One request naming somebody else's row. */
 interface Attempt {
   method: 'GET' | 'PATCH' | 'PUT' | 'DELETE';
   url(path: string): string;
   payload?: Record<string, unknown>;
 }
 
-/** An endpoint answering with a page of them. */
 interface ListEndpoint {
   url: string;
   ids(body: unknown): string[];
-  /** Whether limit and cursor mean anything here, for the tampering case. */
   paged: boolean;
 }
 
 interface OwnedResource {
-  /** Reads as a sentence in the test name, and is the word COVERAGE refers to it by. */
   name: string;
-  /** One belonging to this user. */
   create(fixtures: TestFixtures, owner: UserRow): Address;
-  /** Every way the API lets a request name one. Each must answer 404 to a stranger. */
   attempts: readonly Attempt[];
-  /**
-   * Everything stored about it, compared before and after the stranger's attempts. A snapshot
-   * rather than a "still exists" check, because a delete is not the only thing to be afraid of:
-   * an edit that went through and answered 404 anyway would pass the weaker assertion.
-   */
   snapshot(fixtures: TestFixtures, address: Address): unknown;
-  /**
-   * An address of the same shape that names nothing at all, so a foreign row and a missing one
-   * can be compared answer for answer. A uuidv7 from another table is the honest version of
-   * "an id that is not one of these": the params schema holds the shape, so a made up string
-   * would be a 400 and would prove nothing.
-   */
   absent(fixtures: TestFixtures): string;
   lists: readonly ListEndpoint[];
 }
@@ -186,12 +140,6 @@ const FAVOURITE: OwnedResource = {
   lists: [{ url: `${API_PREFIX}/meals/favourites`, ids: page, paged: true }],
 };
 
-/**
- * No endpoint in this API names a weight entry by its id. The delete is addressed by local
- * date, which is the thing a client has, so `path` is the date and `id` is only what the
- * snapshot needs. A stranger sending the owner's date is the nearest expressible attempt, and
- * the test below it asserts that no id-addressed route appeared later.
- */
 const WEIGHT_ENTRY: OwnedResource = {
   name: 'weight entry',
   create: (fixtures, owner) => {
@@ -201,7 +149,6 @@ const WEIGHT_ENTRY: OwnedResource = {
   attempts: [{ method: 'DELETE', url: (date) => `${API_PREFIX}/weight/${date}` }],
   snapshot: (fixtures, { id }) =>
     fixtures.db.select().from(weightEntryTable).where(eq(weightEntryTable.id, id)).get(),
-  // A local date nobody in this suite records a reading on.
   absent: () => '2001-02-03',
   lists: [{ url: `${API_PREFIX}/weight`, ids: page, paged: true }],
 };
@@ -252,39 +199,8 @@ const API_TOKEN: OwnedResource = {
   lists: [{ url: `${API_PREFIX}/auth/tokens`, ids: bare, paged: false }],
 };
 
-/**
- * Every user-owned thing a request can name by id today.
- *
- * Two the ticket lists are deliberately not here, because neither exists to be probed yet and
- * a probe against nothing passes for the wrong reason:
- *
- *   The export. There is no endpoint for it, so it will arrive as a route with no entry in
- *   COVERAGE, which is a failing test rather than something to remember.
- *
- *   MCP confirmation tokens. api/src/mcp is still a .gitkeep, and the adapter's own surface is
- *   not Fastify routes, so the story that adds it extends this table and gives that surface the
- *   equivalent of the COVERAGE check below.
- *
- * An entry is not a row of its own here on purpose: nothing on the wire names one. Entries are
- * written through their meal, so their isolation is the meal's, and the reference a client can
- * actually make is fromMealId, probed further down.
- */
 const OWNED: readonly OwnedResource[] = [MEAL, FAVOURITE, WEIGHT_ENTRY, SESSION, API_TOKEN];
 
-/**
- * What every authenticated route in this API exposes, in one place.
- *
- * Four answers, and the first test below is what makes writing one down unavoidable:
- *
- *   `owned`     a request can name another account's row by id. The entry in OWNED is what
- *               proves it answers 404 and changes nothing.
- *   `shared`    the route deals in the catalog, which is one set of rows for the instance on
- *               purpose. Listed here so that "everyone can see this" stays a decision.
- *   `resolved`  a shared row read through the caller's own verdict. Nothing foreign is
- *               nameable, but somebody else's opinion is exactly what must not come back.
- *   `personal`  the caller's own data, addressed by the request context and nothing else.
- *               There is no id in the request that could point somewhere else.
- */
 type Coverage =
   { owned: string } | { shared: string } | { resolved: string } | { personal: string };
 
@@ -340,11 +256,6 @@ const COVERAGE: Record<string, Coverage> = {
 };
 
 describe('the registry', () => {
-  /**
-   * The whole point of the file. The router is the source, COVERAGE is the claim, and a new
-   * endpoint is a failing test until somebody says what it exposes. A checklist somewhere else
-   * would not have this property, which is what the ticket asks for.
-   */
   it('accounts for every authenticated route the router actually has', async () => {
     const { app } = await buildTestApp();
 
@@ -355,10 +266,6 @@ describe('the registry', () => {
     expect(authenticated.sort()).toEqual(Object.keys(COVERAGE).sort());
   });
 
-  /**
-   * And the obvious way out of it, closed: labelling a route `owned` is only worth something
-   * if the name resolves to probes that run.
-   */
   it('has probes for every resource a route is labelled as owning', () => {
     const labelled = new Set(
       Object.values(COVERAGE).flatMap((entry) => ('owned' in entry ? [entry.owned] : [])),
@@ -376,11 +283,6 @@ describe('the registry', () => {
   });
 });
 
-/**
- * Weight is the one thing in here somebody would be hurt by leaking, and the ticket asks for it
- * to be verified as private rather than assumed. There is no id-addressed route at all: the
- * delete takes a local date, which is what a client has. This is what notices if one appears.
- */
 describe('weight', () => {
   it('is never addressed by an entry id on any route', async () => {
     const { app } = await buildTestApp();
@@ -399,8 +301,6 @@ describe('weight', () => {
   });
 
   it('has no endpoint that shares an entry with another account', () => {
-    // There is no share, no grant and no visibility flag to test, which is the property. The
-    // routes above are the whole surface and every one of them is scoped to request.auth.
     expect(Object.entries(COVERAGE).filter(([route]) => route.includes('weight'))).toHaveLength(4);
   });
 });
@@ -471,9 +371,6 @@ describe.each(CREDENTIALS)('a stranger holding $name', (credential) => {
       const headers = credential.headers(fixtures, fixtures.userB);
 
       for (const list of resource.lists) {
-        // A cursor is the last id of a page, so the stranger sending the owner's id is the
-        // whole of "manipulating the pagination parameters": it is the one place a list takes
-        // an id from the client at all.
         const queries = list.paged
           ? ['', '?limit=100', `?cursor=${theirs.id}`, `?limit=100&cursor=${theirs.id}`]
           : [''];
@@ -486,8 +383,6 @@ describe.each(CREDENTIALS)('a stranger holding $name', (credential) => {
           expect(list.ids(response.json()), where).not.toContain(theirs.id);
         }
 
-        // And the list is not empty for an unrelated reason, which would make the assertion
-        // above true of a broken endpoint as easily as of a correct one.
         const mine = await app.inject({ url: list.url, headers });
         expect(list.ids(mine.json()), list.url).toContain(own.id);
       }
@@ -496,11 +391,6 @@ describe.each(CREDENTIALS)('a stranger holding $name', (credential) => {
 });
 
 describe.each(CREDENTIALS)('with $name on both sides', (credential) => {
-  /**
-   * The catalog is shared and a verdict about it is not. Nothing here is addressable by a
-   * stranger, so the failure to look for is disclosure: one household member reading a food
-   * and getting the other's opinion of it back.
-   */
   describe('a private verdict on a shared food', () => {
     it('never colours the same food for anybody else', async () => {
       const { app, fixtures } = await buildTestApp();
@@ -565,8 +455,6 @@ describe.each(CREDENTIALS)('with $name on both sides', (credential) => {
         payload: { category: 'orange' },
       });
 
-      // A withdrawal is keyed by food and caller, so this one is about a verdict that is not
-      // there. It must not reach across to the one that is.
       const withdrawn = await app.inject({
         method: 'DELETE',
         url: `${API_PREFIX}/foods/${skyr.id}/classification`,
@@ -605,11 +493,6 @@ describe.each(CREDENTIALS)('with $name on both sides', (credential) => {
     });
   });
 
-  /**
-   * The catalog itself, listed as shared on purpose. Everything above is about what one account
-   * cannot reach; this is the one place where reaching across is the intended behaviour, and it
-   * is asserted rather than left as an absence of tests.
-   */
   describe('the shared catalog', () => {
     it('lets anybody read an entry another account added', async () => {
       const { app, fixtures } = await buildTestApp();
@@ -660,8 +543,6 @@ describe.each(CREDENTIALS)('with $name on both sides', (credential) => {
           ...(payload === undefined ? {} : { payload }),
         });
 
-        // 403 rather than the 404 a private row gets, and it leaks nothing: every account can
-        // read this id already. See requireAuthorOrAdmin in routes/foods.ts.
         expect(refused.statusCode).toBe(403);
         expect(problem(refused.payload).type).toBe(PROBLEM.insufficientScope);
 
@@ -671,11 +552,6 @@ describe.each(CREDENTIALS)('with $name on both sides', (credential) => {
     );
   });
 
-  /**
-   * A write that names somebody else's row inside its body rather than in the path. There is
-   * no client supplied `mealId` on an entry, entries are written through their meal, so the
-   * reference the ticket asks about is `fromMealId`: copy that meal's entries into a new one.
-   */
   describe('a write referencing another account row', () => {
     it('cannot copy a meal it does not own', async () => {
       const { app, fixtures } = await buildTestApp();
@@ -710,8 +586,6 @@ describe.each(CREDENTIALS)('with $name on both sides', (credential) => {
         },
       });
 
-      // The revive-on-conflict path is correlated on the owner, so a foreign id matches no row
-      // to update and nothing is written. See insertMeal in db/meal.ts.
       expect(response.statusCode).toBe(409);
 
       const stored = fixtures.db.select().from(mealTable).where(eq(mealTable.id, meal.id)).get();
@@ -744,10 +618,6 @@ describe.each(CREDENTIALS)('with $name on both sides', (credential) => {
     });
   });
 
-  /**
-   * The key is filed under the caller, so the same string from two accounts is two keys. If it
-   * were not, the second account would be handed the first one's stored response body.
-   */
   describe('an idempotency key', () => {
     const KEY = 'a-key-both-accounts-happen-to-pick';
     const body = { weightKg: 81 };
@@ -819,10 +689,6 @@ describe.each(CREDENTIALS)('with $name on both sides', (credential) => {
     });
   });
 
-  /**
-   * The strongest version of the session and token cases: not just that the row survived a
-   * stranger's delete, but that the credential it stands for still opens the door afterwards.
-   */
   describe('a credential somebody else tried to revoke', () => {
     it('still authenticates its owner', async () => {
       const { app, fixtures } = await buildTestApp();

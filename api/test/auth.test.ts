@@ -13,14 +13,6 @@ import { apiTokenTable, sessionTable, userTable } from '../src/db/schema/index.j
 import { createApiToken, createSessionToken } from '../src/domain/auth.js';
 import { createTestFixtures, TEST_PASSWORD_HASH, type TestFixtures } from './helpers/fixtures.js';
 
-/**
- * The account and session queries, against a real migrated file.
- *
- * Two properties are worth the setup here and cannot be checked anywhere else: that an address
- * has exactly one spelling in the column whatever a caller types, and that changing a password
- * takes the sessions with it in the same transaction.
- */
-
 let fixtures: TestFixtures;
 
 function open(): TestFixtures {
@@ -56,10 +48,6 @@ describe('email normalisation', () => {
     }
   });
 
-  /**
-   * The point of normalising at the funnel rather than at each caller. Without it the unique
-   * index is a check on capitalisation and two people can hold the same address.
-   */
   it('refuses a second account for the same address in different case', () => {
     const { db } = open();
     insertUser(db, { ...NEW_USER, email: 'ada@example.test' });
@@ -125,14 +113,6 @@ describe('changing a password', () => {
     expect(survivors[0]?.userId).toBe(userB.id);
   });
 
-  /**
-   * The other half of the promise on setPasswordHash, and the decision the story that added
-   * API tokens had to make on purpose.
-   *
-   * A token is a credential its owner issued deliberately, to a script that is not sitting at
-   * the keyboard. Revoking it because somebody rotated a password would break automation as a
-   * side effect of good hygiene, so a password change reaches into exactly one table.
-   */
   it('leaves API tokens working, which is the point of them being a separate credential', () => {
     const { db, userA } = open();
     const { tokenHash, expiresAt } = createSessionToken();

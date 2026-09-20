@@ -23,28 +23,6 @@ import {
 import { openDatabase } from '../db/client.js';
 import { hashPassword } from '../domain/auth.js';
 
-/**
- * Account administration, from a terminal on the machine the database is on.
- *
- * This exists because the API has no way to make the first account: every endpoint that could
- * create one would have to be reachable without credentials, and an endpoint like that on a
- * public instance is not a bootstrap, it is the vulnerability. Being on the box with the file
- * is the authorisation here, which is the same authorisation restoring a backup needs.
- *
- * It is also, for now, the only way to make any account or reset any password. Doing those over
- * HTTP needs a route declaring the `admin` scope, which http/plugins/auth.ts already enforces,
- * and the functions it would call are in db/auth.ts already, so that endpoint is a route file
- * and not a rewrite.
- *
- *   pnpm --filter @portionium/api user create --email a@b.de --name "Ada" --timezone Europe/Berlin
- *   pnpm --filter @portionium/api user passwd --email a@b.de
- *   pnpm --filter @portionium/api user revoke-tokens --email a@b.de
- *
- * The password is never an argument. Anything on a command line is in the shell history of
- * whoever typed it and in the process list of everybody on the machine while it runs, so it is
- * typed at a prompt that does not echo, or piped in for a script that has it already.
- */
-
 const USAGE = `Usage:
   user create --email <address> --name <display name> --timezone <IANA zone>
               [--role user|admin] [--day-boundary-hour 0-23]
@@ -55,7 +33,6 @@ The password is read from a prompt, or from stdin when it is piped in.
 The first account on a fresh instance is an admin unless --role says otherwise.
 revoke-tokens kills every API token the account has, see SECURITY.md.`;
 
-/** Missing rather than empty, so `--email` with nothing after it is an error and not an address. */
 function required(value: string | undefined, flag: string): string {
   if (value === undefined || value.trim() === '') {
     throw new Error(`${flag} is required.\n\n${USAGE}`);
@@ -85,8 +62,6 @@ try {
   }
 
   const config = parseConfig(process.env);
-  // Same call the server makes, so a CLI run against a fresh instance migrates it first and
-  // there is no order in which the two have to be started.
   const database = openDatabase(config.DATABASE_PATH);
 
   try {
@@ -104,9 +79,6 @@ try {
           ? undefined
           : dayBoundaryHourSchema.parse(Number(values['day-boundary-hour']));
 
-      // The chicken and egg, resolved by the only fact that distinguishes a fresh instance:
-      // there is nobody to have granted the role, so the first account grants it to itself.
-      // Every account after it is a plain user unless somebody says otherwise.
       const isFirstAccount = countUsers(database.db) === 0;
       const role = userRoleSchema.parse(values.role ?? (isFirstAccount ? 'admin' : 'user'));
 
@@ -144,9 +116,6 @@ try {
         throw new Error(`No account for ${email}.`);
       }
 
-      // No confirmation prompt. This is the command somebody reaches for while a credential is
-      // believed to be loose, and a script piping into it should not hang on a question; the
-      // damage it does is a script owner minting a new token, which is the point.
       const revoked = revokeAllApiTokens(database.db, user.id);
 
       console.log(
@@ -159,9 +128,6 @@ try {
     database.close();
   }
 } catch (error) {
-  // A Zod issue printed as a Zod issue is a JSON dump at somebody who typed a short password.
-  // Only the messages are useful here, and the paths are empty anyway: each value above is
-  // parsed on its own rather than as a field of a larger object.
   console.error(
     error instanceof z.ZodError
       ? error.issues.map((issue) => issue.message).join('\n')

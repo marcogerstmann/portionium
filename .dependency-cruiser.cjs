@@ -1,27 +1,9 @@
 /**
- * Source of truth for the layering rules across the three workspaces.
- * Run with `pnpm depcruise`. CI fails the build on any violation.
- *
- *   packages/schemas  Zod schemas shared by both apps. Imports Zod and nothing else
- *   api/src/domain/   pure logic, may import @portionium/schemas, nothing from db,
- *                     http, mcp, and no framework or database library
- *   api/src/db/       may import domain, the only place Drizzle appears
- *   api/src/http/     may import domain and db, no business logic
- *   api/src/mcp/      may import domain and db, no business logic
- *   api/src/cli/      may import domain and db, no business logic
- *   http/, mcp/ and cli/ never import each other
- *   web/              may import @portionium/schemas, never anything from api/
- */
-
-/**
- * Packages matched by resolved path, not by module name. dependency-cruiser reports the
- * file it resolved to, which under pnpm looks like
- * node_modules/.pnpm/zod@4.5.4/node_modules/zod/index.d.cts. Anchoring on the package name
- * alone silently matches nothing, so every package rule keys off the node_modules/ segment.
+ * Under pnpm a package resolves to node_modules/.pnpm/<name>@<version>/..., so rules key off the
+ * node_modules/ segment rather than the package name.
  */
 const PKG = (...names) => `node_modules/(${names.join('|')})/`;
 
-/** Never allowed inside domain/. */
 const INFRASTRUCTURE = PKG(
   'fastify',
   '@fastify',
@@ -32,13 +14,11 @@ const INFRASTRUCTURE = PKG(
   '@libsql',
 );
 
-/** Never allowed outside db/. */
 const PERSISTENCE = PKG('drizzle-orm', 'drizzle-kit', 'better-sqlite3', 'libsql', '@libsql');
 
 /**
- * pnpm links workspace packages into node_modules as symlinks. dependency-cruiser resolves
- * through them, so an import of @portionium/schemas is reported as packages/schemas/src/...
- * and the rules below match on that path rather than on the package name.
+ * pnpm symlinks workspace packages, so an import of @portionium/schemas is reported as
+ * packages/schemas/src/...
  */
 const SCHEMAS = '^packages/schemas/';
 

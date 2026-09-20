@@ -30,7 +30,6 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-/** Everything before the salt in a PHC string: the algorithm, the version and the cost. */
 function parametersOf(phc: string): string {
   return phc.split('$').slice(1, 4).join('$');
 }
@@ -62,16 +61,9 @@ describe('password hashing', () => {
   });
 
   it('answers false for a stored value it cannot read, rather than throwing', async () => {
-    // A row holding something that is not a PHC string is a bug worth a log line. It is not a
-    // reason to answer 500 on a login form, and nobody gets in either way.
     await expect(verifyPassword('not a hash', 'anything')).resolves.toBe(false);
   });
 
-  /**
-   * The guard on the timing defence. The dummy hash is a constant, so nothing recomputes it
-   * when the parameters above are raised, and a dummy that is cheaper than the real thing puts
-   * the gap between "no such account" and "wrong password" back where it started.
-   */
   it('verifies the dummy hash at exactly the cost of a real one', async () => {
     expect(parametersOf(DUMMY_PASSWORD_HASH)).toBe(
       parametersOf(await hashPassword('anything at all')),
@@ -105,9 +97,7 @@ describe('session tokens', () => {
     const tokens = Array.from({ length: 100 }, () => createSessionToken().token);
 
     expect(new Set(tokens).size).toBe(100);
-    // 32 bytes, base64url, no padding.
     expect(tokens[0]).toMatch(/^[A-Za-z0-9_-]{43}$/);
-    // Sorted order must not be issue order, which is exactly what a UUIDv7 would give.
     expect([...tokens].sort()).not.toEqual(tokens);
   });
 });
@@ -146,7 +136,6 @@ describe('login throttle', () => {
       throttle.recordFailure(EMAIL, IP);
     }
 
-    // Moving to another network is the first thing an attacker does. The address is the key.
     expect(() => throttle.assertNotLockedOut(EMAIL, '203.0.113.9')).toThrow(DomainError);
   });
 
@@ -154,7 +143,6 @@ describe('login throttle', () => {
     const throttle = createLoginThrottle();
 
     for (let attempt = 0; attempt < MAX_ATTEMPTS_PER_IP; attempt += 1) {
-      // A different address every time, so no email counter gets anywhere near its own limit.
       throttle.recordFailure(`user-${attempt}@example.test`, IP);
     }
 
@@ -201,7 +189,6 @@ describe('login throttle', () => {
     vi.setSystemTime(new Date(Date.now() + LOGIN_ATTEMPT_WINDOW_MS - 1));
     throttle.recordFailure(EMAIL, IP);
 
-    // The window started at the first failure. The second one does not move it.
     vi.setSystemTime(new Date(Date.now() + 1));
     expect(() => throttle.assertNotLockedOut(EMAIL, IP)).not.toThrow();
   });
@@ -247,7 +234,6 @@ describe('API tokens', () => {
     expect(tokenHash).toBe(hashToken(token));
   });
 
-  /** The prefix is what decides which table a request is looked up in, so it has to be exact. */
   it('is told apart from a session token by that prefix alone', () => {
     expect(isApiToken(createApiToken().token)).toBe(true);
     expect(isApiToken(createSessionToken().token)).toBe(false);
@@ -270,13 +256,11 @@ describe('scopes', () => {
   it('lets a user grant only what they hold themselves', () => {
     expect(canGrantScopes('user', ['read'])).toBe(true);
     expect(canGrantScopes('user', ['read', 'write'])).toBe(true);
-    // The whole of privilege escalation on the token endpoint.
     expect(canGrantScopes('user', ['admin'])).toBe(false);
     expect(canGrantScopes('user', ['read', 'admin'])).toBe(false);
     expect(canGrantScopes('admin', ['admin'])).toBe(true);
   });
 
-  /** `write` implying `read` has to hold here too, or a token could grant more than it says. */
   it('counts what a scope implies, not only what it names', () => {
     expect(canGrantScopes('user', ['write'])).toBe(true);
     expect(canGrantScopes('admin', ['write'])).toBe(true);

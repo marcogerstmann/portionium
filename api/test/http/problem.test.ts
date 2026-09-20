@@ -9,13 +9,6 @@ import { API_PREFIX, buildApp, OPENAPI_PATH } from '../../src/http/app.js';
 import { problemResponses } from '../../src/http/problem.js';
 import { createTestDatabase, type TestDatabase } from '../helpers/database.js';
 
-/**
- * Error handling, over the real app. Every route below is declared inside the test rather
- * than shipped, because the shell has no endpoint yet that takes a body or throws. What is
- * under test is the handler in src/http/problem.ts, not any route: a route is only the
- * shortest way to make each kind of failure actually happen inside Fastify.
- */
-
 let open: { app: FastifyInstance; database: TestDatabase } | undefined;
 
 afterEach(async () => {
@@ -23,10 +16,6 @@ afterEach(async () => {
   open = undefined;
 });
 
-/**
- * Builds the app and adds the routes each test needs to provoke a failure. `fatal` keeps the
- * expected stack traces out of the test output.
- */
 async function buildTestApp() {
   const database = createTestDatabase();
   const app = await buildApp({ config: parseConfig({ LOG_LEVEL: 'fatal' }), database });
@@ -34,9 +23,6 @@ async function buildTestApp() {
   app.post(
     '/echo',
     {
-      // Public, like every route in this file: what is under test is how a failure is
-      // rendered, and a credential check in front of it would only add a way for these tests
-      // to fail for a reason that has nothing to do with the error handler.
       config: { auth: 'public' },
       schema: {
         body: z.strictObject({ name: z.string(), portions: z.int().positive() }),
@@ -64,7 +50,6 @@ async function buildTestApp() {
   return app;
 }
 
-/** Every problem is parsed with the schema the client would parse it with. */
 function readProblem(payload: string): ProblemDetails {
   return JSON.parse(payload) as ProblemDetails;
 }
@@ -101,8 +86,6 @@ describe('problem details', () => {
     expect(response.statusCode).toBe(400);
     const [issue] = readProblem(response.payload).errors ?? [];
     expect(issue?.message).toContain('energyDensity');
-    // The whole document, as RFC 6901 spells it. The key that was rejected is not a path
-    // into the request, because the request has no such field.
     expect(issue?.path).toBe('');
   });
 
@@ -138,7 +121,6 @@ describe('problem details', () => {
     expect(readProblem(response.payload)).toMatchObject({
       type: PROBLEM.mealHasNoEntries,
       status: 422,
-      // The domain's own message, which is written to be read by a person.
       detail: 'A meal must contain at least one entry.',
     });
   });
@@ -151,7 +133,6 @@ describe('problem details', () => {
     expect(response.statusCode).toBe(500);
     const problem = readProblem(response.payload);
     expect(problem.type).toBe(PROBLEM.internalError);
-    // Not the message, not the stack, not the thing the message happened to contain.
     expect(response.payload).not.toContain('hunter2');
     expect(response.payload).not.toContain('postgres://');
     expect(problem.detail).toContain('request id');
@@ -195,15 +176,11 @@ describe('problem details', () => {
     const first = readProblem((await app.inject({ url: '/bug' })).payload);
     const second = readProblem((await app.inject({ url: '/bug' })).payload);
 
-    // Fastify generates these and does not take them from a request header, so a client
-    // cannot poison the logs by choosing its own. Two reports of the same broken endpoint
-    // therefore point at two different log lines.
     expect(first.requestId).not.toBe(second.requestId);
     expect(first.requestId).not.toHaveLength(0);
   });
 });
 
-/** Only the parts of the document the assertions below read. */
 interface SpecDocument {
   paths: Record<
     string,

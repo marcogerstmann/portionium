@@ -2,22 +2,10 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { ACCOUNTS } from '../playwright.config';
 
-/** This file's own account, so nothing another spec logs is visible here. See ACCOUNTS. */
 const ACCOUNT = ACCOUNTS.favourites;
-
-/**
- * POR-73: favourites and suggestions in the composer, in a browser, against the real API.
- *
- * The API half, GET /meals/favourites, GET /meals/suggestions and the create and delete routes
- * either side of them, is api/test/http/meals.test.ts. What is worth a browser here is what
- * cannot be asserted against the API alone: that picking either fills the composer rather than
- * logging anything, that a favourite survives a reload with no network, and that the search
- * field itself never moves for either list, see the acceptance criteria on the story.
- */
 
 const API = '/api/v1';
 
-/** A seed food, early enough in the alphabet to certainly be on the device once offline. */
 const FAVOURITE_FOOD = 'Aubergine';
 const SUGGESTION_FOOD = 'Blumenkohl';
 
@@ -29,7 +17,6 @@ async function signIn(page: Page) {
   await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
 }
 
-/** Type a name, take the first result, and leave the field ready for the next one. */
 async function addFood(page: Page, name: string) {
   await page.getByLabel('Add a food').fill(name);
 
@@ -53,7 +40,6 @@ test('a pinned favourite is listed, fills the composer when picked, and can be r
   await page.getByLabel('Favourite name').fill(name);
   await page.getByRole('button', { name: 'Save as a favourite' }).click();
 
-  // Pinning did not log anything: still on the composer, with nothing sent to the day.
   await expect(page.getByRole('heading', { name: 'Add a meal' })).toBeVisible();
 
   const pinned = await page.request.get(`${API}/meals/favourites`);
@@ -61,8 +47,6 @@ test('a pinned favourite is listed, fills the composer when picked, and can be r
 
   expect(items.map((favourite) => favourite.name)).toContain(name);
 
-  // Abandon this one without logging, and open a fresh composer to pick the favourite from
-  // scratch rather than from a screen that already holds its entries.
   await page.getByRole('button', { name: 'Cancel' }).click();
   await page.getByRole('button', { name: 'Add a meal' }).click();
 
@@ -70,14 +54,8 @@ test('a pinned favourite is listed, fills the composer when picked, and can be r
   await expect(row).toBeVisible();
   await expect(row.getByText(FAVOURITE_FOOD)).toBeVisible();
 
-  // Anchored so this cannot also match the "Remove {name} from favourites" button beside it,
-  // whose accessible name contains the same favourite name further in.
   await row.getByRole('button', { name: new RegExp(`^${name}`) }).click();
 
-  // Filled, not logged: the entry is in the meal being composed (scoped to that list, since the
-  // favourites row picked from names the same food, and the first match rather than the second
-  // because each row's own Remove button repeats the name in a screen reader only span) and the
-  // field is ready again, not a screen that has already returned to Today.
   await expect(
     page.getByRole('list', { name: 'In this meal' }).getByText(FAVOURITE_FOOD).first(),
   ).toBeVisible();
@@ -113,8 +91,6 @@ test('suggests the pre-selected meal type once something has been logged for it'
   const suggestion = page.getByRole('listitem').filter({ hasText: SUGGESTION_FOOD });
   await expect(suggestion).toBeVisible();
 
-  // Beside the most eaten foods it already shows, not over the field: the field this screen is
-  // built around is still the first thing under the thumb.
   const field = page.getByLabel('Add a food');
   await expect(field).toBeVisible();
   const fieldTop = (await field.boundingBox())?.y ?? Infinity;
@@ -142,8 +118,6 @@ test('favourites survive a reload with no network, the same as the food cache', 
   await page.getByRole('button', { name: 'Save as a favourite' }).click();
   await page.getByRole('button', { name: 'Cancel' }).click();
 
-  // Reloaded first, still online, so the device holds the server's own answer rather than only
-  // the optimistic one `pin` above already put in state.
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
 

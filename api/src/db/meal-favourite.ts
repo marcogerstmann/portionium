@@ -4,8 +4,6 @@ import { and, desc, eq, isNull, lt } from 'drizzle-orm';
 import type { Db } from './client.js';
 import { mealFavouriteTable } from './schema/index.js';
 
-/** Every query a favourite needs. Reads are always scoped to `userId`, favourites are private. */
-
 export type MealFavouriteRecord = typeof mealFavouriteTable.$inferSelect;
 
 export interface NewMealFavourite {
@@ -30,7 +28,6 @@ export interface MealFavouriteListFilters {
   type?: MealType | undefined;
 }
 
-/** A page of a caller's own favourites, newest first, the same convention listMeals follows. */
 export function listMealFavourites(
   db: Db,
   filters: MealFavouriteListFilters,
@@ -56,7 +53,6 @@ export function listMealFavourites(
     .all();
 }
 
-/** False when there was nothing live to delete, so deleting twice is a 404 rather than a 204. */
 export function softDeleteMealFavourite(db: Db, userId: string, id: string): boolean {
   return (
     db

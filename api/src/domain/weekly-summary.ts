@@ -4,30 +4,13 @@ import type { ColourCounts, LocalDate } from '@portionium/schemas';
 import { shareOf, type DailyColourStats } from './stats.js';
 import { changeOver, type WeightTrendDay } from './weight-trend.js';
 
-/**
- * POR-38: the two signals side by side, one row per ISO week, which is the entire thesis of the
- * product. This file does no querying and no trend maths of its own: it groups what POR-36's
- * `computeDailyColourStats` and POR-37's `computeWeightTrend` already produced into weeks, so
- * the endpoint stays the query POR-36 already made plus the trend calculation POR-37 already
- * made, not one of either per week.
- *
- * ISO week numbering comes from `Temporal.PlainDate`'s own `weekOfYear`/`yearOfWeek`, which are
- * already the ISO 8601 week date for the `iso8601` calendar this app uses throughout, so there
- * is no hand rolled week arithmetic here. And since every `local_date` this grouping reads is
- * already a user's calendar day, resolved once at write time (see local-date.ts), grouping it
- * by week is all that is needed for a week to respect the user's local dates too.
- */
-
 export const WEEKLY_SUMMARY = {
   /**
-   * Fewer logged days than this and a week is flagged sparse: a judgement call about coverage,
-   * not about the week itself, see WeeklySummaryWeek.sparse. Four is a majority of seven, the
-   * example the ticket itself gives, two logged days, sits well under it.
+   * Under four logged days of seven, a week is flagged sparse rather than read next to a full one.
    */
   sparseThresholdDays: 4,
 };
 
-/** A Monday to Sunday span and the ISO 8601 week number it is. */
 export interface IsoWeek {
   isoYear: number;
   isoWeek: number;
@@ -36,10 +19,7 @@ export interface IsoWeek {
 }
 
 /**
- * `weekOfYear`/`yearOfWeek` are typed optional because Temporal supports calendars that do not
- * number weeks. `iso8601` is the only calendar this app ever creates a PlainDate in (see
- * local-date.ts) and always numbers them, so an undefined pair here would mean the polyfill
- * changed calendars under us, not a date this function was ever meant to handle.
+ * Typed optional because Temporal supports calendars that do not number weeks; iso8601 always does.
  */
 function requireIsoWeek(date: Temporal.PlainDate): Pick<IsoWeek, 'isoYear' | 'isoWeek'> {
   const { yearOfWeek, weekOfYear } = date;
@@ -50,7 +30,6 @@ function requireIsoWeek(date: Temporal.PlainDate): Pick<IsoWeek, 'isoYear' | 'is
   return { isoYear: yearOfWeek, isoWeek: weekOfYear };
 }
 
-/** The Monday to Sunday span a Monday starts, numbered. The one place a week becomes an IsoWeek. */
 function weekFromMonday(monday: Temporal.PlainDate): IsoWeek {
   const end = monday.add({ days: 6 });
 
@@ -67,25 +46,10 @@ function mondayOf(date: LocalDate): Temporal.PlainDate {
   return current.subtract({ days: current.dayOfWeek - 1 });
 }
 
-/**
- * The ISO week one local date falls in.
- *
- * The weekly budget puts a second endpoint on this definition, so it is a function rather
- * than a convention two call sites happen to share: GET /stats/budget and GET /stats/weekly number
- * their weeks with the same code, and GET /days/{date} counts against the same span. They
- * cannot disagree about where a week starts because there is nowhere for them to disagree.
- *
- * `date` is a caller's own local date, never a UTC one, for the reason isoWeeksEnding gives.
- */
 export function isoWeekOf(date: LocalDate): IsoWeek {
   return weekFromMonday(mondayOf(date));
 }
 
-/**
- * `count` ISO weeks ending with the week `today` falls in, oldest first. `today` is the
- * caller's local date, not a UTC one, so the current week always includes today even when the
- * account is far enough from UTC that the server's own calendar date has already turned over.
- */
 export function isoWeeksEnding(today: LocalDate, count: number): IsoWeek[] {
   const currentMonday = mondayOf(today);
 
@@ -108,11 +72,6 @@ function sumCounts(days: readonly DailyColourStats[]): ColourCounts {
   );
 }
 
-/**
- * Signed, current minus previous week: negative is fewer this week, positive is more. Never a
- * percentage, since a week going from zero orange items to one is an infinite percentage change
- * and tells a reader nothing a percentage of a count this small ever does.
- */
 function diffCounts(current: ColourCounts, previous: ColourCounts): ColourCounts {
   return {
     green: current.green - previous.green,
@@ -122,8 +81,6 @@ function diffCounts(current: ColourCounts, previous: ColourCounts): ColourCounts
   };
 }
 
-/** The weight side of one week: the smoothed trend on its first and last day, and the same
- * weekly rate computeWeightTrend reports for any stretch, reused rather than redone. */
 export interface WeeklyWeightSummary {
   startGrams: number | null;
   endGrams: number | null;
@@ -148,23 +105,12 @@ function weeklyWeight(days: readonly WeightTrendDay[]): WeeklyWeightSummary {
 export interface WeeklySummaryWeek extends IsoWeek {
   counts: ColourCounts;
   share: ColourCounts;
-  /** How many of the week's days had anything logged at all. */
   daysLogged: number;
-  /** Too little logging behind the week's numbers to read it next to a full one. A fact about
-   * coverage, never a verdict on the week, see WEEKLY_SUMMARY.sparseThresholdDays. */
   sparse: boolean;
   weight: WeeklyWeightSummary;
   versusPreviousWeek: ColourCounts;
 }
 
-/**
- * One entry per week in `weeks`, oldest first, except the first element of `weeks` itself: that
- * one is expected to be one extra week before the first the caller wants back, present purely
- * so it in turn has something to compare against, and is consumed here rather than returned.
- * `dailyColours` and `weightDays` are expected to already cover every date `weeks` spans, which
- * is what POR-36's gap filling and POR-37's held-flat trend already guarantee, so this is
- * grouping, never a second query or a second trend calculation.
- */
 export function computeWeeklySummary(
   dailyColours: readonly DailyColourStats[],
   weightDays: readonly WeightTrendDay[],
@@ -195,9 +141,6 @@ export function computeWeeklySummary(
 
   return weekly.slice(1).map((week, index) => ({
     ...week,
-    // `weekly[index]` is the week directly before `week`, offset by the slice(1) above. Falls
-    // back to itself only if `weeks` was called with fewer than two entries, which the route
-    // never does; a guard rather than an assertion, same reasoning as computeDailyColourStats.
     versusPreviousWeek: diffCounts(week.counts, (weekly[index] ?? week).counts),
   }));
 }

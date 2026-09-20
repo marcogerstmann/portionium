@@ -3,7 +3,6 @@ name: CI
 on:
   push:
     branches: [main]
-    # A release. The image job below publishes on these and only on these.
     tags: ['v*']
   pull_request:
 
@@ -17,7 +16,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # Reads the pnpm version from the packageManager field, so it is pinned in one place.
       - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v5
@@ -33,17 +31,11 @@ jobs:
       - run: pnpm test
       - run: pnpm build
 
-      # Known vulnerabilities in what ships, read from the lockfile that was just installed.
-      #
-      # High and above only, and that threshold is the point rather than a compromise. A gate
-      # that fires on every moderate in a transitive dev dependency is a gate somebody starts
-      # passing with --no-verify and then stops reading, and most of those advisories are a
-      # regular expression that is slow on input this repository never sees. High and critical
-      # are the ones worth stopping a release for, and a moderate that actually matters is still
-      # in the output above, where somebody looks at it on purpose.
+      # High and above only: a gate that fires on every moderate in a transitive dev dependency
+      # is a gate people route around. Moderates are still in the output of the step above.
       - run: pnpm audit --audit-level high
 
-      # A green depcruise that cruised nothing enforces nothing. Fail loudly instead.
+      # A green depcruise that cruised nothing enforces nothing.
       - name: Assert dependency-cruiser actually saw the sources
         run: |
           modules=$(pnpm exec depcruise api/src packages/schemas/src web/src \
@@ -53,16 +45,8 @@ jobs:
           echo "modules cruised: $modules"
           test "$modules" -gt 0
 
-  # The client in a real browser, against the application as it is deployed: one API process
-  # serving the built bundle on its own origin, with a database created seconds earlier.
-  #
-  # Its own job rather than a step in `verify`, because it is the only thing here that downloads
-  # a browser, and because a red tick that says e2e is a different answer than one that says a
-  # unit test broke. Chromium alone: this is the harness proving itself and the app is one form,
-  # so a matrix over three engines would be three times the minutes to learn the same thing.
-  #
-  # The whole of the setup, the fresh database and the seeded account included, is in
-  # web/playwright.config.ts, so the command below is the one a developer runs too.
+  # The client in a real browser, against one API process serving the built bundle on its own
+  # origin. The setup is all in web/playwright.config.ts, so this is the command a developer runs.
   e2e:
     runs-on: ubuntu-latest
     steps:
@@ -74,13 +58,11 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
-      # --with-deps, because a GitHub runner has none of the shared libraries a browser needs.
+      # --with-deps: a runner has none of the shared libraries a browser needs.
       - run: pnpm --filter @portionium/web exec playwright install --with-deps chromium
 
       - run: pnpm --filter @portionium/web e2e
 
-      # The trace of a failure, which is the run in a browser somebody can step through rather
-      # than a stack trace they have to imagine a page from.
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -88,18 +70,8 @@ jobs:
           path: web/playwright-report/
           retention-days: 7
 
-  # The restore path, on every push. A backup that has never been restored is a hope, and this
-  # is the job the README points at when it claims otherwise.
-  #
-  # Its own job rather than a line in `verify`, for one reason: it is a named check somebody can
-  # look at and link to. "The restore is exercised on every push" is a sentence that has to be
-  # verifiable by a stranger in one click, and a step buried in a job called verify is not.
-  #
-  # What it runs is test/backup.test.ts, which seeds a database, backs it up through the
-  # documented command as a separate process, deletes the file along with its -wal and -shm,
-  # restores it through the documented command, and then checks the account, the meal, the
-  # foreign key behind it, the shipped catalog and the migration count. The commands are the
-  # runbook's, not a test harness of their own, so a broken command fails here.
+  # A backup that has never been restored is a hope. Its own job so the claim in the README is a
+  # named check a stranger can follow in one click. It runs the runbook's own commands.
   restore:
     runs-on: ubuntu-latest
     steps:
@@ -114,25 +86,14 @@ jobs:
       - name: Back up a seeded database, destroy it, restore it, check the records
         run: pnpm --filter @portionium/api exec vitest run test/backup.test.ts
 
-  # Every commit that has ever been on this branch, scanned for credentials.
-  #
-  # The whole history rather than the diff, because a secret is in the repository from the
-  # commit that added it until somebody rewrites history, and a later commit removing the line
-  # changes nothing about who can read it. On a repository that goes public that history goes
-  # with it, in every clone.
-  #
-  # Its own job, because it is the only thing here that needs an unshallow clone, and because a
-  # leaked credential is a different answer than a failing test: the first thing to do about it
-  # is rotate, see SECURITY.md, and the red tick should say which of the two happened.
-  #
-  # The binary rather than the marketplace action, which needs a licence key the day this moves
-  # into an organisation. The same scan runs in .githooks/pre-commit before a commit exists.
+  # The whole history rather than the diff: a later commit removing the line changes nothing
+  # about who can read it. The binary rather than the marketplace action, which needs a licence
+  # key in an organisation. The same scan runs in .githooks/pre-commit.
   secrets:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
         with:
-          # Every commit, and every branch tip, which is what the scan below reads.
           fetch-depth: 0
 
       - name: Scan the history for secrets
@@ -140,41 +101,31 @@ jobs:
           set -euo pipefail
           curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
             | tar -xz gitleaks
-          # --redact, so a finding does not become a second copy of the secret in a log that is
-          # public on a public repository and kept for months on a private one.
+          # --redact, so a finding does not become a second copy of the secret in the log.
           ./gitleaks git --redact --no-banner .
         env:
           GITLEAKS_VERSION: 8.30.1
 
-  # The image, built the way a deployment builds it and then actually started. A Dockerfile that
-  # compiles is not a Dockerfile that runs: the runtime stage ships @portionium/schemas compiled
-  # rather than as the source the rest of the repository reads, and nothing but booting the thing
-  # would notice if those two drifted apart.
+  # A Dockerfile that compiles is not a Dockerfile that runs: the runtime stage ships
+  # @portionium/schemas compiled, and only booting it would notice if that drifted.
   image:
     runs-on: ubuntu-latest
     needs: verify
     permissions:
       contents: read
-      # Only used on a tag, see the publish step.
       packages: write
     steps:
       - uses: actions/checkout@v5
 
-      # QEMU, for whichever half of a release this runner is not. A home deployment may be a
-      # Raspberry Pi or a Mac, so amd64 alone is half an answer.
-      #
-      # Emulation is the obvious thing to be afraid of here and it measured cheap: both
-      # architectures together took under two minutes locally, because better-sqlite3 is the
-      # only thing that compiles and it takes under a minute even emulated. Native runners per
-      # architecture and a manifest merge would be three times the workflow for that, so this
-      # stays one job until a release build is actually something you wait on.
+      # QEMU, for whichever half of a release this runner is not: a home deployment may be a
+      # Raspberry Pi. Emulated, both architectures build in under two minutes, so this stays one
+      # job rather than native runners and a manifest merge.
       - uses: docker/setup-qemu-action@v3
         if: startsWith(github.ref, 'refs/tags/v')
 
       - uses: docker/setup-buildx-action@v3
 
-      # One architecture, loaded into the local daemon, so the steps below can run it. Every
-      # push and every pull request, because this is the only thing that proves the image works.
+      # Loaded into the local daemon, so the steps below can actually run it.
       - name: Build for this machine
         uses: docker/build-push-action@v6
         with:
@@ -184,23 +135,13 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # The story asks for well under 200 MB and this is where that stops being an aspiration.
-      # Raising the number is allowed; doing it without noticing is not.
+      # 215 rather than 200: the image unpacks to 209 MiB, of which Node's own binary is 121 and
+      # the production tree is 63, so 200 is not reachable on the official Node 24 image. The
+      # limit sits just above where the image is, so it catches a regression.
       #
-      # 215 rather than 200, deliberately. The image unpacks to 209 MiB, of which Node's own
-      # binary is 121 and the production dependency tree is 63. Stripping the type declarations,
-      # the source maps and the documentation out of node_modules is worth about 8 MiB and there
-      # is nothing after that, so 200 is not reachable on the official Node 24 image at all. It
-      # is 75 MiB to pull, which is the number a deployment actually pays. This limit sits just
-      # above where the image is today, so it catches a regression rather than describing an
-      # ambition nobody can meet.
-      #
-      # Measured by reading the filesystem the image unpacks to, rather than by asking the
-      # daemon. `docker image inspect .Size` answers two different questions depending on how
-      # the daemon stores images: the uncompressed size on the classic overlay2 store that a
-      # runner uses, and the compressed size on the containerd store that Docker Desktop now
-      # enables by default. Asserting on that is a check that passes on a laptop and fails here
-      # for no reason anybody can see from the diff.
+      # Measured off the unpacked filesystem: `docker image inspect .Size` reports the
+      # uncompressed size on the classic store and the compressed size on the containerd one,
+      # so asserting on it passes on a laptop and fails on a runner.
       - name: Assert the image is small enough
         run: |
           limit=$(( LIMIT_MIB * 1024 * 1024 ))
@@ -210,8 +151,7 @@ jobs:
         env:
           LIMIT_MIB: 215
 
-      # The single command a stranger runs, minus the terminal. Started with no environment at
-      # all, so the defaults baked into the image are what is being tested.
+      # No environment at all, so the defaults baked into the image are what is tested.
       - name: Start it the way a first run does
         run: |
           docker run -d --name portionium -p 8080:3000 -v portionium-data:/data portionium:ci
@@ -225,26 +165,19 @@ jobs:
       - name: Check what it serves
         run: |
           set -euo pipefail
-          # The API, and the migrations and seed catalog that had to run before it answered.
           curl -fsS http://localhost:8080/health | grep -q '"status":"ok"'
-          # Readiness, which is also the only check that the migration journal shipped in the
-          # image and that the compiled process resolves it from dist/ rather than from src/.
+          # Also the only check that the migration journal shipped and resolves from dist/.
           curl -fsS http://localhost:8080/ready | grep -q '"status":"ready"'
-          # The client, on the same origin, including a route only the client knows about.
           curl -fsS http://localhost:8080/ | grep -qi '<html'
           curl -fsS http://localhost:8080/settings | grep -qi '<html'
-          # And a mistyped endpoint is still a problem document rather than that page.
           curl -sS -o /dev/null -w '%{http_code} %{content_type}\n' \
             http://localhost:8080/api/v1/nope | grep -q '^404 application/problem+json'
 
-      # The database is on the volume and not in the container's writable layer, which is the
-      # difference between a restart and a data loss.
+      # On the volume, not in the container's writable layer.
       - name: Check the database landed on the volume
         run: docker run --rm -v portionium-data:/data alpine ls /data/portionium.db
 
-      # And the image took its first backup on the way up, on the same volume. The `restore` job
-      # proves a backup restores; this proves an untouched container actually takes one, which is
-      # a different claim and is one ENV line in the Dockerfile away from being false.
+      # The `restore` job proves a backup restores; this proves an untouched container takes one.
       - name: Check it backed itself up without being asked
         run: |
           set -euo pipefail

@@ -2,16 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { ACCOUNTS } from '../playwright.config';
 
-/** This file's own account, so nothing another spec logs is visible here. See ACCOUNTS. */
 const ACCOUNT = ACCOUNTS.settings;
-
-/**
- * The settings screen, in a browser, against the real API. See POR-67.
- *
- * Two things here need a browser rather than a unit test: whether a rejected write reaches only
- * the field it belongs to, and what actually happens to the session after a password change,
- * both of which are exactly the two ways this screen is easy to get subtly wrong.
- */
 
 async function signIn(page: Page) {
   await page.goto('/');
@@ -36,15 +27,10 @@ test('shows the account and saves a changed display name on its own', async ({ p
   await expect(page.getByText(ACCOUNT.email)).toBeVisible();
 
   await page.getByLabel('Display name').fill('Zora');
-  // Exact, because this screen now carries a second saving control, the weekly limits' own
-  // "Save limits". A role name matches as a substring unless it is told not to, so the loose
-  // spelling started resolving to both the moment that section arrived.
   await page.getByRole('button', { name: 'Save', exact: true }).click();
 
   await expect(page.getByText('Zora', { exact: true })).toBeVisible();
 
-  // Written through, not only held on screen: a reload has nothing else to fall back to. The
-  // app always opens on Today, so getting back here is the same navigation as the first time.
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
   await page
@@ -62,7 +48,6 @@ test('a wrong current password is a field error, never a sign out', async ({ pag
   await page.getByRole('button', { name: 'Change password' }).click();
 
   await expect(page.getByText('The current password is incorrect.')).toBeVisible();
-  // Still here, not thrown back to the login screen a 401 would have caused, see ./api.ts.
   await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
 });
 
@@ -76,7 +61,6 @@ test('a correct password change ends every session and returns to sign in', asyn
 
   await expect(page.getByLabel('Email')).toBeVisible();
 
-  // The new credential is the one that works now, which is the claim being tested.
   await page.getByLabel('Email').fill(ACCOUNT.email);
   await page.getByLabel('Password').fill(newPassword);
   await page.getByRole('button', { name: 'Sign in' }).click();

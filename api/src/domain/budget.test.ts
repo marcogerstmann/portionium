@@ -4,11 +4,6 @@ import { describe, expect, it } from 'vitest';
 import { computeBudgetStatus } from './budget.js';
 import type { DateRangeEntry } from './stats.js';
 
-/**
- * The arithmetic behind the soft lock. The interesting cases are all about what the numbers are
- * allowed to be rather than about counting: null against zero, and a negative remaining.
- */
-
 const UNLIMITED: WeeklyBudgets = { green: null, yellow: null, orange: null };
 
 function entries(...categories: (DateRangeEntry['category'] | 'unclassified')[]): DateRangeEntry[] {
@@ -30,10 +25,6 @@ describe('computeBudgetStatus', () => {
     expect(status.orange).toEqual({ limit: 4, count: 1, remaining: 3 });
   });
 
-  /**
-   * The whole product principle in one assertion. Past the allowance is a negative number and
-   * nothing else: no flag, no clamp at zero, and nothing in the shape that reads as a verdict.
-   */
   it('lets remaining go negative rather than clamping or flagging it', () => {
     const status = computeBudgetStatus(entries('orange', 'orange', 'orange'), {
       ...UNLIMITED,
@@ -50,7 +41,6 @@ describe('computeBudgetStatus', () => {
     expect(status.green).toEqual({ limit: null, count: 2, remaining: null });
   });
 
-  /** Zero is an intention and null is the absence of one, so the two cannot collapse. */
   it('treats a limit of zero as none this week rather than as unlimited', () => {
     const status = computeBudgetStatus(entries('orange'), { ...UNLIMITED, orange: 0 });
 
@@ -58,10 +48,6 @@ describe('computeBudgetStatus', () => {
     expect(status.green).toEqual({ limit: null, count: 0, remaining: null });
   });
 
-  /**
-   * An entry nobody has judged yet has no colour to charge. Counting it towards one would make
-   * confirming a food in the review queue silently move a number about what was eaten.
-   */
   it('counts unclassified entries separately and charges them to no category', () => {
     const status = computeBudgetStatus(entries('unclassified', 'unclassified', 'green'), {
       green: 1,

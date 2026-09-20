@@ -88,7 +88,6 @@ describe('computeDailyColourStats', () => {
     );
 
     expect(stats[0]?.share).toEqual({ green: 2 / 3, yellow: 0, orange: 1 / 3, unclassified: 0 });
-    // A day of nothing but one unclassified entry is entirely unclassified, not a NaN.
     expect(stats[1]?.share).toEqual({ green: 0, yellow: 0, orange: 0, unclassified: 1 });
   });
 });

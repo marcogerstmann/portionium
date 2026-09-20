@@ -5,41 +5,21 @@ import { normalizeFoodName } from '../domain/food.js';
 import type { Db } from './client.js';
 import { entryTable, foodClassificationTable, foodTable } from './schema/index.js';
 
-/**
- * Every query the catalog needs.
- *
- * The catalog is shared, so unlike every other repository in this codebase these reads are not
- * filtered by owner: one entry for "Skyr" serves the whole instance, which is the point of a
- * single table, see docs/adr/006-single-foods-table.md. What is per user is the colour, so a
- * `userId` still goes into most of these, to decide which verdicts the caller is allowed to be
- * shown rather than which foods.
- *
- * Soft deleted foods never come back from anything here. A meal that names one keeps its row,
- * which is the reason a food in use cannot be deleted at all.
- *
- * The verdicts themselves are next door, in classification.ts. They are a separate log with a
- * separate rule about who may read which row, and keeping them out of here is what makes it
- * visible that the module holding them offers no way to update or delete one.
- */
-
 export type FoodRecord = typeof foodTable.$inferSelect;
 
 export interface NewFood {
   name: string;
   kind: FoodKind;
   energyDensity?: number | undefined;
-  /** Null for the entries that ship with the app. A shared catalog's seeds are nobody's. */
   createdBy: string | null;
 }
 
-/** Undefined means untouched, the same convention updateUserProfile uses. */
 export interface FoodChanges {
   name?: string | undefined;
   kind?: FoodKind | undefined;
 }
 
 export interface FoodListFilters {
-  /** Whose verdicts count, when `unclassified` asks whether there are any. */
   userId: string;
   limit: number;
   cursor?: string | undefined;
@@ -47,14 +27,6 @@ export interface FoodListFilters {
   unclassified?: boolean | undefined;
 }
 
-/**
- * The verdicts on one food that this user is allowed to see: the shared ones and their own.
- * Correlated with the outer query, so it can be asked as an existence test without a join that
- * would multiply rows.
- *
- * Exported for db/unclassified.ts, which asks the same existence question over the whole
- * catalog rather than one page of it.
- */
 export function visibleClassifications(db: Db, userId: string) {
   return db
     .select({ present: sql`1` })
@@ -67,19 +39,6 @@ export function visibleClassifications(db: Db, userId: string) {
     );
 }
 
-/**
- * A page of the catalog, oldest id first.
- *
- * Ascending rather than newest first, which is what the lists of a user's own rows do. Those
- * are a feed and the interesting end is the recent one; this is a catalog, where the seeded
- * entries are the ones somebody browsing wants first and a new entry belongs at the back.
- * Either way ids are UUIDv7, so the id both orders the page and addresses the next one.
- *
- * `unclassified` is answered in SQL rather than by resolving a page and filtering it. The four
- * classification sources are exactly the three buckets resolveClassification looks in, so "no
- * verdict resolves for this user" and "no verdict is visible to this user" are the same
- * question, and asking the cheap one keeps a page of fifty a page of fifty.
- */
 export function listFoods(db: Db, filters: FoodListFilters): FoodRecord[] {
   const conditions = [isNull(foodTable.deletedAt)];
 
@@ -110,18 +69,6 @@ export function findFoodById(db: Db, id: string): FoodRecord | undefined {
     .get();
 }
 
-/**
- * The entry this name already refers to, if there is one.
- *
- * Matched on the normalised form of both sides, in JavaScript, which means reading the live
- * catalog to do it. That is deliberate: SQLite's `lower()` is ASCII only without ICU, so a
- * comparison done in SQL would file `Müsli` and `MÜSLI` as two foods, and no index expression
- * can collapse the run of spaces in `Peanut  Butter` either. See normalizeFoodName.
- *
- * ponytail: linear over the live catalog, which is a few hundred rows and is read once per
- * create. If the catalog reaches a size where that shows up, store the normalised form in its
- * own indexed column and backfill it at boot, in JavaScript, for the same reason as above.
- */
 export function findFoodByName(db: Db, name: string): FoodRecord | undefined {
   const target = normalizeFoodName(name);
 
@@ -137,10 +84,6 @@ export function insertFood(db: Db, food: NewFood): FoodRecord {
   return db.insert(foodTable).values(food).returning().get();
 }
 
-/**
- * Name and kind, and deliberately nothing else. A colour is a verdict with an author and is
- * written as a classification row, so there is no field here that could carry one.
- */
 export function updateFood(db: Db, id: string, changes: FoodChanges): FoodRecord | undefined {
   if (Object.values(changes).every((value) => value === undefined)) {
     return findFoodById(db, id);
@@ -154,7 +97,6 @@ export function updateFood(db: Db, id: string, changes: FoodChanges): FoodRecord
     .get();
 }
 
-/** False when there was nothing live to delete, so deleting twice is a 404 rather than a 204. */
 export function softDeleteFood(db: Db, id: string): boolean {
   return (
     db
@@ -166,15 +108,6 @@ export function softDeleteFood(db: Db, id: string): boolean {
   );
 }
 
-/**
- * Which of these ids are live entries in the catalog, as a set for an O(1) membership check.
- *
- * One query for a whole meal's worth of entries, so a request naming a dozen foods costs the same
- * as one naming a single food, and the caller is left to say which of the ids it asked about
- * were missing rather than just that some were. See createMeal's caller in
- * api/src/http/routes/meals.ts, which is what turns the gap into a clear validation problem
- * instead of the foreign key constraint failing the insert with a 500.
- */
 export function findExistingFoodIds(db: Db, ids: readonly string[]): Set<string> {
   if (ids.length === 0) {
     return new Set();
@@ -189,15 +122,6 @@ export function findExistingFoodIds(db: Db, ids: readonly string[]): Set<string>
   return new Set(rows.map((row) => row.id));
 }
 
-/**
- * These ids as live catalog rows, for a caller that needs the entries themselves rather than
- * just which of them exist. One query for a whole day's worth of entries, the same shape and the
- * same reason findExistingFoodIds is one, see GET /days/{date} in
- * api/src/http/routes/meals.ts, which reads a day's food names with it.
- *
- * The order is the caller's, not the database's: a day lists its foods in the order its entries
- * first name them, and an `IN` clause has no order of its own to rely on.
- */
 export function findFoodsByIds(db: Db, ids: readonly string[]): FoodRecord[] {
   if (ids.length === 0) {
     return [];
@@ -218,11 +142,6 @@ export function findFoodsByIds(db: Db, ids: readonly string[]): FoodRecord[] {
   });
 }
 
-/**
- * How many entries name this food. Soft deleted meals are counted too: their entries are still
- * rows pointing here, and a meal that can be looked at in a history is a meal whose foods have
- * to still resolve.
- */
 export function countMealsUsingFood(db: Db, foodId: string): number {
   return (
     db.select({ value: count() }).from(entryTable).where(eq(entryTable.foodId, foodId)).get()

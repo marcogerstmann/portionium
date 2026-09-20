@@ -40,7 +40,6 @@ describe('rankMealSuggestions', () => {
   });
 
   it('lets a composition nobody eats anymore fade behind a newer habit', () => {
-    // Eaten twice, two months ago, and never since, versus eaten twice in the last week.
     const abandoned = [meal('old1', 60, ['oats']), meal('old2', 65, ['oats'])];
     const current = [meal('new1', 1, ['skyr']), meal('new2', 6, ['skyr'])];
 

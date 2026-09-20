@@ -3,14 +3,6 @@ import { describe, expect, it } from 'vitest';
 
 import { loggerOptions } from './logging.js';
 
-/**
- * Redaction and the request line, through a real Fastify logger writing to a stream this test
- * can read. Not by inspecting the path list: a list is only worth something if fast-redact
- * actually matches on it, and a path spelled slightly wrong matches nothing and fails silently,
- * which is the one way this could be wrong in production while looking right in a diff.
- */
-
-/** Collects whatever the logger writes, as parsed lines. */
 function capture() {
   const lines: Record<string, unknown>[] = [];
 
@@ -28,7 +20,6 @@ function capture() {
   return { app, lines };
 }
 
-/** Logs one object through that logger and gives back what was written. */
 function logged(line: Record<string, unknown>): Record<string, unknown> {
   const { app, lines } = capture();
   app.log.info(line, 'test');
@@ -80,11 +71,6 @@ describe('redaction', () => {
 });
 
 describe('what a request writes', () => {
-  /**
-   * The five fields the story asks for, and the point of the `res` serializer: Fastify logs the
-   * status and the duration on one line and the URL on another, so without it the line somebody
-   * greps for, the one carrying the status, does not say what it was a response to.
-   */
   it('carries the method, path, status, duration and request id on the finished line', async () => {
     const { app, lines } = capture();
     app.get('/thing', () => ({ ok: true }));
@@ -116,11 +102,6 @@ describe('what a request writes', () => {
     expect(ids.size).toBe(1);
   });
 
-  /**
-   * Fastify's own request serializer logs no headers at all, which is what keeps the session
-   * cookie and the bearer token out of the log. Asserted rather than assumed, because it is a
-   * default somebody could replace with a serializer of their own.
-   */
   it('logs no headers, so a credential never reaches a log file by accident', async () => {
     const { app, lines } = capture();
     app.get('/thing', () => ({ ok: true }));

@@ -26,39 +26,6 @@ import {
   timestampSchema,
 } from './primitives.js';
 
-/**
- * What crosses the wire. These live beside the entity schemas rather than in the API, so the
- * web client parses a response with the exact definition the server produced it from. A field
- * that is renamed or dropped breaks the typecheck on both sides in the same commit.
- *
- * Requests carry only what the caller supplies. Ids, timestamps and the owning user are the
- * server's to assign, so they are absent here by construction rather than by convention.
- *
- * Every request schema is strict. A property nobody declared is a mistake, a renamed field or
- * a client built against a different version, and answering 200 to it is how that mistake
- * reaches production dressed as working code. The test beside this file checks that every
- * schema named `*RequestSchema` is strict, and api/test/http/app.test.ts checks that the
- * HTTP layer turns the resulting issue into a 400 rather than a quiet 200.
- */
-
-/**
- * Paging, written down once for every list this API will ever serve, before the first one
- * exists. Two parameters, `limit` and `cursor`, and one envelope.
- *
- * Cursor based rather than offset based. An offset addresses rows by position, so a row
- * inserted or removed while somebody is paging shifts everything after it and the client sees
- * an entry twice or misses one entirely. Meals and weight entries come back newest first and
- * are written continuously, which is exactly the case an offset gets wrong.
- *
- * A cursor is opaque and the only correct thing a client can do with one is send it back. What
- * it contains is the endpoint's business: ids here are UUIDv7 and therefore already sort by
- * creation time, so in practice it is the last id of the page. There is deliberately no encode
- * or decode helper here, because nothing issues a cursor yet and a helper written now would be
- * a guess that the first real endpoint has to work around.
- *
- * `nextCursor` is null on the last page rather than absent, so a client has one check for
- * "there is more" instead of two.
- */
 export const paginationQuerySchema = z.strictObject({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   cursor: z.string().min(1).optional(),
@@ -66,23 +33,10 @@ export const paginationQuerySchema = z.strictObject({
 
 export type PaginationQuery = z.infer<typeof paginationQuerySchema>;
 
-/**
- * A page of anything. A function rather than a constant, so the item type survives into the
- * response type a route is inferred from.
- */
 export function pageSchema<T extends z.ZodType>(item: T) {
   return z.object({ items: z.array(item), nextCursor: z.string().nullable() });
 }
 
-/**
- * Adding to the catalog. `kind` is optional and defaults to `ingredient`, because the moment a
- * food is created is the moment somebody is halfway through logging a meal, and a required
- * label that nothing branches on would be a question asked at the worst possible time.
- *
- * There is no `category` here, and there is not one on the update either. A colour is a verdict
- * with a source and an author, so it is written through the classification endpoint and never
- * as a field on the food. See docs/adr/006-single-foods-table.md.
- */
 export const createFoodRequestSchema = foodSchema
   .pick({ name: true, energyDensity: true })
   .extend({ kind: foodKindSchema.default('ingredient') })
@@ -90,11 +44,6 @@ export const createFoodRequestSchema = foodSchema
 
 export type CreateFoodRequest = z.infer<typeof createFoodRequestSchema>;
 
-/**
- * Editing one. Both fields optional, so a client sends the one it is changing rather than
- * writing back a whole entry it read a minute ago. An empty body is a no-op, not a 400: it
- * asks for nothing and gets the entry as it stands.
- */
 export const updateFoodRequestSchema = foodSchema
   .pick({ name: true, kind: true })
   .partial()
@@ -102,14 +51,6 @@ export const updateFoodRequestSchema = foodSchema
 
 export type UpdateFoodRequest = z.infer<typeof updateFoodRequestSchema>;
 
-/**
- * Browsing it. `kind` narrows to one label, `unclassified` narrows to the entries that resolve
- * to no colour for whoever is asking, which is the caller's own backlog rather than a global
- * one: two users looking at the same catalog see different entries here.
- *
- * A query string only ever carries strings, so the flag goes through `z.stringbool` rather than
- * `z.boolean`, which would reject the `?unclassified=true` every client actually sends.
- */
 export const foodListQuerySchema = paginationQuerySchema.extend({
   kind: foodKindSchema.optional(),
   unclassified: z.stringbool().optional(),
@@ -117,19 +58,6 @@ export const foodListQuerySchema = paginationQuerySchema.extend({
 
 export type FoodListQuery = z.infer<typeof foodListQuerySchema>;
 
-/**
- * Searching it. `q` is what somebody has typed so far, so it is matched loosely: inside a word,
- * across a space, and through a single typo. What that means exactly is api/src/domain/food-search.ts.
- *
- * An empty `q` is the default rather than a 400, and it is why the field has one. An
- * autocomplete is focused before it is typed into, and the useful answer at that moment is the
- * caller's own most eaten foods, which is a result the same endpoint can give.
- *
- * There is no cursor here and results are not a page. A ranked list is only meaningful from the
- * top, the interesting part of it is the first handful, and a second page of increasingly
- * unlikely guesses is not something a search box asks for. `limit` is smaller than the
- * catalog's for the same reason: a dropdown nobody scrolls.
- */
 export const foodSearchQuerySchema = z.strictObject({
   q: z.string().max(200).default(''),
   limit: z.coerce.number().int().min(1).max(50).default(20),
@@ -138,54 +66,24 @@ export const foodSearchQuerySchema = z.strictObject({
 export type FoodSearchQuery = z.infer<typeof foodSearchQuerySchema>;
 
 export const createMealRequestSchema = z.strictObject({
-  /**
-   * Absent means the server mints one. Present is what lets a meal logged offline keep the id
-   * it was given on the device: the client generates a UUIDv7 the moment somebody logs it, and
-   * syncing later is handing the server that same id rather than asking for a new one. An id
-   * that already belongs to a row is refused rather than silently overwriting it, see
-   * insertMeal in api/src/db/meal.ts.
-   */
   id: idSchema.optional(),
   type: mealTypeSchema,
-  /** Absent means now. The server stamps it and derives the local date from it. */
   loggedAt: timestampSchema.optional(),
   notes: mealSchema.shape.notes,
-  /**
-   * Order is meaning: the position stored on each entry is this array's index. There is no
-   * `.min(1)` here on purpose, an empty meal is a domain invariant rather than a shape error,
-   * and it is rejected with a typed error by createMeal in api/src/domain/meal.ts. Absent has
-   * the same meaning as empty, which is what lets a request name `fromMealId` instead.
-   */
+  /** Order is meaning: the position stored on each entry is this array's index. */
   entries: z.array(entryInputSchema).optional(),
-  /**
-   * Copies another meal's entries into this one instead of listing them again: the "repeat this"
-   * and "log this suggestion" flows both end up here rather than each inventing its own way to
-   * resend an entry list the server already has. Mutually exclusive with `entries`, see POST
-   * /meals in api/src/http/routes/meals.ts, which is where that is enforced.
-   *
-   * It is a fresh write and not a copy of the old colours: an entry naming a food takes that
-   * food's colour as it stands now, a bare one keeps the colour it was logged with.
-   */
   fromMealId: idSchema.optional(),
 });
 
 export type CreateMealRequest = z.infer<typeof createMealRequestSchema>;
 
-/**
- * One entry on its way out, carrying the colour it was logged with rather than one resolved for
- * this request. An entry's colour and its food's current colour can differ, and this is the one
- * a client renders, see docs/adr/011-an-entry-is-a-colour.md.
- */
 export const entryResponseSchema = entrySchema.omit({ mealId: true });
 
 export type EntryResponse = z.infer<typeof entryResponseSchema>;
 
 /**
- * `loggedAt` is re-typed rather than inherited from mealSchema. timestampSchema is a one way
- * transform, built to turn a string or a Date arriving on a request into a Date the domain
- * works with; asked to run the other way, in a response, it throws. Every instant that leaves
- * this API over HTTP is a plain ISO string for that reason, see foodClassificationResponseSchema
- * and toMealResponse in api/src/http/routes/meals.ts, which is where the Date becomes one.
+ * `loggedAt` is re-typed rather than inherited: timestampSchema accepts a Date, and this is the
+ * wire, which carries a string.
  */
 export const mealResponseSchema = mealSchema.omit({ loggedAt: true }).extend({
   loggedAt: z.iso.datetime(),
@@ -194,14 +92,6 @@ export const mealResponseSchema = mealSchema.omit({ loggedAt: true }).extend({
 
 export type MealResponse = z.infer<typeof mealResponseSchema>;
 
-/**
- * Browsing a caller's own meals. Newest first, like every feed of a user's own rows, which is
- * why the cursor here means "older than this" rather than foodListQuerySchema's "after this":
- * see listMeals in api/src/db/meal.ts.
- *
- * `from` and `to` are local dates rather than instants, because a day is what a client filters
- * by, "yesterday" or "this week", and a local date is the column meals are already grouped by.
- */
 export const mealListQuerySchema = paginationQuerySchema.extend({
   type: mealTypeSchema.optional(),
   from: localDateSchema.optional(),
@@ -210,18 +100,6 @@ export const mealListQuerySchema = paginationQuerySchema.extend({
 
 export type MealListQuery = z.infer<typeof mealListQuerySchema>;
 
-/**
- * Editing one. Every field optional, the same convention updateProfileRequestSchema follows: a
- * client sends what it is changing and an absent field is a field nobody touched.
- *
- * `entries` is the exception to that reading. Left out, the meal's current entries stand; sent,
- * it replaces the whole list, position and all, which is what lets one PATCH add, remove and
- * reorder entries instead of three separate verbs. An empty array is let through here for the
- * same reason createMealRequestSchema lets one through: leaving a meal with no entries is a
- * domain invariant, not a shape error, see applyMealChanges in api/src/domain/meal.ts.
- *
- * Every entry it names is stamped afresh, the same as a create: a replaced list is a new write.
- */
 export const updateMealRequestSchema = z.strictObject({
   type: mealTypeSchema.optional(),
   loggedAt: timestampSchema.optional(),
@@ -231,15 +109,6 @@ export const updateMealRequestSchema = z.strictObject({
 
 export type UpdateMealRequest = z.infer<typeof updateMealRequestSchema>;
 
-/**
- * One entry of a suggestion or a favourite. Unlike a logged entry's, this colour is resolved for
- * whoever asked, because a composition is a preset rather than history: it says what logging
- * this again would give you now, see docs/adr/011-an-entry-is-a-colour.md.
- *
- * `foodName` is what makes this renderable without a lookup per entry, the same reasoning
- * GET /days/{date} already applies to its own `foods` list. It exists exactly when `foodId`
- * does: a bare colour names no food and so has nothing to call it.
- */
 export const mealCompositionEntryResponseSchema = z.object({
   foodId: idSchema.optional(),
   foodName: foodSchema.shape.name.optional(),
@@ -249,13 +118,6 @@ export const mealCompositionEntryResponseSchema = z.object({
 
 export type MealCompositionEntryResponse = z.infer<typeof mealCompositionEntryResponseSchema>;
 
-/**
- * Asking what to log again. `type` narrows to one meal type because a suggestion only makes
- * sense in the context a client is logging in, breakfast suggestions while logging breakfast.
- * `limit` is small and capped low: a caller's distinct compositions for one meal type are a
- * handful, this is a shortlist to tap from and not a page to browse, see foodSearchQuerySchema
- * for the same reasoning applied to a search box instead of a shortlist.
- */
 export const mealSuggestionsQuerySchema = z.strictObject({
   type: mealTypeSchema,
   limit: z.coerce.number().int().min(1).max(20).default(5),
@@ -263,15 +125,6 @@ export const mealSuggestionsQuerySchema = z.strictObject({
 
 export type MealSuggestionsQuery = z.infer<typeof mealSuggestionsQuerySchema>;
 
-/**
- * One frequently logged composition, ranked ahead of the response: the array order is the
- * suggestion order, there is no score on the wire to sort by because there is nothing correct a
- * client could do with one beyond what the order already says.
- *
- * `mealId` is the most recent meal this composition came from, and is what a client hands back
- * as `fromMealId` on POST /meals to log it in the one tap POR-33 asks for, rather than resending
- * the entry list it was just given.
- */
 export const mealSuggestionResponseSchema = z.object({
   mealId: idSchema,
   entries: z.array(mealCompositionEntryResponseSchema),
@@ -279,40 +132,24 @@ export const mealSuggestionResponseSchema = z.object({
 
 export type MealSuggestionResponse = z.infer<typeof mealSuggestionResponseSchema>;
 
-/**
- * Pinning one. `entries` is held to the same shape createMealRequestSchema's is and to the same
- * domain invariant, no empty list, enforced by validateFavouriteEntries in
- * api/src/domain/meal.ts rather than here for the reason that comment gives.
- */
 export const createFavouriteRequestSchema = mealFavouriteSchema
   .pick({ name: true, type: true, entries: true })
   .strict();
 
 export type CreateFavouriteRequest = z.infer<typeof createFavouriteRequestSchema>;
 
-/**
- * A favourite on its way out. `userId` is dropped, favourites are private so it is always the
- * caller's own, and `entries` carries the resolved colour the same reason a suggestion's does:
- * so a preview renders from this response alone.
- */
 export const favouriteResponseSchema = mealFavouriteSchema
   .omit({ userId: true, createdAt: true, entries: true })
   .extend({ entries: z.array(mealCompositionEntryResponseSchema) });
 
 export type FavouriteResponse = z.infer<typeof favouriteResponseSchema>;
 
-/** Browsing a caller's own favourites, newest first, the same convention every other list follows. */
 export const favouriteListQuerySchema = paginationQuerySchema.extend({
   type: mealTypeSchema.optional(),
 });
 
 export type FavouriteListQuery = z.infer<typeof favouriteListQuerySchema>;
 
-/**
- * How many of a day's entries landed in each colour, including the ones nobody has judged yet.
- * Counted over entries rather than meals, since an entry is a colour and one meal usually
- * carries more than one.
- */
 export const colourCountsSchema = z.object({
   green: z.int().nonnegative(),
   yellow: z.int().nonnegative(),
@@ -322,70 +159,30 @@ export const colourCountsSchema = z.object({
 
 export type ColourCounts = z.infer<typeof colourCountsSchema>;
 
-/**
- * A catalog entry on its way out, with the colour resolved for whoever asked for it. There is
- * no raw global category anywhere in this API: `category` is always the answer to "what colour
- * is this for you", which for two people in one household is two different answers.
- *
- * Null rather than absent, because a food with no verdict yet is a state the client renders
- * rather than a field it has to feel around for. Logging one is always allowed, see
- * docs/adr/006-single-foods-table.md.
- *
- * `createdAt` is dropped rather than converted, for the reason userResponseSchema states:
- * timestampSchema parses an instant and cannot encode one, so a response carrying it would
- * serialise to a 500. Nothing about a catalog entry needs the minute it was added.
- */
 export const foodResponseSchema = foodSchema
   .omit({ createdAt: true })
   .extend({ category: categorySchema.nullable() });
 
 export type FoodResponse = z.infer<typeof foodResponseSchema>;
 
-/**
- * Why a food is the colour it is: which verdict won, where it came from, and what the model was
- * unsure about if a model produced it.
- *
- * `foodId` and `userId` are dropped. The first is in the URL that fetched this, and the second
- * is either absent or the caller, since resolution never looks at anybody else's rows: `source`
- * already says whether this verdict is the caller's own, a model's, or the one that shipped.
- */
 export const foodClassificationResponseSchema = foodClassificationSchema
   .omit({ foodId: true, userId: true, createdAt: true })
   .extend({ createdAt: z.iso.datetime() });
 
 export type FoodClassificationResponse = z.infer<typeof foodClassificationResponseSchema>;
 
-/**
- * Overriding a food's colour. `category` is the verdict, `reasoning` is why, the same field a
- * model's own verdict carries it under, and it is optional for the same reason a model's is not
- * required to guess right: not every disagreement needs a sentence attached to it.
- *
- * There is no `source` and no `userId` here. Both are the server's to assign: the endpoint
- * that accepts this is what makes the source `user`, and the caller in `request.auth` is the
- * only place a user id for a write ever comes from. See docs/adr/007-append-only-classification-log.md.
- */
 export const createClassificationRequestSchema = foodClassificationSchema
   .pick({ category: true, reasoning: true })
   .strict();
 
 export type CreateClassificationRequest = z.infer<typeof createClassificationRequestSchema>;
 
-/** One entry, with the provenance of the colour beside the colour. Null when there is none. */
 export const foodDetailResponseSchema = foodResponseSchema.extend({
   classification: foodClassificationResponseSchema.nullable(),
 });
 
 export type FoodDetailResponse = z.infer<typeof foodDetailResponseSchema>;
 
-/**
- * The human-in-the-loop queue, see POR-30 and docs/adr/007-append-only-classification-log.md.
- * Not a page: like foodSearchQuerySchema, this is ranked rather than sorted by id, by how often
- * the caller eats each entry, and a ranking is only meaningful from the top.
- *
- * `minConfidence` widens the queue past "no colour at all" to include a food the AI already
- * guessed at but not confidently enough to stand on its own, so a user can review a shaky
- * suggestion instead of only ever seeing a blank.
- */
 export const unclassifiedFoodsQuerySchema = z.strictObject({
   minConfidence: z.coerce.number().min(0).max(1).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
@@ -393,19 +190,12 @@ export const unclassifiedFoodsQuerySchema = z.strictObject({
 
 export type UnclassifiedFoodsQuery = z.infer<typeof unclassifiedFoodsQuerySchema>;
 
-/** The badge count is the same query, minus the limit nobody asked a counter for. */
 export const unclassifiedCountQuerySchema = unclassifiedFoodsQuerySchema.pick({
   minConfidence: true,
 });
 
 export type UnclassifiedCountQuery = z.infer<typeof unclassifiedCountQuerySchema>;
 
-/**
- * One queue entry. There is no `category` here, unlike foodResponseSchema's: nothing in this
- * list resolves to a confirmed colour by definition, so there is no field a client could
- * mistake for one. `suggestion` is the AI's pending opinion where one exists, null for a food
- * nobody, human or model, has said anything about yet.
- */
 export const unclassifiedFoodResponseSchema = foodResponseSchema
   .omit({ category: true })
   .extend({ suggestion: foodClassificationResponseSchema.nullable() });
@@ -416,11 +206,6 @@ export const unclassifiedCountResponseSchema = z.object({ count: z.int().nonnega
 
 export type UnclassifiedCountResponse = z.infer<typeof unclassifiedCountResponseSchema>;
 
-/**
- * Confirming several at once, so reviewing ten items is one round trip rather than ten PUTs.
- * Capped well below SQLite's parameter limit; a queue nobody works through fifty rows of at a
- * time.
- */
 export const bulkClassifyItemSchema = z.strictObject({
   foodId: idSchema,
   category: categorySchema,
@@ -435,11 +220,6 @@ export const bulkClassifyRequestSchema = z.strictObject({
 
 export type BulkClassifyRequest = z.infer<typeof bulkClassifyRequestSchema>;
 
-/**
- * One item's outcome. `status` is `not_found` rather than the whole request failing when one
- * food in the batch was deleted between the queue being fetched and being confirmed, which is
- * what "partially fault tolerant" means here: the other nine still go through.
- */
 export const bulkClassifyResultSchema = z.object({
   foodId: idSchema,
   status: z.enum(['confirmed', 'not_found']),
@@ -455,43 +235,29 @@ export const bulkClassifyResponseSchema = z.object({
 export type BulkClassifyResponse = z.infer<typeof bulkClassifyResponseSchema>;
 
 /**
- * Kilograms on the wire, grams in the database. Nobody types their weight in grams, and no
- * arithmetic should be done in a unit a user typed, so the conversion happens here, once, at
- * the point where the number stops being input and starts being data.
- *
- * The upper bound is not a plausibility check, it is what keeps `weightKg * 1000` finite.
- * Whether a reading is believable depends on the readings around it, see
- * api/src/domain/weight.ts.
+ * Kilograms on the wire, whole grams in the database. The boundary conversion happens here and in
+ * toWeightEntryResponse.
  */
 export const createWeightEntryRequestSchema = z
   .strictObject({
     weightKg: z.number().positive().max(1000),
-    /** Absent means now. */
     recordedAt: timestampSchema.optional(),
   })
   .transform(({ weightKg, ...rest }) => ({ ...rest, weightGrams: Math.round(weightKg * 1000) }));
 
 export type CreateWeightEntryRequest = z.infer<typeof createWeightEntryRequestSchema>;
 
-/** `recordedAt` re-typed for the same reason mealResponseSchema's `loggedAt` is, see there. */
 export const weightEntryResponseSchema = weightEntrySchema
   .omit({ weightGrams: true, recordedAt: true })
   .extend({ weightKg: z.number().positive(), recordedAt: z.iso.datetime() });
 
 export type WeightEntryResponse = z.infer<typeof weightEntryResponseSchema>;
 
-/** The other half of the boundary conversion. The only place grams turn back into kilograms. */
 export function toWeightEntryResponse(entry: WeightEntry): WeightEntryResponse {
   const { weightGrams, recordedAt, ...rest } = entry;
   return { ...rest, weightKg: weightGrams / 1000, recordedAt: recordedAt.toISOString() };
 }
 
-/**
- * Browsing a caller's own weight, newest first, the same convention mealListQuerySchema
- * follows: see listWeightEntries in api/src/db/weight.ts. `from` and `to` are local dates for
- * the same reason meals filters by them, a day is what somebody filters by and it is the
- * column weight is already grouped by.
- */
 export const weightListQuerySchema = paginationQuerySchema.extend({
   from: localDateSchema.optional(),
   to: localDateSchema.optional(),
@@ -499,44 +265,15 @@ export const weightListQuerySchema = paginationQuerySchema.extend({
 
 export type WeightListQuery = z.infer<typeof weightListQuerySchema>;
 
-/**
- * What POST /weight answers with, weightEntryResponseSchema plus the one field a plain read
- * never carries: whether this reading looked like an implausible jump from the nearest one on
- * record. Null when it was unremarkable. Never blocks the write, see createWeightEntry in
- * api/src/domain/weight.ts.
- */
 export const weightEntryCreateResponseSchema = weightEntryResponseSchema.extend({
   warning: z.string().nullable(),
 });
 
 export type WeightEntryCreateResponse = z.infer<typeof weightEntryCreateResponseSchema>;
 
-/**
- * A weekly allowance per category, and where a week stands against it.
- *
- * The allowance is a soft lock and the word is load bearing. Nothing here is ever enforced:
- * logging succeeds at any count, there is no warning field, no streak, no flag, and no
- * judgement word like "exceeded" anywhere in these shapes. The API answers with numbers and
- * lets the client decide what, if anything, to say about them.
- */
-
-/**
- * One category's allowance, or `null` for unlimited.
- *
- * Null and zero are different answers and both are storable. Null is "no intention recorded",
- * which is the default for every category and what green is expected to stay. Zero is an
- * intention: none of this colour this week. Conflating them is the one mistake this field
- * exists to make impossible, which is why it is nullable rather than defaulted to a large
- * number nobody chose.
- */
+/** Null is unlimited and zero is an allowance of none, so the two cannot collapse. */
 export const weeklyBudgetLimitSchema = z.int().nonnegative().nullable();
 
-/**
- * The allowance for all three, as `GET /me/budgets` answers it. Every category is present,
- * carrying `null` when it is unlimited, so a client reads three keys rather than feeling around
- * for which ones exist. Green is uniform with the other two here rather than special cased: it
- * is expected to stay null in practice, and that is a user's choice rather than a schema's.
- */
 export const weeklyBudgetsSchema = z.object({
   green: weeklyBudgetLimitSchema,
   yellow: weeklyBudgetLimitSchema,
@@ -545,30 +282,10 @@ export const weeklyBudgetsSchema = z.object({
 
 export type WeeklyBudgets = z.infer<typeof weeklyBudgetsSchema>;
 
-/**
- * Setting them. Every field optional, the same convention updateProfileRequestSchema follows
- * and for the same reason: absent is untouched, so a client sends the one category it is
- * changing instead of writing back the two it read a minute ago.
- *
- * `null` is therefore not "untouched" here either. It is the choice to go back to unlimited,
- * exactly as it is for `locale`. Untouched is the key being absent altogether.
- */
 export const updateBudgetsRequestSchema = weeklyBudgetsSchema.partial().strict();
 
 export type UpdateBudgetsRequest = z.infer<typeof updateBudgetsRequestSchema>;
 
-/**
- * Where one category stands this week: what was asked for, what was logged, and the difference.
- *
- * `remaining` goes negative once the count passes the limit, and stays a plain number when it
- * does. Clamping it at zero would throw away the one number somebody past their allowance
- * actually wants, and a separate boolean saying they are over would be the judgement this
- * feature exists not to make.
- *
- * With no limit set, `limit` and `remaining` are both null and `count` still counts. Never a
- * made up ceiling: a client that wants to draw a bar needs to know there is nothing to draw it
- * against, and `Infinity` does not survive JSON.
- */
 export const budgetCategoryStatusSchema = z.object({
   limit: weeklyBudgetLimitSchema,
   count: z.int().nonnegative(),
@@ -577,15 +294,6 @@ export const budgetCategoryStatusSchema = z.object({
 
 export type BudgetCategoryStatus = z.infer<typeof budgetCategoryStatusSchema>;
 
-/**
- * All three categories against their allowances, plus the entries no allowance can apply to.
- *
- * `unclassified` is a bare count and carries no limit of its own. An entry nobody has judged
- * yet has no colour to charge, and silently charging it to one would make the review queue
- * change a number it has nothing to do with. It is reported rather than dropped because a week
- * whose counts look low because half of it is grey is a different week from a disciplined one,
- * and that is the client's to say.
- */
 export const weeklyBudgetStatusSchema = z.object({
   green: budgetCategoryStatusSchema,
   yellow: budgetCategoryStatusSchema,
@@ -595,32 +303,10 @@ export const weeklyBudgetStatusSchema = z.object({
 
 export type WeeklyBudgetStatus = z.infer<typeof weeklyBudgetStatusSchema>;
 
-/**
- * Which week to ask about. Absent means the one the caller is in now, resolved against their
- * own timezone and day boundary rather than the server's calendar.
- *
- * A date rather than a `2026-W38` string, because the week is defined as the ISO week some
- * local date falls in and this is that date. It reuses localDateSchema, so there is no second
- * date format on this API and no week parser to keep in step with Temporal's own numbering.
- * The response says which week the date resolved to, so a client never has to work it out.
- */
 export const statsBudgetQuerySchema = z.strictObject({ date: localDateSchema.optional() });
 
 export type StatsBudgetQuery = z.infer<typeof statsBudgetQuerySchema>;
 
-/**
- * The week, named, and where it stands.
- *
- * The week is the ISO week the requested date falls in, numbered by the same function
- * GET /stats/weekly numbers its weeks with, see isoWeekOf in api/src/domain/weekly-summary.ts.
- * The two endpoints cannot disagree about what a week is because there is one definition.
- *
- * Counts are evaluated against whatever limit is configured right now, including for a week
- * long past. Changing a limit therefore takes effect immediately for the current week, which is
- * the point, and also silently rewrites what a past week looks like, which is the price. There
- * is no history of limits and no carry over between weeks; if a past week's verdict ever has to
- * stay as it was, that is a limit history table rather than a change here.
- */
 export const statsBudgetResponseSchema = z.object({
   isoYear: z.int(),
   isoWeek: z.int().min(1).max(53),
@@ -631,51 +317,17 @@ export const statsBudgetResponseSchema = z.object({
 
 export type StatsBudgetResponse = z.infer<typeof statsBudgetResponseSchema>;
 
-/**
- * Everything the app needs the moment it opens: the day's meals with their entries and colours,
- * today's weight if there is one, and the counts a summary bar draws without re-deriving them
- * from the meal list. See the performance note on GET /days/{date} for why this is assembled
- * from a small fixed number of queries rather than one per meal or per item.
- */
 export const dayResponseSchema = z.object({
   date: localDateSchema,
   meals: z.array(mealResponseSchema),
   weightEntry: weightEntryResponseSchema.nullable(),
   colourCounts: colourCountsSchema,
-  /**
-   * Every food the meals above name, once each, in the order the entries first name them.
-   *
-   * An item carries a `foodId` and a colour, which is what a count needs, and not a name, which
-   * is what a person reads. That name is sent here rather than on each item for two reasons. A
-   * day repeats the same food across meals, and a list beside the meals says it once. And this
-   * is the payload a client stores for a day, so the names have to be in it or a day opened
-   * with no network renders a column of identifiers.
-   */
   foods: z.array(foodResponseSchema),
-  /**
-   * Where the ISO week this day falls in stands against the caller's weekly allowance, so the
-   * Today screen draws it without a second request, see weeklyBudgetStatusSchema.
-   *
-   * The whole week is counted, not the part of it up to this date. For the week containing
-   * today those are the same thing, because a meal cannot be logged into the future by more
-   * than a clock skew, see assertNotTooFarInFuture; for a day further back it is that week's
-   * totals, which is the number somebody paging through their history is asking about anyway.
-   */
   budget: weeklyBudgetStatusSchema,
 });
 
 export type DayResponse = z.infer<typeof dayResponseSchema>;
 
-/**
- * Asking about a range of days, which is what every statistic here is asked for. `from` and `to`
- * are both required, unlike a feed's optional bounds: gap filling and a previous period of equal
- * length only mean something against an explicit range, and there is no "everything" for a chart
- * of days to default to.
- *
- * ponytail: no cap on the range beyond `to` not preceding `from`. A day's aggregate is a handful
- * of numbers, so even a multi-year request is a few thousand small rows, not a query that widens
- * with the range. Add a cap if a client ever asks for one nobody meant to send.
- */
 export const statsRangeQuerySchema = z
   .strictObject({ from: localDateSchema, to: localDateSchema })
   .refine((query) => query.to >= query.from, {
@@ -685,12 +337,6 @@ export const statsRangeQuerySchema = z
 
 export type StatsRangeQuery = z.infer<typeof statsRangeQuerySchema>;
 
-/**
- * One day's worth of colour, whether or not anything was logged on it. `counts` is the same
- * shape a single day's summary carries, see colourCountsSchema; `share` is the same four numbers
- * as a fraction of the day's entries, 0 when nothing was logged so a client never divides by zero
- * itself.
- */
 export const dayColourStatsSchema = z.object({
   date: localDateSchema,
   counts: colourCountsSchema,
@@ -704,33 +350,13 @@ export const dayColourStatsSchema = z.object({
 
 export type DayColourStats = z.infer<typeof dayColourStatsSchema>;
 
-/**
- * One entry per local date in the requested range, `from` and `to` both included, oldest first.
- * A day nobody logged anything on is still an entry, all zeroes, rather than a gap a client has
- * to fill in itself, see computeDailyColourStats in api/src/domain/stats.ts.
- */
 export const statsDaysResponseSchema = z.object({ days: z.array(dayColourStatsSchema) });
 
 export type StatsDaysResponse = z.infer<typeof statsDaysResponseSchema>;
 
-/**
- * One day of the weight line, POR-37.
- *
- * `trendKg` is the field a client draws and the one a headline reads from. That ordering is the
- * product: a daily weight is mostly water, salt and timing, and putting the raw number first is
- * what makes a good fortnight look like a failure. `rawKg` is carried because somebody wants to
- * see the dot they stood on the scale for, and it comes last because it is the least useful
- * number here.
- *
- * `trendKg` is null only before the first reading anybody made, never because of a gap: a day
- * nobody weighed carries the trend forward, see computeWeightTrend in
- * api/src/domain/weight-trend.ts. `movingAverageKg` has no such memory and is null whenever the
- * trailing week holds no readings at all.
- */
 export const weightTrendDaySchema = z.object({
   date: localDateSchema,
   trendKg: z.number().positive().nullable(),
-  /** Too few readings behind the value, or too old ones. It is still the best answer available. */
   lowConfidence: z.boolean(),
   movingAverageKg: z.number().positive().nullable(),
   rawKg: z.number().positive().nullable(),
@@ -738,35 +364,15 @@ export const weightTrendDaySchema = z.object({
 
 export type WeightTrendDay = z.infer<typeof weightTrendDaySchema>;
 
-/**
- * Movement across a stretch of days, measured on the trend rather than on the raw readings, so
- * the answer does not depend on whether the last day of the range happened to be a salty one.
- *
- * `from` and `to` are the days actually measured between, the first and last in the stretch that
- * carry a trend at all, which are not necessarily its edges: a range beginning before anybody
- * weighed still reports the change over the part that has data, and says which part that was.
- * All four are null when no day in the stretch had a trend.
- */
 export const weightTrendChangeSchema = z.object({
   from: localDateSchema.nullable(),
   to: localDateSchema.nullable(),
   changeKg: z.number().nullable(),
-  /** Null when the stretch measured is a single day, where a rate would divide by zero. */
   changePerWeekKg: z.number().nullable(),
 });
 
 export type WeightTrendChange = z.infer<typeof weightTrendChangeSchema>;
 
-/**
- * The range measured against the stretch of days before it, already subtracted. A client draws
- * this, it does not work it out: the comparison is the product's actual claim, and arithmetic
- * done once on the server cannot be got wrong differently by each client that shows it.
- *
- * Both are this period's figure minus the previous period's, so the sign says which way the
- * movement itself moved. Negative is downward against the period before, a loss that got faster
- * or a gain that slowed; positive is the reverse; zero is the same rate as before. Null when
- * either period has no trend behind it, or when either spans a single day and so has no rate.
- */
 export const weightTrendComparisonSchema = z.object({
   differenceKg: z.number().nullable(),
   differencePerWeekKg: z.number().nullable(),
@@ -774,15 +380,6 @@ export const weightTrendComparisonSchema = z.object({
 
 export type WeightTrendComparison = z.infer<typeof weightTrendComparisonSchema>;
 
-/**
- * One entry per local date in the requested range, oldest first, how the range moved, how the
- * equally long stretch immediately before it moved, and the difference between the two. That
- * last one is there because a number of kilos is not an answer on its own: half a kilo down is
- * good news or bad news depending entirely on what the fortnight before it did.
- *
- * Why the smoothing is an exponentially weighted moving average, where the half life comes from,
- * how gaps are treated and what lag it costs: docs/adr/008-weight-trend-smoothing.md.
- */
 export const statsWeightResponseSchema = z.object({
   days: z.array(weightTrendDaySchema),
   change: weightTrendChangeSchema,
@@ -792,22 +389,12 @@ export const statsWeightResponseSchema = z.object({
 
 export type StatsWeightResponse = z.infer<typeof statsWeightResponseSchema>;
 
-/**
- * How many ISO weeks to summarise, POR-38, oldest first and ending with the week containing
- * today. Weeks are Monday to Sunday. Capped at a year: a year of weekly rows is 52 small
- * entries, not a query that grows with the request.
- */
 export const statsWeeklyQuerySchema = z.strictObject({
   weeks: z.coerce.number().int().min(1).max(52).default(8),
 });
 
 export type StatsWeeklyQuery = z.infer<typeof statsWeeklyQuerySchema>;
 
-/**
- * A colour breakdown that can go either way, the difference against the previous week. Signed
- * rather than a share or a percentage: a week going from zero orange entries to one is an
- * infinite percentage change, and a percentage of a count this small is misleading either way.
- */
 export const colourDifferenceSchema = z.object({
   green: z.int(),
   yellow: z.int(),
@@ -817,11 +404,6 @@ export const colourDifferenceSchema = z.object({
 
 export type ColourDifference = z.infer<typeof colourDifferenceSchema>;
 
-/**
- * The weight side of one week, POR-38: the smoothed trend, never the raw reading, on the
- * week's first and last day, and the same weekly rate weightTrendChangeSchema carries for any
- * stretch. Null wherever the account has no trend yet to report, the same reasoning as there.
- */
 export const weeklyWeightSummarySchema = z.object({
   startKg: z.number().positive().nullable(),
   endKg: z.number().positive().nullable(),
@@ -831,16 +413,6 @@ export const weeklyWeightSummarySchema = z.object({
 
 export type WeeklyWeightSummary = z.infer<typeof weeklyWeightSummarySchema>;
 
-/**
- * One ISO week, POR-38: the colour distribution and the weight trend side by side, which is the
- * entire thesis of the product. Monday to Sunday, in the caller's own local dates; `isoYear` and
- * `isoWeek` are the ISO 8601 week number a calendar would show for it, see isoWeeksEnding in
- * api/src/domain/weekly-summary.ts.
- *
- * `sparse` flags a week with too little logging behind it to be read next to a full one, so a
- * week with two logged days is not silently compared as if it were complete. It is a fact about
- * coverage, never a verdict on the week: this API returns numbers, not judgements.
- */
 export const weeklySummaryWeekSchema = z.object({
   isoYear: z.int(),
   isoWeek: z.int().min(1).max(53),
@@ -861,25 +433,10 @@ export const weeklySummaryWeekSchema = z.object({
 
 export type WeeklySummaryWeek = z.infer<typeof weeklySummaryWeekSchema>;
 
-/**
- * `GET /stats/weekly`, POR-38. One entry per requested week, oldest first. Answered from a
- * single query over the whole span plus one trend calculation over it, the same two POR-36 and
- * POR-37 already make, not one of either per week, see computeWeeklySummary.
- */
 export const statsWeeklyResponseSchema = z.object({ weeks: z.array(weeklySummaryWeekSchema) });
 
 export type StatsWeeklyResponse = z.infer<typeof statsWeeklyResponseSchema>;
 
-/**
- * Credentials on their way in. The email is normalised by its own schema, so `Foo@Example.com`
- * and `foo@example.com` are the same account before the lookup happens rather than after it.
- *
- * The password is checked for length and for nothing else, deliberately. passwordSchema is the
- * policy a password is held to when it is set. Applying it here would answer a wrong password
- * that happens to be short with a 400 and a list of issues, next to the 401 a wrong password of
- * the right length gets, and a client that can tell those two apart has been handed a detail
- * about stored passwords that nobody meant to send.
- */
 export const loginRequestSchema = z.strictObject({
   email: emailSchema,
   password: z.string().min(1).max(PASSWORD_MAX_LENGTH),
@@ -887,26 +444,10 @@ export const loginRequestSchema = z.strictObject({
 
 export type LoginRequest = z.infer<typeof loginRequestSchema>;
 
-/**
- * A user as the wire sees one. There is no password field to remember to strip: userSchema
- * never had one, the hash exists only as a column, so no handler can leak it by forgetting.
- *
- * `createdAt` is dropped rather than converted. timestampSchema parses an instant on the way in
- * and cannot encode one on the way out, so any response schema containing it serialises to a
- * 500. Nothing about signing in needs the date the account was made, so this is a field that is
- * absent rather than a conversion that is present.
- */
 export const userResponseSchema = userSchema.omit({ createdAt: true });
 
 export type UserResponse = z.infer<typeof userResponseSchema>;
 
-/**
- * The other direction, and the one place a stored account becomes one on the wire.
- *
- * The fields are listed rather than spread. Every row this is called with carries a password
- * hash, and a response that is safe because a schema happens to strip an extra key is a
- * response that stops being safe the day somebody reaches for a looser schema.
- */
 export function toUserResponse(user: User): UserResponse {
   return {
     id: user.id,
@@ -919,24 +460,6 @@ export function toUserResponse(user: User): UserResponse {
   };
 }
 
-/**
- * What a user may change about themselves. Every field is optional, so a client sends the one
- * it is changing rather than writing back the whole profile it read a minute ago, which is how
- * one open tab silently reverts an edit made in another.
- *
- * Email and role are absent by construction rather than by filtering. An address identifies
- * the account and changing one needs a confirmation flow that does not exist here; a role is
- * something an administrator grants, and a user who could PATCH their own would already be one.
- *
- * The timezone is held to timezoneSchema, which asks the runtime's own IANA database rather
- * than a list bundled here. So `Europe/Berlin` is accepted and `CEST` is a 400, before
- * anything tries to derive a local date from it. See resolveLocalDate.
- *
- * `locale` can be sent as one of LOCALES or as `null`. Unlike the other three fields, `null` is
- * not "untouched", it is a meaningful choice: it puts the account back to following the
- * browser's own language rather than pinning it to whichever one was picked before. Untouched is
- * the key being absent altogether, which `.partial()` is what allows.
- */
 export const updateProfileRequestSchema = userSchema
   .pick({ displayName: true, timezone: true, dayBoundaryHour: true, locale: true })
   .partial()
@@ -944,15 +467,6 @@ export const updateProfileRequestSchema = userSchema
 
 export type UpdateProfileRequest = z.infer<typeof updateProfileRequestSchema>;
 
-/**
- * Rotating a password. The current one is required and is verified by the server, so a session
- * somebody left open on a shared machine is not enough to take the account over for good.
- *
- * The two fields are held to different schemas, the same split loginRequestSchema makes. The
- * new one is held to the policy because it is being set. The current one is only being
- * compared, so it is length checked and nothing else: answering a wrong password with a list of
- * policy violations tells whoever is guessing which guesses were never worth making.
- */
 export const changePasswordRequestSchema = z.strictObject({
   currentPassword: z.string().min(1).max(PASSWORD_MAX_LENGTH),
   newPassword: passwordSchema,
@@ -961,31 +475,15 @@ export const changePasswordRequestSchema = z.strictObject({
 export type ChangePasswordRequest = z.infer<typeof changePasswordRequestSchema>;
 
 export const loginResponseSchema = z.object({
-  /**
-   * When the session stops working if nothing touches it again. The credential itself is not
-   * here and is not anywhere a script can read: it is set as an HttpOnly cookie, so the page
-   * that signed in cannot read its own session token and neither can anything injected into it.
-   *
-   * A caller that wants a credential it can hold, an MCP server or a deploy script, does not
-   * sign in at all. It is handed an API token minted from a session, see createApiTokenResponse.
-   */
   expiresAt: z.iso.datetime(),
   user: userResponseSchema,
 });
 
 export type LoginResponse = z.infer<typeof loginResponseSchema>;
 
-/**
- * One of the browsers a user is signed in on. There is no token or hash of one here: the row's
- * id is what a session is listed and revoked by, which is exactly why it is not the credential.
- *
- * `current` is the session the request asking for this list arrived on, marked so that revoking
- * one is a decision rather than an accident.
- */
 export const sessionResponseSchema = z.object({
   id: idSchema,
   createdAt: z.iso.datetime(),
-  /** Last time a request on this session moved its expiry. See ACTIVITY_INTERVAL_MS. */
   lastActivityAt: z.iso.datetime(),
   expiresAt: z.iso.datetime(),
   current: z.boolean(),
@@ -993,35 +491,17 @@ export const sessionResponseSchema = z.object({
 
 export type SessionResponse = z.infer<typeof sessionResponseSchema>;
 
-/**
- * An API token as its owner sees it afterwards, which is everything about it except the thing
- * that makes it work. The plaintext exists in one response, once, see below.
- *
- * The nullable fields are null rather than absent. A client that has to check whether
- * `lastUsedAt` is there before checking whether it is null has two code paths for "never used".
- */
 export const apiTokenResponseSchema = z.object({
   id: idSchema,
   name: apiTokenNameSchema,
   scopes: z.array(scopeSchema),
   createdAt: z.iso.datetime(),
-  /** Null until the token authenticates something. Written at most once a minute after that. */
   lastUsedAt: z.iso.datetime().nullable(),
-  /** Null means it does not expire on its own and lives until it is revoked. */
   expiresAt: z.iso.datetime().nullable(),
 });
 
 export type ApiTokenResponse = z.infer<typeof apiTokenResponseSchema>;
 
-/**
- * Minting one. The scopes are the caller's choice and are checked against what the caller
- * actually has: a token cannot carry more than the user issuing it, which is the only reason
- * this endpoint can be reached by anyone other than an administrator.
- *
- * `expiresInDays` is a duration rather than a date, because the client is asking for "ninety
- * days from now" and a date computed on a laptop with a wrong clock is a token that dies on a
- * Tuesday for no reason. Absent means it lives until it is revoked.
- */
 export const createApiTokenRequestSchema = z.strictObject({
   name: apiTokenNameSchema,
   scopes: z.array(scopeSchema).min(1),
@@ -1030,11 +510,6 @@ export const createApiTokenRequestSchema = z.strictObject({
 
 export type CreateApiTokenRequest = z.infer<typeof createApiTokenRequestSchema>;
 
-/**
- * The one response that carries a usable token, and the only time that string exists outside
- * the client that asked for it. The server stored a SHA-256 of it, so this is not recoverable
- * afterwards by anybody, including whoever holds the database file.
- */
 export const createApiTokenResponseSchema = apiTokenResponseSchema.extend({
   token: z.string(),
 });

@@ -1,12 +1,5 @@
 import type { en } from './en';
 
-/**
- * German. Typed against `typeof en` directly rather than against ../i18n's `Dictionary`, which
- * is the same type: importing it from there would make this file and ../i18n depend on each
- * other, which .dependency-cruiser.cjs refuses on sight regardless of it being type-only. A key
- * added to one and forgotten here still fails the build, and fails the parity test in
- * i18n.test.ts besides.
- */
 export const de: typeof en = {
   appLoading: 'Lädt',
 

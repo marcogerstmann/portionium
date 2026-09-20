@@ -47,39 +47,13 @@ import {
   problemResponses,
 } from '../problem.js';
 
-/**
- * The credentials, both of them: the session a person gets by typing a password into the web
- * app, and the API token they mint from that session for something that has no keyboard.
- *
- * There is no registration endpoint here and there will not be one. Accounts are made by an
- * administrator with the `user` CLI: an instance serving two people has nothing to gain from
- * self service sign up and a great deal to lose from it.
- *
- * The split between the two credentials is the design. A browser holds a cookie it cannot read,
- * which is what makes an injected script unable to steal it, and pays for that with a CSRF
- * check on every mutation. A script holds a string it can read, which is the only thing a
- * script can do, and pays for that with a scope list its owner chose and a revoke button.
- */
-
 export interface AuthRouteOptions {
   db: Db;
-  /**
-   * One per process, created in buildApp. Passed in rather than reached for, so a test can hand
-   * this route a fresh one and not inherit the failures another test recorded.
-   */
   throttle: LoginThrottle;
   sessionTtlMs: number;
-  /** Whether the session cookie is marked Secure, derived from WEB_ORIGIN's scheme. */
   cookieSecure: boolean;
 }
 
-/**
- * Declared here rather than in problemResponses: only the login route can answer with this.
- *
- * There is no entry for the lockout's 429. Every route already declares one, because every
- * route is rate limited, and one status has one entry in an OpenAPI response map. The two
- * failures are told apart by `type` in the body, which is what a client branches on anyway.
- */
 const loginProblemResponses = {
   401: {
     description: 'The email and password did not match an account',
@@ -94,7 +68,6 @@ const notFoundResponse = {
   },
 } as const;
 
-/** A DELETE that worked has nothing to say, so it says it with no body at all. */
 const noContentResponse = { 204: z.null().describe('Revoked') } as const;
 
 const idParamsSchema = z.strictObject({ id: z.uuidv7() });
@@ -126,8 +99,6 @@ export const authRoutes: FastifyPluginCallbackZod<AuthRouteOptions> = (app, opti
   app.post(
     '/auth/login',
     {
-      // The endpoint that mints the credential, so requiring one would be a circle. It is the
-      // only write in the API that anybody can reach, which is why the lockout below exists.
       config: { auth: 'public' },
       schema: {
         summary: 'Exchange an email and password for a session cookie',
@@ -139,16 +110,12 @@ export const authRoutes: FastifyPluginCallbackZod<AuthRouteOptions> = (app, opti
       const { email, password } = request.body;
       const ip = request.ip;
 
-      // Before any hashing. A locked out attempt should cost a map lookup, otherwise the
-      // lockout is an invitation to spend the server's CPU rather than a limit on it.
       throttle.assertNotLockedOut(email, ip);
 
       const user = findUserByEmail(db, email);
 
-      // Always a real verification, against this user's hash or against a constant one. The
-      // alternative, returning early when the address is unknown, answers in microseconds for
-      // an address with no account and in tens of milliseconds for one that has an account,
-      // and that gap is readable from the other side of the internet. See DUMMY_PASSWORD_HASH.
+      // Always a real verification, against this user's hash or the dummy: returning early for an
+      // unknown address answers in microseconds where a wrong password costs tens of milliseconds.
       const passwordMatches = await verifyPassword(
         user?.passwordHash ?? DUMMY_PASSWORD_HASH,
         password,
@@ -157,11 +124,6 @@ export const authRoutes: FastifyPluginCallbackZod<AuthRouteOptions> = (app, opti
       if (user === undefined || !passwordMatches) {
         throttle.recordFailure(email, ip);
 
-        // Enough to see an attack in the logs and not enough to be a record of who holds an
-        // account here: the local part of the address is masked, the password is not touched,
-        // and `reason` distinguishes the two cases for whoever is reading the log. None of
-        // that distinction reaches the response, which is one status and one sentence for
-        // both. See InvalidCredentialsError.
         request.log.warn(
           {
             email: maskEmail(email),
@@ -179,9 +141,6 @@ export const authRoutes: FastifyPluginCallbackZod<AuthRouteOptions> = (app, opti
       const { token, tokenHash, expiresAt } = createSessionToken(new Date(), sessionTtlMs);
       insertSession(db, { userId: user.id, tokenHash, expiresAt });
 
-      // The only place this string leaves the process, and it leaves in a header the page that
-      // caused it cannot read. Nothing in the body carries a credential, so a response logged
-      // by a proxy or pasted into a bug report is not a way in.
       reply.header(
         'set-cookie',
         sessionCookie(token, Math.floor(sessionTtlMs / 1000), cookieSecure),
@@ -189,8 +148,6 @@ export const authRoutes: FastifyPluginCallbackZod<AuthRouteOptions> = (app, opti
 
       request.log.info({ userId: user.id }, 'login succeeded');
 
-      // toUserResponse lists the fields rather than spreading the row, which is what keeps the
-      // password hash out of this body by construction rather than by a schema stripping it.
       return { expiresAt: expiresAt.toISOString(), user: toUserResponse(user) };
     },
   );
@@ -198,8 +155,6 @@ export const authRoutes: FastifyPluginCallbackZod<AuthRouteOptions> = (app, opti
   app.post(
     '/auth/logout',
     {
-      // The weakest scope there is. Signing out is not a privilege, and a session that could
-      // not end itself would be a session a user cannot get rid of.
       config: { auth: 'read' },
       schema: {
         summary: 'End the session this request arrived on',
@@ -214,14 +169,10 @@ export const authRoutes: FastifyPluginCallbackZod<AuthRouteOptions> = (app, opti
     (request, reply) => {
       const { sessionId, userId } = request.auth;
 
-      // An API token has no session to end, and treating "log out" as a no-op for one would
-      // answer 204 to a client that is still fully authenticated.
       if (sessionId === undefined) {
         throw new SessionRequiredError();
       }
 
-      // The row is deleted, so the credential is dead whatever the client does with the header
-      // below. A logout that only cleared a cookie would leave a stolen copy working.
       deleteSession(db, userId, sessionId);
       reply.header('set-cookie', clearedSessionCookie(cookieSecure));
 
@@ -268,8 +219,6 @@ export const authRoutes: FastifyPluginCallbackZod<AuthRouteOptions> = (app, opti
       },
     },
     (request, reply) => {
-      // The owner is part of the delete, so a session id belonging to somebody else removes
-      // nothing and is answered exactly as an id that never existed. See ADR 003.
       if (!deleteSession(db, request.auth.userId, request.params.id)) {
         throw new ResourceNotFoundError();
       }
@@ -297,15 +246,11 @@ export const authRoutes: FastifyPluginCallbackZod<AuthRouteOptions> = (app, opti
       const { userId, role, sessionId } = request.auth;
       const { name, scopes, expiresInDays } = request.body;
 
-      // A token cannot mint its own successor. Otherwise revoking a stolen one means nothing,
-      // because whoever took it made a fresh one first. This is why the web client creates
-      // tokens and there is no pairing code flow for a device that has no browser.
+      // A token cannot mint its own successor, or revoking a stolen one means nothing.
       if (sessionId === undefined) {
         throw new SessionRequiredError();
       }
 
-      // The only place in this API where a caller names their own permissions, so it is also
-      // the only place that has to check they are not naming more than they have.
       if (!canGrantScopes(role, scopes)) {
         request.log.warn({ userId, role, scopes }, 'token creation refused for excess scopes');
         throw new InsufficientScopeError();
@@ -317,7 +262,6 @@ export const authRoutes: FastifyPluginCallbackZod<AuthRouteOptions> = (app, opti
         userId,
         name,
         tokenHash,
-        // Deduplicated and stored as asked for rather than expanded, see the scopes column.
         scopes: [...new Set<Scope>(scopes)],
         expiresAt:
           expiresInDays === undefined
@@ -327,8 +271,6 @@ export const authRoutes: FastifyPluginCallbackZod<AuthRouteOptions> = (app, opti
 
       request.log.info({ userId, tokenId: stored.id, scopes }, 'api token created');
 
-      // The one response that carries it. Only the digest was stored, so nobody, including
-      // whoever holds the database file, can produce this string again.
       reply.code(201).send({ ...toApiTokenResponse(stored), token });
     },
   );
@@ -366,8 +308,6 @@ export const authRoutes: FastifyPluginCallbackZod<AuthRouteOptions> = (app, opti
       },
     },
     (request, reply) => {
-      // Owner in the where clause, and already revoked counts as nothing to do, so revoking
-      // twice is a 404 rather than a second success.
       if (!revokeApiToken(db, request.auth.userId, request.params.id)) {
         throw new ResourceNotFoundError();
       }

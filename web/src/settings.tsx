@@ -16,24 +16,8 @@ import { BudgetFields } from './budgets';
 import { invalidateDays } from './db';
 import { useT } from './i18n';
 
-/**
- * The account, and everything WEB 12 asks this screen to hold: the language from POR-64, the
- * profile fields `PATCH /me` already accepted, and the password. See POR-65 for why the name and
- * email sit above the sign-out button rather than on it.
- *
- * Every field below saves and reports on its own, deliberately not one form with one submit
- * button: a rejected timezone must not roll back a display name accepted a moment before, and
- * `PATCH /me` already takes one field at a time for the same reason two open tabs must not
- * overwrite each other's edit, see updateProfileRequestSchema.
- */
-
-/** Native names, not translated: a language picker names each option in its own language. */
 const LANGUAGE_NAMES: Record<Locale, string> = { 'en-US': 'English (US)', de: 'Deutsch' };
 
-/**
- * `PATCH /me`, reported to whichever field asked. `onSaved` is how the updated account reaches
- * `App`, which is also where the active language is applied, see applyUser.
- */
 function useProfileField(onSaved: (user: UserResponse) => void) {
   const [error, setError] = useState<string | undefined>(undefined);
   const [saving, setSaving] = useState(false);
@@ -55,15 +39,6 @@ function useProfileField(onSaved: (user: UserResponse) => void) {
   return { save, error, saving };
 }
 
-/**
- * Changing the password, the one field on this screen that is not `PATCH /me` and the one that
- * ends the session it runs on. `onChanged` is only ever the sign-out the screen warns about
- * before the form is submitted, see settingsPasswordWarning.
- *
- * A wrong current password needs no special casing here: it is a 403, not the 401 ./api.ts
- * reacts to by signing this app out, so it lands in `error` and is shown as a field error like
- * any other, exactly as POR-67 asks.
- */
 function PasswordForm({ onChanged }: { onChanged: () => void }) {
   const [error, setError] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
@@ -131,20 +106,6 @@ function PasswordForm({ onChanged }: { onChanged: () => void }) {
   );
 }
 
-/**
- * The weekly allowance, as a section of this screen rather than only as the editor the Today
- * screen's row opens. That row is hidden while no limit is set, which is what keeps the default
- * experience untouched, so this is where a first one is set and the only entry point that is
- * always there.
- *
- * One request, made when this tab is opened. The Today screen gets the same three numbers free
- * on the day response and never asks for them, but a screen somebody navigated to deliberately
- * can afford a fetch, the same trade ./review.tsx makes.
- *
- * Nothing is rendered until the answer lands. An unanswered request and an account with no
- * limits look identical for a moment and mean opposite things, which is the reasoning the
- * review queue's empty state spells out.
- */
 function BudgetSection() {
   const t = useT();
   const [budgets, setBudgets] = useState<WeeklyBudgets | undefined>(undefined);
@@ -166,9 +127,6 @@ function BudgetSection() {
         budgets={budgets}
         onSaved={(saved) => {
           setBudgets(saved);
-          // Every cached day carries the limits it was fetched with, so a changed limit makes
-          // each of them wrong about the row the Today screen draws. The same reason changing
-          // the timezone clears them, see invalidateDays.
           void invalidateDays();
         }}
       />
@@ -182,7 +140,6 @@ export function Settings({
   onSignedOut,
 }: {
   user: UserResponse;
-  /** After any `PATCH /me` succeeds, so App can apply the language and hold the new profile. */
   onUserChange: (user: UserResponse) => void;
   onSignedOut: () => void;
 }) {
@@ -199,9 +156,6 @@ export function Settings({
     onUserChange(updated);
   });
 
-  // The runtime's own IANA database rather than a bundled list, the same source timezoneSchema
-  // checks a value against server side. Read once: the set of zones a browser knows does not
-  // change while this screen is open.
   const timezones = useMemo(() => Intl.supportedValuesOf('timeZone'), []);
   const hours = useMemo(() => Array.from({ length: 24 }, (_, hour) => hour), []);
 
@@ -320,8 +274,6 @@ export function Settings({
         type="button"
         className="row mt-6"
         onClick={() => {
-          // The row is deleted server side, so the credential is dead whatever this client does
-          // next. A failure here is still a sign out locally, for the same reason, see today.tsx.
           void request('/auth/logout', z.null(), { method: 'POST' }).finally(onSignedOut);
         }}
       >

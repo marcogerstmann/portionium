@@ -14,12 +14,6 @@ import {
   withWeight,
 } from './db';
 
-/**
- * The pure half of the store. The Dexie half needs a real IndexedDB and is covered by the
- * browser tests the screens bring with them, see POR-43.
- */
-
-/** A meal with one item per colour given, since the colours are all these tests look at. */
 function meal(...categories: MealResponse['entries'][number]['category'][]): MealResponse {
   return {
     id: '01930000-0000-7000-8000-000000000001',
@@ -38,16 +32,12 @@ function meal(...categories: MealResponse['entries'][number]['category'][]): Mea
 
 describe('localDateFor', () => {
   it('is the calendar date in the user timezone rather than in UTC', () => {
-    // 23:30 UTC is already the next day in Berlin, which is the whole reason the timezone is
-    // applied before the date is read.
     const date = localDateFor(new Date('2026-09-13T23:30:00Z'), 'Europe/Berlin', 0);
 
     expect(date).toBe('2026-09-14');
   });
 
   it('puts an hour before the boundary on the day before', () => {
-    // 01:00 in Berlin with a 04:00 boundary is still the night of the 13th, which is what a
-    // person logging a late snack means by it.
     const date = localDateFor(new Date('2026-09-14T01:00:00+02:00'), 'Europe/Berlin', 4);
 
     expect(date).toBe('2026-09-13');
@@ -66,9 +56,6 @@ describe('localDateFor', () => {
   });
 
   it('reads the offset in force at that instant rather than a fixed one', () => {
-    // Berlin is +01:00 in January and +02:00 in July. Both of these are 00:30 local, so both
-    // belong to the previous day under a 04:00 boundary, which only holds if the offset is
-    // resolved per instant.
     const winter = localDateFor(new Date('2026-01-15T23:30:00Z'), 'Europe/Berlin', 4);
     const summer = localDateFor(new Date('2026-07-15T22:30:00Z'), 'Europe/Berlin', 4);
 
@@ -95,12 +82,10 @@ describe('countColours', () => {
   });
 });
 
-/** A catalog entry the way the day carries one, since only the id and the name are read here. */
 function food(id: string, name: string): FoodResponse {
   return { id, name, kind: 'ingredient', category: 'green' };
 }
 
-/** A second meal, so "replaced in place" is distinguishable from "replaced the whole list". */
 const other: MealResponse = {
   ...meal('yellow'),
   id: '01930000-0000-7000-8000-0000000000aa',
@@ -125,8 +110,6 @@ describe('withMeal', () => {
   });
 
   it('replaces a meal it already has rather than adding a second copy of it', () => {
-    // The optimistic half of an edit: one entry recoloured, in place, with the day's own summary
-    // moving with it. A second copy would render the meal twice and count it twice.
     const before = meal('green', 'green');
     const after = {
       ...before,
@@ -142,8 +125,6 @@ describe('withMeal', () => {
 
     expect(day.meals.map((entry) => entry.id)).toEqual([before.id, other.id]);
     expect(day.meals[0]).toEqual(after);
-    // One green left in the edited meal, the yellow of the meal beside it, and the orange the
-    // edit produced. Two greens would mean the old copy was still being counted.
     expect(day.colourCounts).toEqual({ green: 1, yellow: 1, orange: 1, unclassified: 0 });
   });
 
@@ -164,8 +145,6 @@ describe('withMeal', () => {
       food('01930000-0000-7000-8000-0000000009ff', 'Something else'),
     ]);
 
-    // Without this an offline meal renders as an identifier: the day it is cached under is the
-    // only place its name can come from until the server answers, see dayResponseSchema.
     expect(foodNames(day).get(eaten)?.name).toBe('Skyr');
     expect(day.foods).toHaveLength(1);
   });
@@ -205,7 +184,6 @@ describe('withClassification', () => {
   it('colours every item naming the food, and the summary with them', () => {
     const eaten = meal(null, null);
     const foodId = eaten.entries[0]?.foodId ?? '';
-    // Both items of this meal name different foods, so only the first should change colour.
     const day = withMeal(emptyDay('2026-09-13'), eaten, [
       { ...food(foodId, 'Mystery item'), category: null },
     ]);
@@ -218,9 +196,6 @@ describe('withClassification', () => {
   });
 
   it('leaves an entry that already carries a colour exactly as it is', () => {
-    // The rule the review queue depends on: confirming a colour fills in the entries still
-    // waiting and never rewrites history, which is what the server does in the same transaction.
-    // A copy that recoloured them all would disagree with the refresh that follows it.
     const eaten = meal('green');
     const foodId = eaten.entries[0]?.foodId ?? '';
     const day = withMeal(emptyDay('2026-09-13'), eaten, [food(foodId, 'Already judged')]);
@@ -232,13 +207,7 @@ describe('withClassification', () => {
   });
 });
 
-/**
- * The week behind the allowance row moving with an optimistic write, which is what makes logging
- * on a phone with no signal change the number on screen rather than waiting for a refresh that
- * is not coming. See withWeekCounts.
- */
 describe("the week's counts", () => {
-  /** A day whose week already holds entries logged on its other days, as the server reports it. */
   function dayInAWeek(): ReturnType<typeof emptyDay> {
     const day = emptyDay('2026-09-16');
 
@@ -261,7 +230,6 @@ describe("the week's counts", () => {
     expect(after.colourCounts.orange).toBe(1);
   });
 
-  /** withMeal replaces as often as it appends, so an edit must not count the meal twice. */
   it('counts an edited meal once rather than twice', () => {
     const first = meal('orange');
     const logged = withMeal(dayInAWeek(), first, []);
@@ -280,7 +248,6 @@ describe("the week's counts", () => {
     expect(after.budget.yellow).toEqual({ limit: 12, count: 7, remaining: 5 });
   });
 
-  /** Past the allowance is a negative remaining, the server's own rule rather than a clamp. */
   it('lets the week go past a limit rather than stopping at it', () => {
     const after = withMeal(dayInAWeek(), meal('orange', 'orange', 'orange'), []);
 
@@ -308,7 +275,6 @@ describe('shiftDate', () => {
   });
 
   it('is unmoved by a daylight saving transition, since the date carries no zone', () => {
-    // Europe/Berlin loses an hour overnight on 29 March 2026. A day is still a day here.
     expect(shiftDate('2026-03-28', 1)).toBe('2026-03-29');
     expect(shiftDate('2026-03-29', 1)).toBe('2026-03-30');
   });
@@ -334,7 +300,7 @@ describe('withWeight', () => {
 });
 
 describe('withoutWeight', () => {
-  it('takes the reading off the day, the empty state POR-74 removing one falls back to', () => {
+  it('takes the reading off the day, the empty state removing one falls back to', () => {
     const entry = {
       id: '01930000-0000-7000-8000-000000000003',
       userId: '01930000-0000-7000-8000-0000000000ff',

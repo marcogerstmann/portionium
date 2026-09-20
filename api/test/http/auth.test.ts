@@ -14,13 +14,6 @@ import { API_PREFIX, buildApp } from '../../src/http/app.js';
 import { SESSION_COOKIE_NAME } from '../../src/http/plugins/auth.js';
 import { createTestFixtures, TEST_PASSWORD, type TestFixtures } from '../helpers/fixtures.js';
 
-/**
- * Signing in, over the real application and a real database.
- *
- * Most of what this endpoint has to get right is not the happy path, it is what two different
- * failures have in common, so most of what follows compares one refusal against another.
- */
-
 const LOGIN = `${API_PREFIX}/auth/login`;
 
 let open: { app: FastifyInstance; fixtures: TestFixtures } | undefined;
@@ -43,11 +36,6 @@ function login(app: FastifyInstance, payload: Record<string, unknown>) {
   return app.inject({ method: 'POST', url: LOGIN, payload });
 }
 
-/**
- * The session token, dug out of the Set-Cookie header, which is the only place it exists. Every
- * assertion about the credential goes through here, so a change that quietly put it back in the
- * response body would not make these tests pass again.
- */
 function cookieToken(response: { headers: Record<string, unknown> }): string {
   const header = response.headers['set-cookie'];
   const value = Array.isArray(header) ? header.join(';') : String(header);
@@ -93,14 +81,9 @@ describe('signing in', () => {
     expect(sessions).toHaveLength(1);
     expect(sessions[0]?.tokenHash).toBe(hashToken(sessionToken));
     expect(sessions[0]?.userId).toBe(fixtures.userA.id);
-    // The credential itself is nowhere in the row.
     expect(JSON.stringify(sessions[0])).not.toContain(sessionToken);
   });
 
-  /**
-   * The point of the cookie. A token in the response body is a token the page can read, which
-   * means anything injected into that page can read it too and can keep it after the tab closes.
-   */
   it('puts the credential in an HttpOnly cookie and nowhere in the body', async () => {
     const { app, fixtures } = await buildTestApp();
 
@@ -116,11 +99,6 @@ describe('signing in', () => {
     expect(response.json<LoginResponse>()).not.toHaveProperty('sessionToken');
   });
 
-  /**
-   * Secure follows the configured origin's scheme rather than NODE_ENV, so a developer on plain
-   * http gets a cookie their browser stores and anything on https gets one that never travels
-   * in clear. See WEB_ORIGIN in config.ts.
-   */
   it('marks the cookie Secure when the app is served over https, and not when it is not', async () => {
     const plain = await buildTestApp();
     const secureFixtures = createTestFixtures();
@@ -184,11 +162,6 @@ describe('signing in', () => {
 });
 
 describe('refusing a sign in', () => {
-  /**
-   * The acceptance criterion this endpoint exists to satisfy. A client holding both responses
-   * side by side must not be able to tell which address has an account behind it, so the two
-   * are compared field by field rather than only by status code.
-   */
   it('answers an unknown address and a wrong password identically', async () => {
     const { app, fixtures } = await buildTestApp();
 
@@ -205,7 +178,6 @@ describe('refusing a sign in', () => {
     expect(wrong.statusCode).toBe(401);
     expect(unknown.headers['content-type']).toContain(PROBLEM_CONTENT_TYPE);
 
-    // instance is the same URL, and requestId is the one field that differs by construction.
     const comparable = (problem: ProblemDetails) => ({ ...problem, requestId: 'ignored' });
     expect(comparable(unknown.json<ProblemDetails>())).toEqual(
       comparable(wrong.json<ProblemDetails>()),
@@ -213,15 +185,6 @@ describe('refusing a sign in', () => {
     expect(unknown.json<ProblemDetails>().type).toBe(PROBLEM.invalidCredentials);
   });
 
-  /**
-   * The other half of the same criterion, and the one a body comparison cannot see. An endpoint
-   * that returns early for an address it does not know answers in microseconds, while a wrong
-   * password costs a full Argon2 verification, and that difference is measurable remotely.
-   *
-   * The assertion is a floor rather than a comparison between the two timings. A floor can only
-   * fail if the hashing was skipped, which is the mistake worth catching, and it does not turn
-   * red because a shared CI runner was busy for a moment.
-   */
   it('spends the same work on an address that has no account', async () => {
     const { app } = await buildTestApp();
 
@@ -233,7 +196,6 @@ describe('refusing a sign in', () => {
     const elapsed = performance.now() - started;
 
     expect(response.statusCode).toBe(401);
-    // Argon2id over 19 MiB takes tens of milliseconds. An early return takes a fraction of one.
     expect(elapsed).toBeGreaterThan(5);
   });
 
@@ -277,10 +239,6 @@ describe('locking out', () => {
     expect(locked.headers['content-type']).toContain(PROBLEM_CONTENT_TYPE);
   });
 
-  /**
-   * A lockout that only ever happened to real accounts would answer the existence question the
-   * identical 401 refuses to, just more slowly.
-   */
   it('counts failures against an address that has no account, exactly the same', async () => {
     const { app } = await buildTestApp();
     const wrong = { email: 'nobody@example.test', password: 'not the password' };
@@ -329,7 +287,6 @@ describe('locking out', () => {
       (await login(app, { email: fixtures.userA.email, password: TEST_PASSWORD })).statusCode,
     ).toBe(200);
 
-    // Four failures ago is forgotten, so this is the first of a new five and not the last.
     expect((await login(app, wrong)).statusCode).toBe(401);
   });
 });

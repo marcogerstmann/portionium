@@ -31,7 +31,6 @@ describe('turning a query into an FTS5 expression', () => {
 describe('a single edit apart', () => {
   it('accepts the four mistakes somebody makes typing a short name', () => {
     expect(withinOneEdit('skyr', 'skyr')).toBe(true);
-    // Substitution, deletion, insertion, and the transposition no trigram would catch.
     expect(withinOneEdit('skyr', 'skyz')).toBe(true);
     expect(withinOneEdit('skyr', 'syr')).toBe(true);
     expect(withinOneEdit('skyr', 'skyyr')).toBe(true);

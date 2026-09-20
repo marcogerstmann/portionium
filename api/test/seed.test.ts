@@ -6,10 +6,6 @@ import { readSeedCatalog, seedFoodCatalog } from '../src/db/seed.js';
 import { createTestDatabase, type TestDatabase } from './helpers/database.js';
 import { createFactories } from './helpers/fixtures.js';
 
-/**
- * The catalog is product data, so it is checked as product data: the file has to be well
- * formed and sane before anything asks whether the loader put it in the right place.
- */
 describe('the seed catalog file', () => {
   const catalog = readSeedCatalog();
 
@@ -35,8 +31,6 @@ describe('the seed catalog file', () => {
     }
 
     expect([...counts.keys()].sort()).toEqual(['green', 'orange', 'yellow']);
-    // Nothing here is a target. A colour that collapsed to a handful of entries would mean
-    // the banding rule had drifted, and that is worth noticing in a diff.
     for (const count of counts.values()) {
       expect(count).toBeGreaterThan(20);
     }
@@ -117,8 +111,6 @@ describe('seedFoodCatalog', () => {
 
   it('adds only what is new when the file has grown', () => {
     seedFoodCatalog(database.db);
-    // Standing in for an entry added to the file: delete one row and re-run, which is the
-    // same gap the loader has to close either way.
     const [victim] = seedRows();
     database.db
       .delete(foodClassificationTable)
@@ -166,8 +158,6 @@ describe('seedFoodCatalog', () => {
 
     seedFoodCatalog(database.db);
 
-    // The user's row is untouched and unclassified, and the seeded one exists beside it.
-    // Collapsing the two is the catalog CRUD story's duplicate detection, not this loader's.
     const owned = database.db.select().from(foodTable).where(isNotNull(foodTable.createdBy)).all();
     expect(owned).toHaveLength(1);
     expect(seedRows().filter((food) => food.name === catalogEntry.name)).toHaveLength(1);

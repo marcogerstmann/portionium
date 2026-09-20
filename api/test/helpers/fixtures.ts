@@ -18,19 +18,6 @@ import { resolveLocalDate } from '../../src/domain/local-date.js';
 import { createMeal } from '../../src/domain/meal.js';
 import { createTestDatabase, type TestDatabase } from './database.js';
 
-/**
- * Rows to write tests against, built the way the application builds them.
- *
- * Everything with a derived field goes through the domain function that derives it, so a meal
- * made here carries the local date resolveLocalDate would have given it and entry positions
- * createMeal would have assigned. A factory that invented those itself would let a test pass
- * against a meal the application could never have produced.
- *
- * The factories are synchronous. better-sqlite3 is a synchronous driver and Drizzle's builders
- * over it run on `.all()` and `.run()`, so awaiting them buys nothing and costs a test a line
- * of ceremony per row.
- */
-
 export type UserRow = typeof userTable.$inferSelect;
 export type FoodRow = typeof foodTable.$inferSelect;
 export type FoodClassificationRow = typeof foodClassificationTable.$inferSelect;
@@ -40,33 +27,22 @@ export type WeightEntryRow = typeof weightEntryTable.$inferSelect;
 export type SessionRow = typeof sessionTable.$inferSelect;
 export type ApiTokenRow = typeof apiTokenTable.$inferSelect;
 
-/**
- * The password every fixture account is created with, and its hash, precomputed.
- *
- * Hashing here rather than storing the result would make every test that needs a user pay for
- * a deliberately expensive function, several times over, for a value that is the same in every
- * run. The constant is a real Argon2id hash of the string above it, made with the parameters in
- * domain/auth.ts, and the test beside that file is what keeps the two in step.
- */
 export const TEST_PASSWORD = 'correct horse battery staple';
 
 export const TEST_PASSWORD_HASH =
   '$argon2id$v=19$m=19456,t=2,p=1$BqG+n7Zh5aZxPFY9azspqg$oci1GxAoLH1EH/1nHU30HXC4VdsF4qScvsft09ChiXc';
 
-/** Keeps generated emails and names unique across a file without a test having to think. */
 let sequence = 0;
 
 export interface MealOverrides {
   type?: MealRow['type'];
   loggedAt?: Date;
   notes?: string;
-  /** Left out means one food is created for the meal, which is what most tests want. */
   entries?: readonly EntryInput[];
 }
 
 export interface SessionOverrides {
   expiresAt?: Date;
-  /** So a test can look at a session whose activity was recorded long enough ago to matter. */
   lastActivityAt?: Date;
 }
 
@@ -80,39 +56,13 @@ export interface ApiTokenOverrides {
 
 export interface Factories {
   user(overrides?: Partial<typeof userTable.$inferInsert>): UserRow;
-  /**
-   * A signed in session for this user, returning the token a client would hold. Minted the way
-   * a login mints one, so what a test sends is a credential the application could have issued
-   * and the row behind it stores a hash rather than the token.
-   *
-   * `expiresAt` is an override so a test can look at an expired session without waiting a month.
-   */
   session(owner: UserRow, overrides?: SessionOverrides): string;
-  /**
-   * An API token for this user, returning the string a script would hold. Minted the way the
-   * endpoint mints one, so the row stores a digest and the token wears its prefix.
-   *
-   * `scopes` defaults to read and write, which is what a user's own session carries, so a test
-   * that is not about scopes does not have to think about them.
-   */
   apiToken(owner: UserRow, overrides?: ApiTokenOverrides): string;
   food(overrides?: Partial<typeof foodTable.$inferInsert>): FoodRow;
-  /**
-   * One verdict about one food. Defaults to the shared seed verdict, which is the row every
-   * food in the shipped catalog has, so a test that is about something else does not have to
-   * think about provenance.
-   *
-   * The food is a parameter rather than an override because a verdict without one is not a
-   * verdict. Pass `userId` for somebody's own opinion, and `source: 'user'` with it.
-   */
   classification(
     food: FoodRow,
     overrides?: Partial<typeof foodClassificationTable.$inferInsert>,
   ): FoodClassificationRow;
-  /**
-   * The user is a parameter rather than an override because a meal needs one for two separate
-   * reasons: it is the owner, and its timezone and boundary hour are what date the meal.
-   */
   meal(user: UserRow, overrides?: MealOverrides): { meal: MealRow; entries: EntryRow[] };
   weightEntry(
     user: UserRow,
@@ -170,8 +120,6 @@ export function createFactories(db: Db): Factories {
 
   function food(overrides: Partial<typeof foodTable.$inferInsert> = {}): FoodRow {
     const n = ++sequence;
-    // createdBy is left null by default, so the default food is a catalog entry rather than
-    // somebody's. A test that cares about ownership passes a user id.
     return db
       .insert(foodTable)
       .values({ name: `Food ${n}`, kind: 'ingredient', ...overrides })
@@ -193,10 +141,6 @@ export function createFactories(db: Db): Factories {
   function meal(owner: UserRow, overrides: MealOverrides = {}) {
     const inputs = overrides.entries ?? [{ foodId: food().id }];
 
-    // The colour is stamped here the way POST /meals stamps it, from the same resolution the
-    // route would have run for this owner at this moment, so a meal made here is one the
-    // application could have produced. An entry that names a colour of its own keeps it, which
-    // is what a test about an explicit colour or a bare one passes.
     const resolved = resolveClassifications(
       findClassificationsForFoods(
         db,
@@ -260,18 +204,6 @@ export interface TestFixtures extends TestDatabase {
   userB: UserRow;
 }
 
-/**
- * A migrated database with two accounts already in it.
- *
- * Two rather than one because almost every read in this application takes a userId, and a
- * test with a single user cannot tell a query that filters by owner from one that forgot to.
- * Having the second account there by default makes the isolation assertion a line, not a
- * setup block, which is the only way it actually gets written.
- *
- * They sit in different timezones on purpose. That way a service which reaches for the calling
- * user's day context while reading somebody else's rows produces a visibly wrong local date
- * rather than the same answer by luck.
- */
 export function createTestFixtures(): TestFixtures {
   const database = createTestDatabase();
   const create = createFactories(database.db);

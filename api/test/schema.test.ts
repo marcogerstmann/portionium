@@ -14,11 +14,6 @@ import {
 import { createTestDatabase, type TestDatabase } from './helpers/database.js';
 import { TEST_PASSWORD_HASH } from './helpers/fixtures.js';
 
-/**
- * The tables as the migration actually built them, rather than as the TypeScript describes
- * them. Everything here is something Drizzle's types cannot tell us: whether a foreign key
- * bites, whether a default landed in the file, whether JSON survives the round trip.
- */
 describe('the entity tables', () => {
   let database: TestDatabase;
 
@@ -71,11 +66,6 @@ describe('the entity tables', () => {
     );
   });
 
-  /**
-   * The one column in the schema whose value is not a scalar. SQLite has no array type, so the
-   * scopes are JSON in a text column, and whether Drizzle hands back an array rather than the
-   * string it stored is exactly the kind of thing the TypeScript cannot tell us.
-   */
   it('round trips an API token scope list through a text column', async () => {
     const user = await seedUser();
 
@@ -111,7 +101,7 @@ describe('the entity tables', () => {
       {
         userId: user.id,
         type: 'snack',
-        loggedAt: new Date('2026-09-06T23:00:00.000Z'), // 01:00 on the 7th in Berlin.
+        loggedAt: new Date('2026-09-06T23:00:00.000Z'),
         entries: [{ foodId: food.id, category: null }],
       },
       user,
@@ -129,8 +119,6 @@ describe('the entity tables', () => {
   });
 
   it('refuses an account with no password at all', async () => {
-    // The column is what makes a passwordless account impossible, rather than every code path
-    // that creates one remembering to supply a hash.
     await expect(
       database.db.insert(userTable).values({
         email: 'nobody@example.com',
@@ -159,8 +147,6 @@ describe('the entity tables', () => {
       .values({ name: 'Blueberries', kind: 'ingredient', createdBy: user.id })
       .returning();
 
-    // The user row is the day context, so this also proves the column default reaches the
-    // derivation: nothing set day_boundary_hour, and 23:00 UTC still lands on the 6th.
     const { meal, entries } = createMeal(
       {
         userId: user.id,
@@ -205,8 +191,6 @@ describe('the entity tables', () => {
   });
 
   it('refuses an entry that names neither a food nor a colour', async () => {
-    // The CHECK is the whole of "an entry is a colour": a row that says nothing is refused by
-    // the database, so no migration, CLI or adapter written later can produce one.
     const user = await seedUser();
     const [meal] = await database.db
       .insert(mealTable)

@@ -4,15 +4,7 @@ import { getLocale, setLocale, t } from './i18n';
 import { de } from './locales/de';
 import { en } from './locales/en';
 
-/**
- * The parity check POR-64 asks for, plus the small amount of real logic in ./i18n.ts: picking a
- * plural form and filling in a placeholder. The dictionaries' own words are not asserted here,
- * that is a translation review's job and not a test's.
- */
-
 afterEach(() => {
-  // Every test below chooses a language explicitly, so none of them should leak into the next,
-  // whatever the environment the suite happens to run in offered as a default.
   setLocale(null);
 });
 
@@ -62,8 +54,6 @@ describe('setLocale', () => {
   it('null goes back to following the browser rather than staying pinned', () => {
     setLocale('de');
     setLocale(null);
-    // No navigator in this test environment, see ./i18n.ts's browserLocale, so the fallback is
-    // the same one a browser with no supported language would get.
     expect(getLocale()).toBe('en-US');
   });
 });

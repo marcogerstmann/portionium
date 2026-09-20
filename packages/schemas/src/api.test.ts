@@ -160,12 +160,6 @@ describe('paging', () => {
 });
 
 describe('request schemas', () => {
-  /**
-   * Enumerated rather than listed, so the rule holds for schemas that do not exist yet. A new
-   * `*RequestSchema` built with `z.object` instead of `z.strictObject` fails here on the
-   * commit that adds it, which is cheaper than finding out from a client that a field it has
-   * been sending for a month was never read.
-   */
   const requestSchemas = Object.entries<unknown>(schemas)
     .filter(([name]) => name.endsWith('RequestSchema'))
     .map(([name, schema]): [string, z.ZodType] => [name, schema as z.ZodType]);

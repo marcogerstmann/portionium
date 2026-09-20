@@ -1,6 +1,3 @@
-// A real IndexedDB, in-memory and gone with the process: what the coalescing tests below need
-// and the reason they are not pure. Imported for its side effect alone, and first, so it is in
-// place before ./db's `database` is ever constructed.
 import 'fake-indexeddb/auto';
 
 import { PROBLEM, type ProblemDetails, type UserResponse } from '@portionium/schemas';
@@ -17,18 +14,6 @@ import {
   weightSubject,
 } from './outbox';
 
-/**
- * Two things worth pinning down without a browser: whether a refusal is worth retrying, which
- * decides between a queue that never empties and a meal that is silently dropped, and what
- * instant a write for a past day gets stamped with, which is what POR-62 fixed.
- *
- * Sending and draining still need a real browser and arrive with those tests on POR-43, see the
- * scope note on POR-41. What correctWeight and removeWeight decide to put in the queue is worth
- * pinning down here too, POR-74, since getting the coalescing wrong is a silent duplicate row or
- * a correction that lands in the refused list, and a fake IndexedDB is enough to see the queue
- * without a browser around it.
- */
-
 function problem(type: ProblemDetails['type'], status: number): ApiError {
   return new ApiError({
     type,
@@ -42,7 +27,6 @@ function problem(type: ProblemDetails['type'], status: number): ApiError {
 
 describe('classifyAttempt', () => {
   it('retries anything that is not an answer from the API', () => {
-    // What being offline looks like: fetch rejects, and nothing about this entry is wrong.
     expect(classifyAttempt(new TypeError('Failed to fetch'))).toBe('retry');
   });
 
@@ -56,8 +40,6 @@ describe('classifyAttempt', () => {
   });
 
   it('treats a meal id conflict as already sent', () => {
-    // The id was minted on this device, so the only thing that can hold it is an earlier
-    // attempt at this same entry. Retrying would strand it in the queue forever.
     expect(classifyAttempt(problem(PROBLEM.mealIdConflict, 409))).toBe('sent');
   });
 
@@ -80,8 +62,6 @@ describe('instantFor', () => {
 
     const instant = instantFor(today, 'Europe/Berlin', 4);
 
-    // Not reconstructed: the real clock, bracketed rather than pinned to a value that would be
-    // flaky by the time this assertion runs.
     expect(instant.getTime()).toBeGreaterThanOrEqual(before);
     expect(instant.getTime()).toBeLessThanOrEqual(Date.now());
   });
@@ -95,7 +75,6 @@ describe('instantFor', () => {
   });
 
   it('holds across a DST change, since the boundary hour resolves back whichever offset is in force', () => {
-    // Europe/Berlin is +01:00 in January and +02:00 in July.
     expect(localDateFor(instantFor('2026-01-15', 'Europe/Berlin', 4), 'Europe/Berlin', 4)).toBe(
       '2026-01-15',
     );
@@ -139,9 +118,6 @@ const user: UserResponse = {
 };
 const date = '2026-09-13';
 
-// No real network here: a stub that always refuses, so the drain that enqueue fires and forgets
-// finds nothing to send, retries silently and never deletes an entry out from under an
-// assertion below. See classifyAttempt: anything that is not an ApiError retries.
 globalThis.fetch = () => Promise.reject(new Error('no network in a unit test'));
 
 describe('correctWeight', () => {
@@ -154,9 +130,6 @@ describe('correctWeight', () => {
 
     const queued = await database.outbox.orderBy('key').toArray();
 
-    // Delete first, so the queue drains to one row for the day: see correctWeight. The post's
-    // own method is omitted rather than written as 'POST', the same convention logWeight's own
-    // enqueue call follows, since a reader defaults an absent one to it, see OutboxEntry.method.
     expect(queued.map((entry) => entry.method ?? 'POST')).toEqual(['DELETE', 'POST']);
     expect(queued[0]).toMatchObject({ path: `/weight/${date}`, subject: weightSubject(date) });
     expect(queued[1]).toMatchObject({
@@ -183,8 +156,6 @@ describe('correctWeight', () => {
 
     const queued = await database.outbox.orderBy('key').toArray();
 
-    // The same entry, corrected in place, rather than a delete and a post behind it: queuing a
-    // delete here would be a 404 for a date the server has never held a reading on.
     expect(queued).toHaveLength(1);
     expect(queued[0]).toMatchObject({
       key: '01930000-0000-7000-8000-000000000001',

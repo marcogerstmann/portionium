@@ -30,25 +30,11 @@ import {
 } from '../../domain/weight-trend.js';
 import { authenticatedProblemResponses, problemResponses } from '../problem.js';
 
-/**
- * POR-36, POR-37 and POR-38: the basic feedback loop, how a range of days looked next to a
- * normal day, what the scale is saying underneath its own noise, and the two side by side one
- * ISO week at a time. Colours are read off the entries, which carry the one they were logged
- * with, and grouping and smoothing happen at read time, see domain/stats.ts for why that stays
- * cheap enough not to need a materialised table yet.
- */
-
 export interface StatsRouteOptions {
   db: Db;
-  /** How long a reading takes to lose half its influence on the trend, see config.ts. */
   trendHalfLifeDays: number;
 }
 
-/**
- * Grams to kilograms, the same boundary conversion toWeightEntryResponse makes for a reading:
- * nobody thinks in grams, and no arithmetic should be done in the unit somebody typed. Rounded
- * to the gram, because a smoothed value is a float and 82.34239999999999 is not a weight.
- */
 function toKg(grams: number | null): number | null {
   return grams === null ? null : Math.round(grams) / 1000;
 }
@@ -72,8 +58,6 @@ function toComparisonResponse(comparison: TrendComparison): WeightTrendCompariso
 export const statsRoutes: FastifyPluginCallbackZod<StatsRouteOptions> = (app, options, done) => {
   const { db, trendHalfLifeDays } = options;
 
-  /** The row behind request.auth, the same reasoning as meals.ts's requireUser: POR-38 needs
-   * the account's timezone and day boundary to know which ISO week today falls in. */
   function requireUser(userId: string): UserRecord {
     const user = findUserById(db, userId);
     if (user === undefined) {
@@ -101,9 +85,6 @@ export const statsRoutes: FastifyPluginCallbackZod<StatsRouteOptions> = (app, op
       const { userId } = request.auth;
       const { from, to } = request.query;
 
-      // One query whatever the range contains, where it used to be two: an entry carries the
-      // colour it was logged with, so there is no classification log to resolve against here,
-      // see docs/adr/011-an-entry-is-a-colour.md.
       const entries = findEntriesForDateRange(db, userId, from, to);
 
       return { days: computeDailyColourStats(entries, from, to) };
@@ -129,12 +110,8 @@ export const statsRoutes: FastifyPluginCallbackZod<StatsRouteOptions> = (app, op
       const { userId } = request.auth;
       const { from, to } = request.query;
 
-      // Every reading the account has, not the range's, and the same unbounded read the
-      // plausibility check on POST /weight already makes. A trend is a position rather than a
-      // function of the window it is looked at through: loading only [from, to] would reset the
-      // line to whatever was on the scale that first morning and report a fortnight of the
-      // smoothing settling as the user's progress. The endpoint also needs the period before
-      // this one to compare against. See computeWeightTrend for both.
+      // Every reading the account has, not the range's: a trend is a position rather than a
+      // function of the window, so loading only [from, to] reports the smoothing settling as gain.
       const trend = computeWeightTrend(listWeightHistoryForUser(db, userId), {
         from,
         to,
@@ -179,22 +156,17 @@ export const statsRoutes: FastifyPluginCallbackZod<StatsRouteOptions> = (app, op
       const { weeks: weeksRequested } = request.query;
 
       const today = resolveLocalDate(new Date(), user.timezone, user.dayBoundaryHour);
-      // One extra week before the first one the caller asked for, purely so that week also has
-      // something to compare against; computeWeeklySummary consumes it rather than returning it.
+      // One extra week before the first requested one, so that week also has something to compare
+      // against. computeWeeklySummary consumes it rather than returning it.
       const windows = isoWeeksEnding(today, weeksRequested + 1);
       const first = windows[0];
       const last = windows.at(-1);
-      // Unreachable: weeksRequested is at least 1 by schema, so windows always has at least two
-      // entries. A guard rather than an assertion, same reasoning as computeDailyColourStats.
       const from = first?.startDate ?? today;
       const to = last?.endDate ?? today;
 
-      // The same query GET /stats/days makes, over the whole span rather than per week.
       const entries = findEntriesForDateRange(db, userId, from, to);
       const dailyColours = computeDailyColourStats(entries, from, to);
 
-      // The same trend calculation GET /stats/weight makes, once over the whole span; each
-      // week below is a slice of its days rather than a trend computed from scratch.
       const trend = computeWeightTrend(listWeightHistoryForUser(db, userId), {
         from,
         to,
@@ -255,16 +227,10 @@ export const statsRoutes: FastifyPluginCallbackZod<StatsRouteOptions> = (app, op
       const { userId } = request.auth;
       const user = requireUser(userId);
 
-      // The caller's own local date rather than the server's calendar day, the same resolution
-      // GET /stats/weekly makes: an account far enough from UTC is still in the week it thinks
-      // it is in. An explicit `date` needs no such resolution, it already is a local date.
       const week = isoWeekOf(
         request.query.date ?? resolveLocalDate(new Date(), user.timezone, user.dayBoundaryHour),
       );
 
-      // One query, the same one GET /stats/days makes, bounded by the week rather than by a
-      // requested range. Counting at read time is what makes a backdated edit show up in the
-      // week's numbers on the very next request, with nothing to recompute.
       const entries = findEntriesForDateRange(db, userId, week.startDate, week.endDate);
 
       const response: StatsBudgetResponse = {

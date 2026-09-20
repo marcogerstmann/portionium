@@ -7,18 +7,8 @@ import { API_PREFIX, buildApp } from '../../src/http/app.js';
 import { HEALTH_PATH, READY_PATH } from '../../src/http/routes/health.js';
 import { createTestFixtures, TEST_PASSWORD, type TestFixtures } from '../helpers/fixtures.js';
 
-/**
- * Rate limiting, the security headers and CORS, over the real application.
- *
- * All three are hooks on the root instance, which is the only way any of them is worth
- * anything: a limit a route can forget to apply is a limit that is missing from whichever
- * route somebody adds next. So the assertions below are mostly about routes that never opted
- * in to being protected, including ones that do not exist.
- */
-
 const LOGIN = `${API_PREFIX}/auth/login`;
 const SESSIONS = `${API_PREFIX}/auth/sessions`;
-/** A read that is not under the auth prefix, so it is charged to the read bucket. */
 const SPEC = `${API_PREFIX}/openapi.json`;
 const WEB_ORIGIN = 'http://localhost:5173';
 const OTHER_ORIGIN = 'https://app.example';
@@ -42,7 +32,6 @@ async function buildTestApp(env: NodeJS.ProcessEnv = {}) {
   return { app, fixtures };
 }
 
-/** A request from a chosen address. trustProxy is on, so the header is what request.ip reads. */
 function get(app: FastifyInstance, url: string, headers: Record<string, string> = {}) {
   return app.inject({
     method: 'GET',
@@ -70,7 +59,6 @@ describe('rate limiting', () => {
     expect(body.requestId).not.toBe('');
   });
 
-  /** A request that matched no route never reaches a handler, and is counted all the same. */
   it('counts a request that matched no route', async () => {
     const { app } = await buildTestApp({ RATE_LIMIT_READ_PER_MINUTE: '1' });
 
@@ -78,11 +66,6 @@ describe('rate limiting', () => {
     expect((await get(app, SPEC)).statusCode).toBe(429);
   });
 
-  /**
-   * The reason the hook runs before authentication rather than after it. Fastify stops the
-   * chain at the first failure, so a limiter behind the auth plugin would never count a request
-   * carrying a dead credential, which is what a flood is made of.
-   */
   it('counts a request refused for a credential that resolves to nobody', async () => {
     const { app } = await buildTestApp({ RATE_LIMIT_AUTH_PER_MINUTE: '1' });
 
@@ -128,8 +111,6 @@ describe('rate limiting', () => {
     expect((await get(app, SPEC)).statusCode).toBe(200);
     expect((await get(app, SPEC)).statusCode).toBe(429);
 
-    // The write bucket is untouched, and its own limit is the default rather than one, so this
-    // gets as far as the router and is refused for the reason it should be.
     const write = await app.inject({
       method: 'POST',
       url: '/no-such-route',
@@ -158,17 +139,9 @@ describe('rate limiting', () => {
     expect(second.json<ProblemDetails>().type).toBe(PROBLEM.rateLimited);
   });
 
-  /**
-   * An orchestrator reads a 429 as a dead process. Behind a proxy that does not forward the
-   * client address every caller shares one IP, so limiting the probe would turn a busy minute
-   * into a restart loop.
-   */
   it('never rate limits either probe', async () => {
     const { app } = await buildTestApp({ RATE_LIMIT_READ_PER_MINUTE: '1' });
 
-    // The readiness probe for the same reason one step further on: a 429 reads as an instance to
-    // stop sending traffic to, so limiting it takes the instance out of rotation during exactly
-    // the busy minute it was coping with.
     for (const path of [HEALTH_PATH, READY_PATH]) {
       for (let probe = 0; probe < 5; probe += 1) {
         expect((await get(app, path)).statusCode).toBe(200);
@@ -234,7 +207,6 @@ describe('CORS', () => {
 
     const refused = await get(app, HEALTH_PATH, { origin: 'https://elsewhere.example' });
     expect(refused.headers['access-control-allow-origin']).toBeUndefined();
-    // Still varies, so a cache cannot hand the allowed answer to this origin.
     expect(refused.headers.vary).toBe('Origin');
   });
 

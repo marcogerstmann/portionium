@@ -14,17 +14,6 @@ import { searchFoods } from '../src/db/food-search.js';
 import { foodTable, mealTable } from '../src/db/schema/index.js';
 import { createTestFixtures, type TestFixtures } from './helpers/fixtures.js';
 
-/**
- * Search against a real database, because most of what makes it work is not in TypeScript: the
- * FTS5 virtual table, the triggers that keep it in step with the catalog, and the fact that the
- * tokenizer folds case on the exact vowels a German food catalog is full of.
- *
- * Two accounts, as everywhere, and here they are the point rather than a precaution. The
- * catalog is shared, so both users see the same entries; what differs is the order, and the
- * order is the feature.
- */
-
-/** The migration under test, and two UUIDv7s that only have to be well formed. */
 const FOOD_SEARCH_MIGRATION = '0005_add_food_search_index';
 const EXISTING_FOOD_ID = '0199a000-0000-7000-8000-000000000001';
 const EXISTING_USER_ID = '0199a000-0000-7000-8000-0000000000ff';
@@ -76,7 +65,6 @@ describe('finding a food', () => {
   it('forgives one mistake in a short name, whichever of the four it is', () => {
     fixtures.create.food({ name: 'Skyr' });
 
-    // Substitution, deletion, insertion, and the transposition that shares no trigram at all.
     expect(search('skyz')).toEqual(['Skyr']);
     expect(search('syr')).toEqual(['Skyr']);
     expect(search('skyyr')).toEqual(['Skyr']);
@@ -140,7 +128,6 @@ describe('the order results come back in', () => {
     const mine = fixtures.create.food({ name: 'Skyr Mango' });
     const older = fixtures.create.food({ name: 'Skyr Vanilla' });
 
-    // User B eats the plain one constantly. It is still not what user A meant.
     for (let i = 0; i < 10; i += 1) {
       fixtures.create.meal(fixtures.userB, { entries: [{ foodId: popular.id }] });
     }
@@ -155,7 +142,6 @@ describe('the order results come back in', () => {
 
     expect(search('skyr')).toEqual(['Skyr Mango', 'Skyr Vanilla', 'Skyr Plain']);
 
-    // The same catalog, the same query, a different history, a different answer.
     expect(
       searchFoods(fixtures.db, { userId: fixtures.userB.id, query: 'skyr', limit: 20 }).map(
         (food) => food.name,
@@ -235,23 +221,6 @@ describe('an empty query', () => {
   });
 });
 
-/**
- * The size the catalog is expected to reach, with the ranking inputs it will have there.
- *
- * A benchmark rather than an assertion about complexity, because the thing that would go wrong
- * is not asymptotic. Search is on the critical path of the only interaction this app has, and
- * the ways it gets slow are a scan somebody added to the hot path and an index that stopped
- * being used, both of which show up as a number here long before anybody notices them typing.
- *
- * The queries are chosen to cover both recall paths. A three character query is answered by the
- * index alone; a two character one and a typo fall through to the scan over every live name,
- * which is the expensive case and the one worth watching.
- *
- * The budget is 50 ms and the measurement is a median of repeated runs, so a scheduler hiccup
- * on a shared CI machine fails nothing. On a developer machine these come back around 3 ms for
- * the index and 6 ms for the scan, so the margin is large on purpose: this exists to catch a
- * change of kind, not to police the last millisecond.
- */
 describe('at the size a catalog actually reaches', () => {
   const CATALOG_SIZE = 5000;
   const BUDGET_MS = 50;
@@ -302,8 +271,6 @@ describe('at the size a catalog actually reaches', () => {
         .run();
     }
 
-    // Both accounts eat, so the ranking joins have rows to work with rather than being fast
-    // because nothing has ever been logged.
     const catalog = fixtures.db.select({ id: foodTable.id }).from(foodTable).all();
     for (let i = 0; i < 300; i += 1) {
       fixtures.create.meal(fixtures.userA, { entries: [{ foodId: catalog[i * 3]!.id }] });
@@ -325,34 +292,17 @@ describe('at the size a catalog actually reaches', () => {
   }, 60_000);
 });
 
-/**
- * The index arrives in a migration, on a database that already has a catalog in it. Every test
- * above starts from an empty one, which is exactly the shape that would let a missing backfill
- * ship green: a food added after the migration is indexed by the trigger, and a food added
- * before it is invisible to search forever.
- *
- * There is nothing that would repair it later either. The seed loader inserts only what the
- * file has and the database does not, so a catalog that is already complete writes no rows and
- * fires no triggers.
- *
- * So this runs the migrations the way a deploy does, in two halves with rows written in
- * between, rather than all at once against an empty file.
- */
 describe('the migration that adds the index', () => {
   it('backfills the entries that were in the catalog before it ran', () => {
     const directory = mkdtempSync(join(tmpdir(), 'portionium-backfill-'));
     onTestFinished(() => rmSync(directory, { recursive: true, force: true }));
 
-    // The migrations folder as it stood before this feature, journal included.
     const source = fileURLToPath(new URL('../drizzle', import.meta.url));
     const before = join(directory, 'drizzle');
     mkdirSync(join(before, 'meta'), { recursive: true });
     const journal = JSON.parse(readFileSync(join(source, 'meta/_journal.json'), 'utf8')) as {
       entries: { idx: number; tag: string }[];
     };
-    // Strictly before, by index, not "every migration except this one": a migration added
-    // after this one is still part of the release that already has the index, and belongs on
-    // the upgraded side of this test rather than being mistaken for history that predates it.
     const targetIdx = journal.entries.find((entry) => entry.tag === FOOD_SEARCH_MIGRATION)?.idx;
     const earlier = journal.entries.filter((entry) => entry.idx < (targetIdx ?? 0));
     for (const entry of earlier) {
@@ -372,7 +322,6 @@ describe('the migration that adds the index', () => {
       .run(EXISTING_FOOD_ID, 'Magerquark', 'ingredient', Date.now(), Date.now());
     old.close();
 
-    // The new release starts against that file and runs the rest of the migrations itself.
     const upgraded = openDatabase(path);
     onTestFinished(() => upgraded.close());
 

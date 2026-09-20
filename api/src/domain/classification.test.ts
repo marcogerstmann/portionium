@@ -3,18 +3,11 @@ import { describe, expect, it } from 'vitest';
 
 import { resolveClassification, resolveClassifications } from './classification.js';
 
-/**
- * The resolution rule, which is the one piece of this product that two people in one household
- * can visibly disagree with. Every case below is a disagreement: with the catalog, with the
- * model, with each other, or with themselves an hour ago.
- */
-
 const USER_A = 'user-a';
 const USER_B = 'user-b';
 
 let sequence = 0;
 
-/** `at` is minutes, because the only thing that matters about these instants is their order. */
 function verdict(
   source: ClassificationSource,
   category: Category,
@@ -107,7 +100,6 @@ describe('resolveClassifications', () => {
 
     expect(resolved.get('apple')?.category).toBe('orange');
     expect(resolved.get('bread')?.category).toBe('yellow');
-    // Only user B ever judged the cake, so for user A it is unclassified rather than green.
     expect(resolved.has('cake')).toBe(false);
   });
 
