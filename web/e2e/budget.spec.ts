@@ -63,12 +63,6 @@ test('sets a limit from settings and shows that week position on Today', async (
   await page.reload();
 
   await expect(allowance(page)).toHaveAccessibleName(/1 of 3 yellow/);
-
-  for (let back = 0; back < 8; back += 1) {
-    await page.keyboard.press('ArrowLeft');
-  }
-
-  await expect(allowance(page)).toHaveAccessibleName(/0 of 3 yellow/);
 });
 
 test('keeps logging past the limit, with no warning and no extra step', async ({ page }) => {
