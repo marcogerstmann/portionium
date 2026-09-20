@@ -1,23 +1,25 @@
 # AGENTS.md
 
-Read this before changing anything. Conventions live here so they are not re-explained per ticket.
+The conventions this repository is held to. Decisions that were expensive to make live in
+[`docs/adr/`](./docs/adr/) and are not repeated here; this file says what to do, and points at the
+ADR when you need to know why.
 
 ## Local setup
 
 Node comes from `.nvmrc`, pnpm from the `packageManager` field via Corepack (`corepack enable`).
 
-`pnpm install` also points `core.hooksPath` at [`.githooks/`](./.githooks), whose `pre-commit`
-scans the staged diff for credentials with [gitleaks](https://github.com/gitleaks/gitleaks).
-Install it (`brew install gitleaks`) or the hook stands aside with a message; the same scan runs
-over the whole history in CI either way. What counts as a secret here, and what to do when one
-gets out, is [SECURITY.md](./SECURITY.md).
+`pnpm install` points `core.hooksPath` at [`.githooks/`](./.githooks), whose `pre-commit` scans the
+staged diff with [gitleaks](https://github.com/gitleaks/gitleaks). Install it (`brew install
+gitleaks`) or the hook stands aside with a message. The same scan runs over the whole history in CI
+either way. What counts as a secret, and what to do when one gets out, is
+[SECURITY.md](./SECURITY.md).
 
 ```sh
 pnpm install
 cp .env.example .env
 pnpm dev                    # api in watch mode
 pnpm dev:web                # web on the Vite dev server, http://localhost:5173
-pnpm build                  # every workspace, tsc for api and schemas, Vite for web
+pnpm build                  # every workspace
 pnpm test                   # vitest, every workspace
 pnpm test:coverage          # the same run with a coverage report, no threshold
 pnpm typecheck              # tsc --noEmit, every workspace
@@ -26,12 +28,14 @@ pnpm depcruise              # layering rules
 pnpm format                 # prettier --write
 
 pnpm --filter @portionium/api user create --email you@example.com \
-  --name "Your Name" --timezone Europe/Berlin   # the first account, see Authentication
-pnpm --filter @portionium/api backup create     # and `backup restore`, see Backups
-pnpm --filter @portionium/web e2e               # builds the client, then Playwright, see Web client
+  --name "Your Name" --timezone Europe/Berlin     # the first account, see Accounts
+pnpm --filter @portionium/api backup create       # and `backup restore`, see Backups
+pnpm --filter @portionium/api db:generate <name>  # after editing a schema file
+pnpm --filter @portionium/api openapi             # after changing a route contract
+pnpm --filter @portionium/web e2e                 # builds the client, then Playwright
 ```
 
-Or the whole thing in a container, which is what a deployment runs, see Containers:
+Or in a container, which is what a deployment runs:
 
 ```sh
 docker compose up -d          # http://localhost:8080, migrations and seed included
@@ -39,14 +43,14 @@ docker compose up -d          # http://localhost:8080, migrations and seed inclu
 
 ## Layout
 
-Three pnpm workspaces, `api`, `web` and `packages/*`.
+Three pnpm workspaces: `api`, `web` and `packages/*`.
 
 ```
 api/                @portionium/api, the Fastify server
   src/domain/       entities, services, pure logic, no framework imports
   src/db/           Drizzle schema, migrations, repositories
   src/http/         Fastify app, plugins, routes
-  src/cli/          account administration and backups, from a terminal
+  src/cli/          account administration and backups
   test/             integration tests that need a database
   test/helpers/     the test database, the factories and the frozen clock
   drizzle/          generated migration files, committed
@@ -55,495 +59,244 @@ api/                @portionium/api, the Fastify server
 web/                @portionium/web, the PWA, Vite and React
   src/              app code
   e2e/              Playwright specs, run against a freshly seeded API instance
-  public/           the icons and anything else copied into the bundle as it stands
+  public/           icons and anything else copied into the bundle as it stands
 packages/schemas/   @portionium/schemas, Zod schemas shared by both apps
 docs/adr/           architecture decision records
-docs/runbooks/      operational procedures, what to run when something has gone wrong
+docs/runbooks/      operational procedures
 docs/evals/         prompt golden sets and eval results, committed
 ```
 
 `@portionium/schemas` is consumed over the `workspace:` protocol and its `exports` point at
-TypeScript source, not at build output. Vite compiles it for the browser and `tsx` and Vitest
-compile it for the API, so there is no build step between editing a schema and both sides
-seeing it.
+TypeScript source, not build output, so there is no build step between editing a schema and both
+sides seeing it. Plain `node` cannot load that, which is why the container ships the package's
+`dist/` build instead. See the Dockerfile.
 
-Plain `node` is the exception and cannot load it: type stripping does not remap the explicit
-`.js` specifiers NodeNext requires onto the `.ts` files they name, so a compiled `api/dist`
-run against this source tree fails on the first relative import. Nothing in development does
-that. The container does, and ships the package's `dist/` build instead, see Containers.
-
-Layering inside `api`: `domain` imports nothing from `db`, `http` and no framework or database
+**Layering inside `api`.** `domain` imports nothing from `db`, `http`, and no framework or database
 library. `db` may import `domain` and is the only place Drizzle appears. `http` and `cli` may
 import `domain` and `db`, hold no business logic, and never import each other.
 
-Layering between workspaces: `packages/schemas` imports Zod and nothing else, never anything
-from `api` or `web`. `web` may import `@portionium/schemas` and never anything from `api`, the
-two talk over HTTP. `api/src/domain` may import `@portionium/schemas`.
+**Layering between workspaces.** `packages/schemas` imports Zod and nothing else. `web` may import
+`@portionium/schemas` and never anything from `api`; the two talk over HTTP. `api/src/domain` may
+import `@portionium/schemas`.
+
 [`.dependency-cruiser.cjs`](./.dependency-cruiser.cjs) is the source of truth and CI fails on
 violations.
 
 ## Rules
 
 - Every user owned table carries `user_id`. Every repository read takes a `userId`. No exceptions.
-- IDs are UUIDv7. Timestamps are UTC. Local dates go through the one domain function for it.
+- IDs are UUIDv7. Timestamps are UTC. Local dates go through `resolveLocalDate` and nothing else,
+  see [ADR 002](./docs/adr/002-local-day-boundaries.md).
 - Domain errors are typed. HTTP mapping happens in exactly one place.
 - ESM throughout. In `api` and `packages/schemas`, relative imports carry explicit `.js`
-  extensions, as NodeNext requires. `web` resolves the way its bundler does
-  (`moduleResolution: Bundler`) and omits them. No path aliases in either, a relative path makes
-  a layering violation visible in the import itself.
+  extensions, as NodeNext requires. `web` omits them (`moduleResolution: Bundler`). No path aliases
+  in either: a relative path makes a layering violation visible in the import itself.
 - Unit tests are `*.test.ts` next to the code. Tests that need a database live in `api/test/`.
 - Exact dependency versions, the lockfile is committed.
 
+## Comments
+
+A comment earns its place only by saying something the code cannot: how an external system behaves,
+a constraint a reasonable change would break, why a magic number is that number, why an omission is
+deliberate. Everything else is deleted rather than reworded.
+
+- Never restate the code. No JSDoc that repeats a signature, no comment above a function, class,
+  component, hook or variable that names it again.
+- Never narrate. A block of code gets no running commentary, and a file gets no opening essay.
+- Architecture goes in `docs/adr/`, not inline. Cite an ADR only where the code reads wrong without
+  it, and once, not at every site that touches the decision.
+- One or two lines, factual, written for someone who can already read the code. Longer than that
+  means it belongs in an ADR, or nowhere.
+- Same bar in tests. Prefer a descriptive test name; comment only a genuinely counterintuitive case
+  or a workaround the environment forces.
+- No Jira keys in source, comments and test names included. A commit message may name the story in
+  words.
+- Do not add a comment because a function is long, public or complex. If the code needs explaining,
+  rename or restructure it first.
+
+Adding a comment needs a reason a reviewer would accept out loud. "It explains what the code does"
+is not one.
+
 ## HTTP
 
-[`api/src/http/app.ts`](./api/src/http/app.ts) builds the Fastify instance. `buildApp()` returns
-a server that has not listened yet, so tests get the real application over `app.inject()` rather
-than a stub of it. [`api/src/index.ts`](./api/src/index.ts) is the only place that listens, and
-the only place that owns a lifecycle.
+[`api/src/http/app.ts`](./api/src/http/app.ts) builds the Fastify instance. `buildApp()` returns a
+server that has not listened yet, so tests get the real application over `app.inject()`.
+[`api/src/index.ts`](./api/src/index.ts) is the only place that listens.
 
 ### Writing a route
 
-A route declares Zod schemas and nothing else. `fastify-type-provider-zod` infers the handler's
-argument and return types from them, so the request and response shapes are written down once.
-[`api/src/http/routes/auth.ts`](./api/src/http/routes/auth.ts) is the worked example to copy
-from. It is registered inside the `API_PREFIX` block in `app.ts`, declares a strict schema for
-its body and a schema for every status it answers with, spreads `problemResponses` into that
-map, and its handler declares no types of its own.
+Copy [`api/src/http/routes/auth.ts`](./api/src/http/routes/auth.ts). A route declares Zod schemas
+and nothing else; `fastify-type-provider-zod` infers the handler's types from them.
 
-Declare a schema for whichever of `params`, `querystring` and `body` the route takes, and for
-every status it answers with. A response is serialized through its schema, so a handler that
-returns a field the contract does not have fails in the test suite rather than in a client.
-
-Request schemas are strict, both bodies and query strings. A property nobody declared is a
-renamed field or a client built against a different version, and answering 200 to it is how that
-mistake reaches production dressed as working code. In `@portionium/schemas` that means
-`z.strictObject` rather than `z.object`, and a test there holds every `*RequestSchema` to it.
+- Declare a schema for whichever of `params`, `querystring` and `body` the route takes, and for
+  every status it answers with. Responses are serialized through their schema, so a handler
+  returning an undeclared field fails in the test suite rather than in a client.
+- Request schemas are strict, bodies and query strings alike: `z.strictObject` in
+  `@portionium/schemas`, held to it by a test there.
+- Spread `problemResponses` into the `response` map. Routes that change something also spread
+  `idempotencyProblemResponses`.
+- Declare `config: { auth: 'read' | 'write' | 'admin' | 'public' }`. A route that declares nothing
+  throws at registration.
+- Register inside the `API_PREFIX` block. A future v2 is a second `register` call there.
+  `GET /health` and `GET /ready` stay outside it: an orchestrator is not tracking API versions.
 
 ### Errors
 
-Every non 2xx response is RFC 9457 Problem Details, served as `application/problem+json`. One
-shape, whoever raised the failure, so a client has one parser and one field to branch on.
+Every non 2xx response is RFC 9457 Problem Details, served as `application/problem+json`. The wire
+shape and the list of types live in
+[`packages/schemas/src/problem.ts`](./packages/schemas/src/problem.ts) because clients branch on
+`type`; what each failure means over HTTP lives in
+[`api/src/http/problem.ts`](./api/src/http/problem.ts) and nowhere else.
 
-The wire shape and the list of problem types live in
-[`packages/schemas/src/problem.ts`](./packages/schemas/src/problem.ts), because `type` is what a
-client branches on and the two sides must narrow the same union. What each failure means over
-HTTP lives in [`api/src/http/problem.ts`](./api/src/http/problem.ts), and nowhere else.
+**Adding a domain failure is two edits**: the code in
+[`api/src/domain/errors.ts`](./api/src/domain/errors.ts) and its entry in `DOMAIN_PROBLEMS`. The map
+is a `Record` over the code union, so the first without the second does not compile. The domain
+never names a status code.
 
-Types are minted under `https://portionium.dev/problems/`. They do not resolve to a page yet and
-they do not have to, the RFC asks for a stable identifier rather than a live document. A failure
-that carries nothing a client would branch on beyond its status code, a 415 from the framework,
-gets `about:blank`, which is what the RFC defines it for.
-
-Adding a domain failure is two edits: the code in
-[`api/src/domain/errors.ts`](./api/src/domain/errors.ts) and its entry in the `DOMAIN_PROBLEMS`
-map. The map is a `Record` over the code union, so doing the first without the second does not
-compile. The domain never names a status code.
-
-Routes spread `problemResponses` into their `response` map. That puts the errors into the
-generated document next to the happy path, and it serializes the error body through its schema,
-so a problem that does not match the contract fails in the test suite.
-
-Two things are deliberate. An unexpected exception answers 500 with a fixed sentence and nothing
-else, while the stack goes to the log, because a message that helps a developer is a message that
-describes internals to whoever asked for it. And every problem carries `requestId`, the id the
-failure was logged under, which is what turns "it broke yesterday" into one log lookup. Fastify
-generates that id and does not read it from a request header, so a client cannot choose what it
-is called in the logs.
+An unexpected exception answers 500 with a fixed sentence; the stack goes to the log. Every problem
+carries `requestId`, which Fastify generates and never reads from a request header.
 
 ### Idempotent writes
 
-Every authenticated `POST`, `PUT`, `PATCH` and `DELETE` accepts an `Idempotency-Key` header. The
-first request carrying a key runs and its response is stored, status, body and content type,
-under the key and the caller's user id. A retry with the same key and the same fingerprint, a
-SHA-256 of method, URL and canonicalised body, gets the stored response back with
-`Idempotent-Replayed: true` and runs nothing. Why, and what was rejected, is
-[ADR 004](./docs/adr/004-idempotency-keys.md).
-
-The row is claimed before the handler runs and filled in after it, in
-[`api/src/http/plugins/idempotency.ts`](./api/src/http/plugins/idempotency.ts). A unique index
-over `(user_id, key)` is the whole of the concurrency story: two copies of one request both try
-the insert, one gets through, and the other finds a row with no response yet and is answered
-409 to retry shortly. The same key with a different fingerprint is 422 and runs nothing. A 500
-releases the claim, so the retry runs the request again. A request without the header runs every
-time it is sent, and a public route, which today is the login, ignores the header because there
-is no user to file a key under.
-
-Rows are purged hourly once older than `IDEMPOTENCY_RETENTION_HOURS`, 24 by default. Routes that
-change something spread `idempotencyProblemResponses` into their `response` map so the two
-statuses appear in the generated document.
-
-### Rate limiting, headers and CORS
-
-Three hooks on the root instance, registered in `buildApp` before the auth plugin, so no route
-opts in and no route can opt out.
-
-**Rate limiting.** Counted per minute in three buckets, because the three cost the server
-different things: a read is a query against a file already in the page cache, a write is a
-transaction and an fsync, and a sign in is an Argon2id verification at 19 MiB. Anything under
-`/api/v1/auth` is charged to the auth bucket whatever its method, everything else by method,
-safe or not. Defaults are 120, 30 and 20, all three configurable.
-
-Every request is counted against two keys, the SHA-256 of whatever credential it presented and
-the caller's address, and both have to be under the limit. Neither would do alone. Without the
-address key, sending a different forged token on every request buys an unlimited number of
-buckets. Without the credential key, one stolen token spread over a hundred addresses leaves a
-hundred untouched counters. For one person on one address the address counter is the binding
-one, which is expected.
-
-The hook runs **before** authentication, and that ordering is the point rather than an accident
-of the file order. Fastify stops the hook chain at the first failure, so a limiter behind the
-auth plugin would never count a request carrying a dead credential, which is what a flood is
-made of. It also means the cheapest check happens before the database is touched and before
-Argon2 runs.
-
-`GET /health` is never limited. An orchestrator reads a 429 as a dead process, and behind a
-proxy that does not forward the client address every caller shares one IP, which is exactly the
-case where the probe would be starved and the container restarted.
-
-A refusal is 429 with `Retry-After` and `PROBLEM.rateLimited`, distinct from the login lockout's
-`PROBLEM.tooManyLoginAttempts` so a client can tell "slow down" from "this address is being
-locked out". Both are `ThrottledError`, and `http/problem.ts` sets the header off the base class
-so a third throttle cannot ship a 429 that forgot it.
-
-Counters are a `Map` in this process, one integer and one timestamp per key, sharing
-[`domain/window-counter.ts`](./api/src/domain/window-counter.ts) with the login lockout. They
-reset when the process does. Why that is acceptable, why not Redis, and what would change our
-minds is [ADR 005](./docs/adr/005-no-redis-no-metrics-stack.md).
-
-**Security headers**, in [`api/src/http/plugins/security.ts`](./api/src/http/plugins/security.ts)
-and nowhere else: `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and a
-`Content-Security-Policy` that permits nothing, since this API answers JSON. The Swagger UI is
-a real page and gets its own looser policy rather than an exemption. `Strict-Transport-Security`
-follows `WEB_ORIGIN`'s scheme, the same derivation as the session cookie's `Secure` flag, so a
-developer on plain http does not pin localhost to https for an afternoon.
-
-**Body size** is `MAX_BODY_BYTES`, a megabyte by default, passed to Fastify's own `bodyLimit`.
-It refuses before the body is read into memory, which is what makes it a limit rather than a
-check, and the 413 becomes a problem document like anything else.
-
-**CORS is off** unless `CORS_ORIGINS` lists exact origins. There is no wildcard and no pattern:
-every response here is credentialed, so `*` is refused by the specification anyway. When the
-list is non empty, `Vary: Origin` goes on every response including the ones that get no allow
-header, or a shared cache hands the allowed answer to somebody else. A preflight is answered in
-the hook rather than by a route, before authentication, because a browser sends it without
-credentials by definition and a 401 to it reads as "blocked by CORS" in every console.
-
-### Versioning
-
-`API_PREFIX` in `app.ts` is where `/api/v1` is written down. A future v2 is a second `register`
-call there, not an edit in every route file.
-
-Operational endpoints sit outside it. `GET /health` and `GET /ready` are unversioned because a
-version is a promise about a contract that can change, and there is no v2 of "is this process
-alive". Their caller is an orchestrator or an uptime monitor, configured once by someone who is
-not tracking API versions, so versioning them means either breaking their probe the day v2 ships
-or keeping `/api/v1/health` alive forever as a fossil. Anything a client negotiates over goes
-under the prefix.
+Every authenticated `POST`, `PUT`, `PATCH` and `DELETE` accepts an `Idempotency-Key` header, handled
+in [`api/src/http/plugins/idempotency.ts`](./api/src/http/plugins/idempotency.ts). Why, and what was
+rejected, is [ADR 004](./docs/adr/004-idempotency-keys.md). Rows are purged hourly once older than
+`IDEMPOTENCY_RETENTION_HOURS`.
 
 ### Pagination
 
-Written down once, in
-[`packages/schemas/src/api.ts`](./packages/schemas/src/api.ts), before the first list endpoint
-exists, so the second one cannot invent a second convention. Two query parameters, `limit` and
-`cursor`, and one envelope, `{ items, nextCursor }`.
+Two query parameters, `limit` and `cursor`, and one envelope, `{ items, nextCursor }`, written down
+in [`packages/schemas/src/api.ts`](./packages/schemas/src/api.ts). Cursor based, not offset based:
+rows here are written continuously and an offset would repeat or skip one. A cursor is opaque;
+`nextCursor` is null on the last page rather than absent.
 
-Cursor based rather than offset based. An offset addresses rows by position, so a row written
-or removed while somebody is paging shifts everything after it and the client sees an entry
-twice or misses one. Meals and weight entries come back newest first and are written
-continuously, which is exactly the case an offset gets wrong.
+### Rate limiting, headers and CORS
 
-A cursor is opaque and the only correct thing a client can do with one is send it back. What it
-contains is the endpoint's business, and since every id here is a UUIDv7 and therefore already
-sorts by creation time, in practice it is the last id of the page. There is deliberately no
-encode or decode helper yet: nothing issues a cursor, and a helper written now is a guess the
-first real endpoint would have to work around. `nextCursor` is null on the last page rather
-than absent, so a client has one check for "there is more" instead of two.
+Three hooks on the root instance, registered before the auth plugin so no route opts in or out.
+
+- **Rate limiting** is counted per minute in three buckets, read, write and auth, because the three
+  cost the server different things. Every request is counted against both the credential hash and
+  the caller's address, and both have to be under the limit. `GET /health` is never limited. Why the
+  counters are in process memory is [ADR 005](./docs/adr/005-no-redis-no-metrics-stack.md).
+- **Security headers** live in
+  [`api/src/http/plugins/security.ts`](./api/src/http/plugins/security.ts) and nowhere else. The
+  Swagger UI and the web client each get their own CSP rather than an exemption.
+- **CORS is off** unless `CORS_ORIGINS` lists exact origins. There is no wildcard: every response
+  here is credentialed.
 
 ### OpenAPI
 
-The document is generated from the same schemas the routes are validated with and served at
-`GET /api/v1/openapi.json`. Swagger UI is at `/api/v1/docs`, behind `API_DOCS_ENABLED`.
+Generated from the same schemas the routes are validated with, served at `GET /api/v1/openapi.json`,
+with Swagger UI at `/api/v1/docs` behind `API_DOCS_ENABLED`. There is no hand written spec and there
+will not be one.
 
-There is no hand written spec in this repository, and there will not be one. If the spec and the
-code can disagree, the spec is wrong by construction. `api/test/http/app.test.ts` validates the
-generated document against the OpenAPI 3.1 specification, so a schema that cannot be expressed as
-one fails CI on the commit that introduces it.
+The document is also committed at [`api/openapi/openapi.json`](./api/openapi/openapi.json) and
+compared against the live one by `api/test/http/openapi-snapshot.test.ts`, so a contract change is a
+visible diff in the commit that causes it. Regenerate with
+`pnpm --filter @portionium/api openapi`, which is `vitest -u` over that same test.
 
-The generated document is also committed, at
-[`api/openapi/openapi.json`](./api/openapi/openapi.json), and
-`api/test/http/openapi-snapshot.test.ts` compares the two. A change to the public contract is
-therefore a diff in the pull request that causes it: a reviewer sees that a field was renamed
-or a status added without reading the route, and a change nobody meant to make has to be staged
-deliberately before it can be merged. Regenerate with:
-
-```sh
-pnpm --filter @portionium/api openapi
-```
-
-That script is `vitest -u` over the same test. There is no separate generator and no extra CI
-step on purpose, because a snapshot written by something other than what verifies it is a
-snapshot that can be right about a document nobody serves.
-
-There is no generated client, and there will not be one. The web app imports its request and
-response types from `@portionium/schemas`, which is the same definition the server validates and
-serializes with, so the two cannot drift and a contract change breaks the typecheck on both
-sides in one commit. A generated client would be a third copy of shapes that already exist
-twice, regenerated on a schedule somebody forgets. The spec is here for documentation, for the
-snapshot above, and for a consumer that is not this repository.
+There is no generated client. `web` imports its types from `@portionium/schemas`, which is the
+definition the server validates with, so a contract change breaks the typecheck on both sides in one
+commit.
 
 ### Serving the web client
 
-When `WEB_ROOT` names a directory, this process serves the built client from it on the origin it
-already answers on. Empty by default, so development and every test serve the API alone: there
-the client runs on the Vite dev server and proxies `/api` here.
-
-One origin rather than a second server in front is the point. The session cookie is
-`SameSite=Lax` and every write is checked against `WEB_ORIGIN`, so a client served from anywhere
-else is a client whose writes are refused until CORS and a second origin are configured. Serving
-both halves from one process makes that configuration unnecessary rather than merely easy, and
-is what lets the application ship as one container.
+When `WEB_ROOT` names a directory, this process serves the built client on the origin it already
+answers on. Empty by default, so development and every test serve the API alone.
 
 It is served from the **not found handler**, in
-[`api/src/http/plugins/static.ts`](./api/src/http/plugins/static.ts), and that is the whole
-design rather than a detail. `@fastify/static` left to itself registers a wildcard `GET`, and a
-wildcard at the root claims every URL no route matched, `/api/v1/mistyped` included, which would
-then be answered with the app shell and a 200 where this API owes a problem document. It also
-cannot declare `config.auth`, which every route here must. So it is registered with
-`serve: false`, which decorates `reply.sendFile` and registers nothing, and the handler runs only
-once the router has confirmed nobody else wanted the URL. The public surface in
-`test/http/authorization.test.ts` and the generated OpenAPI document are both unchanged by it.
+[`api/src/http/plugins/static.ts`](./api/src/http/plugins/static.ts), never as a wildcard route: a
+wildcard at the root would claim `/api/v1/mistyped` and answer the app shell where this API owes a
+problem document. Four answers, in order: a path under `/api/v1` is declined; a path naming a real
+file is that file; a path that looks like a file and is not one is a 404; anything else is the app
+shell.
 
-Four answers, in order: a path under `/api/v1` is declined and stays a problem document; a path
-naming a file that exists is that file; a path that looks like a file and is not one is a 404,
-because answering a missing bundle with HTML is a syntax error in somebody's console instead of a
-plain message; anything else is the app shell, which is what makes a client route survive a
-reload.
+Cache headers are two answers. Anything under `assets/` is `immutable` for a year, safe only because
+Vite content hashes those names. Everything else, the shell and the service worker included, is
+`no-cache`.
 
-The list of files is read once at startup. The directory is baked into the image and cannot
-change while the process runs, so this is a lookup rather than a `stat` per request, and it is
-also the safety property: a path not literally in that set is never handed to the sender.
+### Logging
 
-Cache headers are two answers and no more. Anything under `assets/` is `immutable` for a year,
-which is safe only because Vite puts a hash of the contents in those names, so a changed file is
-a different URL. Everything else, the shell and the service worker included, is `no-cache`,
-meaning revalidate rather than do not store. Those two decide which version of the app somebody
-is running: a cached `index.html` points at bundles that may be gone, and a cached service worker
-is an old app that never learns there is a new one.
+Pino, one JSON object per line on stdout at `LOG_LEVEL`. Every request gets an id and a child logger
+bound to it, and that id is in the body of every error response.
 
-The Content Security Policy gains a third case in
-[`security.ts`](./api/src/http/plugins/security.ts). The API's own `default-src 'none'` would stop
-the client loading its own bundle, so a request the router did not match gets a policy a page can
-run under: `'self'` for scripts, and inline styles allowed because a policy that breaks the app is
-a policy somebody switches off entirely. Script stays strict, which is the half the `HttpOnly`
-cookie depends on.
+What a line may never carry is in [`api/src/http/logging.ts`](./api/src/http/logging.ts) as Pino
+redaction paths, not at the call sites: passwords, tokens, addresses in full, and the content of any
+prompt sent to a model. Startup logs the resolved configuration with any value whose key names a
+secret replaced, so a key added later is masked without anybody remembering.
 
-### Shutdown
-
-`app.close()` is the whole of it: it stops the listener, drains the requests in flight and then
-runs the `onClose` hook that releases the database file. `index.ts` calls it on SIGTERM and
-SIGINT, once, so a second signal during a slow drain kills the process rather than starting a
-second shutdown.
-
-### Logging and the two probes
-
-Pino, which is Fastify's own logger, writing one JSON object per line to stdout at `LOG_LEVEL`.
-Every request gets an id and a child logger bound to it, so the two lines a request writes and
-every application line in between carry the same `reqId`, and that id is in the body of every
-error response, which is what turns "it broke yesterday afternoon" into one log lookup. Fastify
-logs the status and the duration on the completion line;
-[`api/src/http/logging.ts`](./api/src/http/logging.ts) adds the method and the path to it, so the
-line somebody greps for says what it was a response to.
-
-What a line may never carry is in that same file, as Pino redaction paths, rather than at the
-call sites: passwords, tokens, addresses in full and the content of any prompt sent to a model,
-each matched both bare and one level in. A rule applied where the line is written is a rule every
-line already follows, including the ones nobody has written yet. An address is masked rather than
-dropped, because a burst of failures against one domain is the shape worth noticing, and
-`maskEmail` on an already masked address returns it unchanged, so a call site that masks
-deliberately is not punished for it.
-
-Startup logs the resolved configuration, with any value whose key names a secret replaced. The
-list of such keys is empty today and the match is on the name, so the day an API key for the
-classifier arrives it is masked without anybody remembering, see `maskedConfig`.
-
-An uncaught exception or an unhandled rejection is logged at fatal and ends the process, in
-[`api/src/index.ts`](./api/src/index.ts). Nothing is drained first: a graceful shutdown in a
-state nothing can reason about is how a container hangs instead of restarting.
-
-Two probes, because an orchestrator does two different things with the answers. `GET /health` is
-liveness and deliberately does not touch the database, since a check that fails on a held write
-lock would have the process killed for a condition that clears itself in milliseconds.
-`GET /ready` is readiness and does: one statement that answers both whether the file still
-responds and whether its schema is the one this build ships, see `databaseNotReadyReason` in
-[`api/src/db/client.ts`](./api/src/db/client.ts). That second half looks tautological, since
-migrations run before the listener opens, and it catches the case that is not normal, this
-process talking to a different file than the one it migrated.
-
-Neither probe needs a credential and neither carries a version, a commit, an uptime or any
-configuration. An unauthenticated caller gets a status code; why an instance is not ready names
-a schema version and goes to the log instead. Neither is rate limited either, because a 429 reads
-as a dead process to one caller and as an instance to stop sending traffic to for the other.
-
-Why there is no Prometheus, no OpenTelemetry and no dashboard, and the concrete trigger that
-would change that, is [ADR 005](./docs/adr/005-no-redis-no-metrics-stack.md).
+`GET /health` is liveness and does not touch the database. `GET /ready` is readiness and does.
+Neither needs a credential, neither carries a version, neither is rate limited.
 
 ## Authentication
 
-Accounts are made by an administrator. There is no public registration endpoint in this
-repository and self service sign up is out of scope: an instance serving two people has nothing
-to gain from it and a great deal to lose.
+Accounts are made by an administrator. There is no public registration endpoint and self service
+sign up is out of scope.
 
-### Passwords
+### Passwords and sessions
 
-Argon2id, at OWASP's current parameters: 19 MiB of memory, two passes, one lane. They are
-written out in `ARGON2_OPTIONS` in [`api/src/domain/auth.ts`](./api/src/domain/auth.ts) rather
-than left to the library's defaults, because a security parameter that lives in somebody else's
-package can change in a patch release without anybody deciding to.
+Argon2id at OWASP's current parameters, written out in `ARGON2_OPTIONS` in
+[`api/src/domain/auth.ts`](./api/src/domain/auth.ts) rather than left to the library's defaults.
 
-Each hash is a PHC string carrying the cost it was made with, so raising these later needs no
-migration and no downtime. It does need a rehash on the next successful login to be worth
-anything, which is a few lines that should not be written until the numbers move.
-
-### What the login endpoint refuses to say
-
-`POST /api/v1/auth/login` answers a wrong password and an address with no account with the same
-status, the same problem type and the same sentence. Two things keep that true, and both are
-easy to undo by accident:
-
-- The handler always runs a real Argon2 verification, against the account's hash or against
-  `DUMMY_PASSWORD_HASH` when there is no account. Returning early for an unknown address answers
-  in microseconds where a wrong password costs tens of milliseconds, and that gap is measurable
-  from the other side of the internet. The dummy's parameters have to match the ones above, which
-  is asserted rather than trusted.
-- Failed attempts are counted against an address whether or not it exists. A lockout that only
-  ever happened to real accounts would answer the same question, more slowly.
-
-Failures are logged with the local part of the address masked, the IP, and whether the account
-existed. That distinction is in the log, where the person reading it is entitled to it, and
-never in the response.
-
-### Lockout policy
-
-Counted in a fixed window, in process memory, in
-[`api/src/domain/auth.ts`](./api/src/domain/auth.ts).
+`POST /api/v1/auth/login` answers a wrong password and an unknown address identically. Two things
+keep that true and both are easy to undo by accident: the handler always runs a real Argon2
+verification, against the account's hash or `DUMMY_PASSWORD_HASH`, and failed attempts are counted
+whether or not the account exists.
 
 | Key   | Failures | Window     | Effect                           |
 | ----- | -------- | ---------- | -------------------------------- |
 | Email | 5        | 15 minutes | 429 for that address from any IP |
 | IP    | 20       | 15 minutes | 429 for any address from that IP |
 
-The window starts at the first failure and does not move, so a steady drip cannot hold a key
-locked forever. A successful login clears the address, never the IP, otherwise one attacker with
-one working password resets their own spray. A locked out request is refused before any hashing,
-so the lockout limits the server's work rather than inviting more of it. Every 429 carries
-`Retry-After`.
+The window starts at the first failure and does not move. A successful login clears the address,
+never the IP.
 
-The counters live in memory and reset when the process does. That is the same tradeoff recorded
-for the rate limiting story, and it is the reason both belong in one SQLite table on the day
-either of them stops being enough.
-
-### Sessions
-
-A login writes a `session` row and sets `portionium_session`, an `HttpOnly` cookie carrying an
-opaque token and nothing else. The token is never in the response body: a body is something the
-page can read, and a credential the page can read is a credential anything injected into that
-page can read too.
-
-The row stores a SHA-256 of the token and never the token itself, so a copy of the database file
-is not a set of live sessions. SHA-256 rather than Argon2id because the token is 256 bits from a
-CSPRNG: there is nothing to brute force, and it has to be cheap enough to check on every request.
-It is not a UUIDv7 like every other id here, because those sort by creation time, which is what
-an identifier should do and what a credential must not.
-
-Cookie attributes are written down in one place, `sessionCookie` in
-[`api/src/http/plugins/auth.ts`](./api/src/http/plugins/auth.ts): `HttpOnly`, `SameSite=Lax`,
-`Path=/`, a relative `Max-Age` so a wrong client clock cannot extend it, and `Secure` whenever
-`WEB_ORIGIN` is https. That last one follows the origin rather than `NODE_ENV`, because a
-developer on plain http needs a cookie their browser will actually store and a second variable
-is a second thing to set to the wrong half of the pair.
-
-Expiry slides. `SESSION_TTL_DAYS`, thirty by default, is an idle timeout rather than a lifetime:
-a request on a live session pushes `expires_at` out again and stamps `last_activity_at`. Both
-writes are throttled to one a minute per session by `ACTIVITY_INTERVAL_MS`, because otherwise
-every read this API serves is also a write to the row that authorised it. `GET /auth/sessions`
-lists a user's live sessions with those two timestamps and marks the one the request came in on;
-`DELETE /auth/sessions/:id` and `POST /auth/logout` delete the row, so the credential is dead
-whatever the client does with the cleared cookie.
+A login sets `portionium_session`, an `HttpOnly` cookie carrying an opaque token. The token is never
+in the response body, and the row stores a SHA-256 of it. Cookie attributes are written down once,
+in `sessionCookie` in [`api/src/http/plugins/auth.ts`](./api/src/http/plugins/auth.ts); `Secure`
+follows `WEB_ORIGIN`'s scheme, not `NODE_ENV`. Expiry slides: `SESSION_TTL_DAYS` is an idle timeout,
+and the write is throttled to one a minute per session.
 
 ### CSRF
 
-A browser attaches cookies to a cross site request as willingly as to a first party one, which
-is the whole of CSRF. So a mutating request authenticated by the cookie has to carry an `Origin`
-header equal to `WEB_ORIGIN`. A missing header is refused rather than trusted: every browser
-sets it on a cross origin request, so its absence on a mutation is either a client nobody
-supports or somebody hoping the check is a whitelist.
-
-The check runs in the same `onRequest` hook that establishes identity, before the database is
-touched, and only for a credential that came from the cookie. Safe methods are exempt because
-forging one achieves nothing, and bearer requests are exempt because nothing attaches a bearer
-header on a page's behalf.
+A mutating request authenticated by the cookie must carry an `Origin` header equal to `WEB_ORIGIN`.
+A missing header is refused rather than trusted. Safe methods are exempt, and so are bearer
+requests, because nothing attaches a bearer header on a page's behalf.
 
 ### API tokens
 
-The other credential, for a script or anything else without a browser.
-`POST /auth/tokens` mints one, `GET /auth/tokens` lists them without the tokens, and
-`DELETE /auth/tokens/:id` revokes one. Rows live in `api_token` and store a SHA-256, a name, the
-granted scopes, `last_used_at`, `expires_at` and `revoked_at`.
+`POST /auth/tokens` mints one, `GET /auth/tokens` lists them without the tokens,
+`DELETE /auth/tokens/:id` revokes one. Four rules are deliberate:
 
-Five things are deliberate:
+- The plaintext exists in one response, once. Only the digest is stored.
+- Tokens wear `prt_`, so secret scanners can recognise them and the request path knows which table
+  to read.
+- A token cannot mint a token, end a session or change a password: those answer
+  `SessionRequiredError`.
+- Requested scopes are checked against the user's role at creation and intersected with it on every
+  request, so demoting an account narrows the tokens it already issued.
 
-- **The plaintext exists in one response, once.** Only the digest is stored, so nobody can
-  produce that string again, including whoever holds the database file.
-- **Tokens wear `prt_`.** Secret scanners match on shapes like that, and a credential nobody can
-  recognise on sight is one somebody else finds first. The prefix is also how the request path
-  knows which table to read, so a request costs one lookup rather than two.
-- **A token cannot mint a token.** `POST /auth/tokens` refuses a bearer credential with
-  `SessionRequiredError`, so a stolen token cannot be turned into a successor that outlives its
-  revocation. This is why tokens are created from the web client and there is no pairing flow.
-- **A token can never carry more than its owner.** Requested scopes are checked against the
-  user's role at creation, and again intersected with it on every request, so demoting an
-  account narrows the tokens it already issued.
-- **`last_used_at` is throttled**, one write a minute per token, same as a session's activity.
-
-Revoking sets `revoked_at` and the next request carrying that token fails, because there is no
-cache in front of the lookup. A revoked row is kept rather than deleted: its name and last use
-are the record of what the credential was doing, which is the first thing anybody wants after
-turning one off. Changing a password ends every session and deliberately leaves tokens alone,
-see `setPasswordHash`.
+Revoking sets `revoked_at` and keeps the row. Changing a password ends every session and
+deliberately leaves tokens alone.
 
 ### Authorization
 
-Who a request is from is established in one place,
-[`api/src/http/plugins/auth.ts`](./api/src/http/plugins/auth.ts), which resolves a bearer token or
-a `portionium_session` cookie into `request.auth`. Why the design looks like this is
-[ADR 003](./docs/adr/003-multi-user-authorization.md).
+Identity is established in one place,
+[`api/src/http/plugins/auth.ts`](./api/src/http/plugins/auth.ts). Why the design looks like this is
+[ADR 003](./docs/adr/003-multi-user-authorization.md). Four rules, each enforced rather than
+remembered:
 
-Four rules, and each is enforced rather than remembered:
+- Every route declares who may call it, or the server does not start.
+- The public surface is a list in `api/test/http/authorization.test.ts`, compared against the routes
+  actually registered, so a fourth public endpoint is a visible line in a diff.
+- `request.auth` is the only source of a user id. Never take one from a body, a query string or a
+  path segment.
+- A row belonging to somebody else is a 404, never a 403. 403 is for `InsufficientScopeError` alone.
 
-- **Every route declares who may call it.** `config: { auth: 'read' }`, `'write'`, `'admin'`, or
-  the word `'public'`. A route that declares nothing throws at registration, so the server does
-  not start. Scopes come from `SCOPES` in `packages/schemas`, because a user names them when
-  minting a token and they are therefore on the wire. Stronger implies weaker, see
-  `expandScopes`. A session carries everything its owner's role gives; a token carries what its
-  owner chose, intersected with that.
-- **The public surface is a list in a test.** `api/test/http/authorization.test.ts` holds the
-  three endpoints reachable without a credential and compares them against the routes actually
-  registered, so making a fourth one public is a visible line in a diff.
-- **`request.auth` is the only source of a user id.** It is a getter over a frozen object, so a
-  handler can neither replace it nor edit it, and reading it on a public route throws. Never take
-  a user id from a body, a query string or a path segment. Request schemas are strict, so one that
-  arrives is a 400, and a test greps the adapters for a handler that reads one anyway.
-- **A row belonging to somebody else is a 404, never a 403.** Repositories filter by `userId`, so
-  a foreign row does not come back and the handler raises `ResourceNotFoundError` without knowing
-  the difference. 403 is for `InsufficientScopeError` alone, which says something about the caller
-  rather than about which ids exist.
+### Accounts
 
-### Administration
-
-There is no HTTP endpoint for making accounts. The first one cannot have one, because it would
-have to be reachable without credentials, and on a public instance that is not a bootstrap but a
-vulnerability. Being on the machine with the database file is the authorisation, which is the
-same authorisation restoring a backup needs.
+There is no HTTP endpoint for making accounts: being on the machine with the database file is the
+authorisation, the same authorisation restoring a backup needs.
 
 ```sh
 pnpm --filter @portionium/api user create --email a@b.de --name "Ada" --timezone Europe/Berlin
@@ -551,61 +304,25 @@ pnpm --filter @portionium/api user passwd --email a@b.de
 pnpm --filter @portionium/api user revoke-tokens --email a@b.de
 ```
 
-The first account on a fresh instance is an admin unless `--role` says otherwise, because there
-is nobody to have granted it. The password is never an argument: anything on a command line is in
-a shell history and in the process list of everybody on the machine, so it is typed at a prompt
-that does not echo or piped in by a script that has it already.
+The first account on a fresh instance is an admin unless `--role` says otherwise. The password is
+never an argument: it is typed at a prompt that does not echo, or piped in.
 
-Creating a user and resetting a password over HTTP would need a route declaring `admin`, which
-the plugin already enforces. The functions such a route would call are already in
-[`api/src/db/auth.ts`](./api/src/db/auth.ts). Nothing in the API requires `admin` yet.
-
-Changing a password ends every session opened with the old one, in the same transaction. API
-tokens are deliberately left alone: they are a credential a user issued on purpose to a script
-that is not sitting at the keyboard, and revoking them as a side effect of good hygiene breaks
-automation. They are revoked one at a time, by their owner, or all at once with `revoke-tokens`
-above, which is the incident command and not the everyday one. Which credential to rotate when,
-and in what order, is [SECURITY.md](./SECURITY.md).
-
-### The account over HTTP
-
-Three endpoints, in [`api/src/http/routes/me.ts`](./api/src/http/routes/me.ts), and no id in any
-of their paths. The caller is `request.auth` and nothing else, so `/me` is the only spelling of
-"my profile" and there is no version of it that can be pointed at another account by editing a
-URL. Reaching somebody else's row here is not refused, it is not expressible.
-
-`GET /api/v1/me` answers the profile. `PATCH /api/v1/me` changes the display name, the timezone
-and the day boundary hour, and nothing else: the request schema is derived from `userSchema` and
-has no field for an email or a role, so a caller that sends one gets a 400 rather than having it
-ignored. The timezone is held to `timezoneSchema`, which asks the runtime's own IANA database, so
-`CEST` is refused before anything tries to derive a local date from it. A field the body does not
-name is a field nobody touched, which is what stops one stale tab writing back over an edit made
-in another.
-
-`POST /api/v1/me/password` changes the password, and three things about it are deliberate:
-
-- **The current password is required and verified.** The session on the request proves the
-  browser was signed in at some point, not that the person at the keyboard is the owner, which is
-  exactly what an unattended session is.
-- **A wrong current password is 403 `invalid-current-password`, not the login's 401.** A 401 on
-  an authenticated request is read by every sensible client as "your session is over", and
-  signing a user out because they mistyped one form field is the wrong reaction to a typo.
-- **An API token cannot call it.** It answers `SessionRequiredError`, the same rule that stops a
-  token minting a token. A token is issued to a script, and a script that can change the password
-  can lock its owner out of the account it was given limited access to.
-
-It ends every session, this one included, and clears the cookie on the way out, so signing in
-again is the next step. API tokens survive, see `setPasswordHash`.
+Over HTTP the account is three endpoints in
+[`api/src/http/routes/me.ts`](./api/src/http/routes/me.ts) and no id in any path. `PATCH /me` changes
+the display name, timezone and day boundary hour and has no field for an email or a role.
+`POST /me/password` requires the current password, answers 403 rather than the login's 401 when it
+is wrong, and cannot be called with a token.
 
 ## Database
 
-One SQLite file is the whole persistence layer, opened in exactly one place,
-[`api/src/db/client.ts`](./api/src/db/client.ts). Why SQLite and not PostgreSQL, and what would
-make us change our minds, is [ADR 001](./docs/adr/001-sqlite-over-postgresql.md).
+One SQLite file, opened in exactly one place, [`api/src/db/client.ts`](./api/src/db/client.ts). Why
+SQLite, and what would change our minds, is [ADR 001](./docs/adr/001-sqlite-over-postgresql.md).
 
-Every table spreads `baseColumns` from [`api/src/db/schema/base.ts`](./api/src/db/schema/base.ts),
-which supplies `id` (UUIDv7), `created_at`, `updated_at` and `deleted_at`. Schema files live in
-`api/src/db/schema/`, one per table.
+Every table spreads `baseColumns` from [`api/src/db/schema/base.ts`](./api/src/db/schema/base.ts):
+`id` (UUIDv7), `created_at`, `updated_at`, `deleted_at`. One schema file per table.
+
+One `food` table holds ingredients, dishes and branded products alike, with no recipe table and no
+composition: [ADR 006](./docs/adr/006-single-foods-table.md).
 
 ### Changing the schema
 
@@ -613,72 +330,37 @@ which supplies `id` (UUIDv7), `created_at`, `updated_at` and `deleted_at`. Schem
 pnpm --filter @portionium/api db:generate add_meal_table
 ```
 
-Edit the schema file, then generate. The name is not optional and it is not decoration: the
-script ends in `--name`, so the argument is appended to it and drizzle-kit exits with an error if
-you leave it out. Without it you get `0007_flowery_micromacro.sql` and nobody reviewing the diff
-in a year can tell what it did. Use `snake_case`, describe the change, not the ticket.
+Edit the schema file, then generate. The name is not optional: without it you get
+`0007_flowery_micromacro.sql` and nobody reviewing the diff in a year can tell what it did. Use
+`snake_case` and describe the change, not the ticket.
 
 Generated SQL goes to `api/drizzle/`, is committed, and is applied by `openDatabase()` at startup
-rather than by a separate deploy step. Drizzle records what it has applied, so booting twice
-applies nothing twice.
+rather than by a separate deploy step.
 
-A migration that has been applied anywhere is frozen. Never edit it, never renumber it, never
-delete it. Fix it forward with a new migration.
+**A migration that has been applied anywhere is frozen.** Never edit it, never renumber it, never
+delete it. Fix it forward.
 
-### Rolling back
-
-There are no down migrations. Drizzle does not generate them and hand written ones rot, because
-the reverse of a destructive change is not derivable from the change itself. The recovery path is
-to **restore the database file from backup and redeploy the previous release**. SQLite makes that
-cheap: stop the process, copy `portionium.db` back into place along with its `-wal` and `-shm`
-sidecars, start the old version.
-
-This is why a migration that drops or rewrites data is worth a second pair of eyes, and why
-`strict` is on in `drizzle.config.ts`, so drizzle-kit asks before generating one.
+There are no down migrations. The recovery path is to restore the database file from backup and
+redeploy the previous release, which is why a migration that drops or rewrites data is worth a
+second pair of eyes.
 
 ### Backups
 
-[`api/src/db/backup.ts`](./api/src/db/backup.ts), and one rule decides everything in it: a
-running SQLite database in WAL mode is not its file. Committed data is split between
-`portionium.db` and `portionium.db-wal` until a checkpoint moves it, so `cp portionium.db
-elsewhere` copies a prefix of the truth, takes no lock, and can catch a page mid write. That copy
-usually opens, which is what makes it dangerous rather than merely wrong: it fails on the day it
-is needed. So a backup here is `VACUUM INTO`, which SQLite runs in a read transaction and writes
-as a complete, freshly packed database with no sidecars to remember.
+[`api/src/db/backup.ts`](./api/src/db/backup.ts), and one rule decides everything in it: a running
+SQLite database in WAL mode is not its file, so `cp` copies a prefix of the truth. A backup here is
+`VACUUM INTO`, which writes a complete, freshly packed database with no sidecars.
 
 Archives are gzipped and named `portionium-<UTC timestamp>.db.gz`. The timestamp is in the name
-rather than left to the filesystem because an mtime does not survive a copy to object storage or
-an `rsync` somebody forgot the `-a` on, and the name is the one piece of metadata that travels
-with the bytes. It is also what the retention policy reads, so a directory of archives needs no
-index. A file in that directory whose name this module did not write is ignored and never
-deleted.
+because an mtime does not survive a copy to object storage, and it is what the retention policy
+reads. A file this module did not name is ignored and never deleted. Retention is
+grandfather-father-son, and an archive counts in every tier it is the newest of.
 
-Retention is grandfather-father-son, `selectExpiredBackups`, and an archive counts in every tier
-it is the newest of, so 7/4/3 keeps about eleven files rather than fourteen. `BACKUP_KEEP_DAILY`
-has a floor of one in the config, and that floor is load bearing: it is what keeps the archive
-just taken out of reach of the policy that runs right after it.
+The schedule is in `index.ts` rather than a plugin, so a test that builds an app does not start
+writing files. It runs at startup and hourly; `createBackupIfDue` is what stops a restart taking a
+second backup. Off when `BACKUP_DIR` is empty, said out loud at warn.
 
-The schedule is in [`api/src/index.ts`](./api/src/index.ts) rather than in a plugin, because it
-is a lifecycle concern and a test that builds an app should not start writing files. It runs at
-startup and hourly, and `createBackupIfDue` is what makes those two compose: it asks the
-directory how old the newest archive is, so a restart does not take a second backup and a crash
-loop does not take a hundred. A daily timer alone would mean an instance redeployed every morning
-never reaches its first tick. Off when `BACKUP_DIR` is empty, which is development and every
-test, and said out loud at warn, because no backups should be a decision somebody can see in the
-log rather than discover afterwards. A failure is logged at error and the process keeps serving:
-refusing to run a food diary because a backup failed is the worse of the two outcomes.
-
-`restoreBackup` does three things a `gunzip` does not, and each is a way this operation fails
-silently otherwise. It removes the target's `-wal` and `-shm`, which belong to the file that used
-to be there and whose pages SQLite would apply on top of the restore. It runs `integrity_check`,
-which reads every page rather than trusting that the file opens. And it opens the result the way
-the application does, so `databaseNotReadyReason` answers whether this build can serve what came
-back. An existing target is refused unless `--force`.
-
-Both halves are a command rather than an endpoint, [`api/src/cli/backup.ts`](./api/src/cli/backup.ts),
-for the same reason account administration is: being on the machine with the file is the
-authorisation, and a route that hands out a copy of the database hands out every account's data
-to whoever finds a way to call it.
+`restoreBackup` removes the target's `-wal` and `-shm`, runs `integrity_check`, and opens the result
+the way the application does. An existing target is refused unless `--force`.
 
 ```sh
 pnpm --filter @portionium/api backup create
@@ -686,656 +368,216 @@ pnpm --filter @portionium/api backup list
 pnpm --filter @portionium/api backup restore --from data/backups/portionium-...db.gz
 ```
 
-The restore path is exercised on every push, by the `restore` job in CI, which runs
-[`api/test/backup.test.ts`](./api/test/backup.test.ts): it seeds a database, backs it up through
-the documented command as a separate process, deletes the file and both sidecars, restores it
-through the documented command, and asserts the account, the meal, the row behind its foreign key,
-the shipped catalog and the migration count. Its own job rather than a step in `verify` because
-the claim in the README has to be a named check a stranger can follow in one click. The commands
-it runs are the runbook's, so a broken command fails there rather than in an incident.
-
-An off-machine copy is documented in the runbook and deliberately not code. `BACKUP_DIR` on the
-volume survives the container, the image and a bad migration, which is what actually goes wrong
-here; the archives are plain files with timestamps in their names, so `rclone` or `restic` on a
-timer is the whole of it and a second implementation of that inside this process would be one
-more thing to page somebody about.
+The `restore` job in CI runs these same documented commands on every push, so a broken command fails
+there rather than in an incident. An off-machine copy is `rclone` or `restic` on a timer and is
+deliberately not code; see [docs/runbooks/backup.md](./docs/runbooks/backup.md).
 
 ### Seed catalog
 
-[`api/seed/foods.json`](./api/seed/foods.json) is the food catalog that ships with the app,
-roughly 240 entries weighted towards German everyday eating. It is product data, not test data: a
-good catalog means the AI classifier is rarely reached, which is the behaviour the project claims.
+[`api/seed/foods.json`](./api/seed/foods.json) is the catalog that ships with the app, roughly 240
+entries weighted towards German everyday eating. It is product data, not test data: a good catalog
+means the AI classifier is rarely reached.
 
-Colour is energy density as the food is eaten, not as it is sold. Green under roughly 120 kcal per
-100 g, yellow up to roughly 250, orange above that. Drinks are judged by what a normal glass
-delivers rather than per 100 ml, because a cola is 42 kcal per 100 ml and still a glass of sugar.
-Nuts and oils come out orange despite being good food, which is the honest answer an energy density
-model gives. The rule is repeated at the top of the JSON file, because that is where it gets
-ignored.
+Colour is energy density **as the food is eaten**, not as it is sold. Green under roughly
+120 kcal/100 g, yellow up to roughly 250, orange above. Drinks are judged by what a normal glass
+delivers, because a cola is 42 kcal/100 ml and still a glass of sugar. Nuts and oils come out
+orange, which is the honest answer an energy density model gives. The rule is repeated at the top of
+the JSON file, because that is where it gets ignored.
 
-`seedFoodCatalog()` in [`api/src/db/seed.ts`](./api/src/db/seed.ts) runs at startup, right after
-the migrations and for the same reason. It compares the file against the database on every run
-rather than recording that it has run, so adding entries and restarting is the whole deployment
-step, and a run interrupted halfway heals itself on the next boot.
-
-Seeded rows belong to nobody. `food.created_by` is null and so is `food_classification.user_id`,
-which is what makes one catalog serve every account while a user's own opinion stays a separate
-row. Two things the loader deliberately does not do: it leaves a soft deleted seed food deleted
-rather than resurrecting it, and it does not move a colour that changed in the file. The
-resolution rule would take the newer of two seed verdicts, so a corrected colour would arrive on
-a restart without anybody deciding it should, and correcting a shipped verdict is a deliberate
-act. The loader writes through `insertClassifications` like everything else, see below.
+`seedFoodCatalog()` runs at startup after the migrations and compares the file against the database
+on every run, so adding entries and restarting is the whole deployment step. It leaves a soft
+deleted seed food deleted and does not move a colour that changed in the file: correcting a shipped
+verdict is a deliberate act.
 
 ### Classifications
 
 A food has no colour. It has a stack of opinions about its colour, and
-[`api/src/db/classification.ts`](./api/src/db/classification.ts) is the log of them: one row per
-verdict, carrying the source (`seed`, `ai_text`, `ai_vision`, `user`), the user it belongs to or
-null when it belongs to everybody, and the model's provenance when a model produced it.
-
-Nothing updates a row and nothing deletes one. A verdict is corrected by inserting a newer one,
-which is what keeps the disagreement, and the disagreement is the data: it is what later answers
-how often the classifier was wrong and at what confidence. The enforcement is that the module
-exposes one write and it inserts, so there is no function that could break the rule. Why, and
-what it costs on every read, is [ADR 007](./docs/adr/007-append-only-classification-log.md).
+[`api/src/db/classification.ts`](./api/src/db/classification.ts) is the log of them. Nothing updates
+a row and nothing deletes one; the module exposes one write and it inserts. Why, and what it costs
+on every read, is [ADR 007](./docs/adr/007-append-only-classification-log.md).
 
 Which verdict wins is `resolveClassification` in
-[`api/src/domain/classification.ts`](./api/src/domain/classification.ts), and that is the only
-place the order is written down: the caller's own most recent verdict, then the most recent model
-verdict, then the one that shipped, then no colour, which is a state rather than a failure. Every
-path that asks what colour a **food** is goes through it, so a list and a detail view cannot
-disagree about what somebody is looking at. `resolveClassifications` does the same for a whole
-page from one query, which is why fifty foods are two statements and not fifty one.
+[`api/src/domain/classification.ts`](./api/src/domain/classification.ts), and every path that asks
+what colour a **food** is goes through it.
 
-That log answers what colour a food is. It does not answer what colour an **entry** is, and the
-difference is the whole of [ADR 011](./docs/adr/011-an-entry-is-a-colour.md). An entry carries a
-`category` of its own, stamped when it was logged, and no read recomputes it. So resolution
-belongs to the preset half of the application and nowhere else: food search, `GET /foods`,
-`GET /foods/{id}`, the review queue, the `foods` list on a day response, and the favourite and
-suggestion previews, which are compositions rather than history. Reaching for it to draw a logged
-entry is the bug that story exists to remove.
-
-The one thing that moves a colour after the fact goes through this module too. When a row with
-`source = 'user'` is written, the same transaction gives every entry belonging to that user, naming
-that food and still holding `category IS NULL` the colour it was waiting for, see
-`colourWaitingEntries`. It lives inside `insertClassifications` rather than in the three routes
-that write such a verdict, so `PUT /foods/{id}/classification`, `POST /foods/unclassified/confirm`
-and the AI confirm and reject to come cannot forget it. An entry that already carries a colour is
-never rewritten, a `seed` or `ai_*` verdict never touches one, and withdrawing an override never
-un-colours one. Isolation holds by construction: the update is correlated on the meal's owner, so
-the other account's waiting entries are not in range.
-
-`GET /api/v1/foods/{id}/classification/history` is the log itself, unresolved and newest first.
-It carries the shared rows and the caller's own, never another account's.
+It does not answer what colour an **entry** is. An entry carries a `category` stamped when it was
+logged and no read recomputes it, which is [ADR 011](./docs/adr/011-an-entry-is-a-colour.md).
+Resolution therefore belongs to the preset half of the application only: food search, the review
+queue, the `foods` list on a day, the favourite and suggestion previews. Reaching for it to draw a
+logged entry is the bug that ADR exists to remove.
 
 ### Search
 
-`GET /api/v1/foods/search?q=` is the endpoint the core interaction sits on, so the two halves of
-it are deliberately in different places.
+`GET /api/v1/foods/search?q=` is the endpoint the core interaction sits on, and its two halves are
+deliberately in different places.
 
-Recall is SQLite's FTS5, in a `food_search` virtual table tokenised into trigrams. That is what
-makes a query match inside a word and across a space, so `kyr` finds `Skyr` and `nut but` finds
-`Peanut Butter`. The table is kept in step with `food` by triggers, added in
-[`0005_add_food_search_index.sql`](./api/drizzle/0005_add_food_search_index.sql), so nothing in
-TypeScript writes to the index and nothing can forget to. That migration also backfills the
-entries already in the catalog, which is the half that fails invisibly, and
-`api/test/food-search.test.ts` runs the migrations in two halves to prove it does not.
+**Recall** is SQLite FTS5 in a trigram-tokenised virtual table, kept in step with `food` by triggers
+added in [`0005_add_food_search_index.sql`](./api/drizzle/0005_add_food_search_index.sql), so
+nothing in TypeScript writes to the index. **Ranking** is
+[`api/src/domain/food-search.ts`](./api/src/domain/food-search.ts), in memory: exact match, then the
+caller's own most recently eaten foods, then instance-wide frequency, then lexical relevance. The
+second key is the one that matters.
 
-Ranking is [`api/src/domain/food-search.ts`](./api/src/domain/food-search.ts), in memory, over
-the rows that came back. Exact match, then the caller's own most recently eaten foods, then how
-often the instance eats it, then lexical relevance. The second key is the one that matters: most
-of anyone's diet is the same twenty foods, so a personal history predicts what somebody is
-typing better than anything about the catalog does.
+Two things the index cannot do fall through to a scan of the live names, and only when the index
+returned less than a full page: a query under three characters, and a typo. An empty `q` is not an
+error; it answers with the caller's most eaten foods.
 
-Two things the index cannot do, and both fall through to a scan of the live names in
-JavaScript, which runs only when the index came back with less than a full page. A query shorter
-than three characters, because a trigram index has nothing to match it against, which is
-answered with a prefix. And a typo, because `Sykr` shares no trigram at all with `Skyr`, which
-is answered with a Damerau edit distance of one. Case folding happens there rather than in SQL
-for the reason `normalizeFoodName` gives.
-
-An empty `q` is not an error. It answers with the caller's most eaten foods, degrading to what
-the instance eats and then to the catalog by name, because a search box is focused before it is
-typed into and an autocomplete that opens empty is one nobody uses.
-
-`api/test/food-search.test.ts` holds the benchmark: 5000 entries, a median under 50 ms per
-query. It is there to catch a change of kind, a scan added to the hot path or an index that
-stopped being used, rather than to police a millisecond.
+`api/test/food-search.test.ts` holds the benchmark: 5000 entries, median under 50 ms. It is there to
+catch a change of kind, not to police a millisecond.
 
 ### Tests
 
 `createTestDatabase()` in [`api/test/helpers/database.ts`](./api/test/helpers/database.ts) gives a
-fresh migrated database in its own temp directory. `close()` drops the connection and the
-directory. It uses a file rather than `:memory:`, because WAL and the busy timeout only mean
-anything for a real file. Integration tests run against that file, never against a mock or an
-in-memory fake.
+fresh migrated database in its own temp directory, on a real file rather than `:memory:` because WAL
+and the busy timeout only mean anything for one.
 
-`createTestFixtures()` in [`api/test/helpers/fixtures.ts`](./api/test/helpers/fixtures.ts) is that
-database with two accounts already in it, `userA` and `userB`, plus `create`, the row factories.
-Two accounts because almost every read takes a `userId`, and a test with one user cannot tell a
-query that filters by owner from one that forgot to. They sit in different timezones on purpose,
-so a service reaching for the wrong user's day context produces a visibly wrong local date rather
-than the right answer by luck.
+`createTestFixtures()` adds two accounts, `userA` and `userB`, plus `create`, the row factories. Two
+accounts because almost every read takes a `userId` and a test with one user cannot tell a query
+that filters by owner from one that forgot to. They sit in different timezones on purpose. The
+factories build rows the way the application does, so a suite cannot pass against rows the
+application could never produce.
 
-The factories are synchronous, take overrides on top of sensible defaults, and build rows the way
-the application builds them: `create.meal()` goes through `createMeal`, so positions and the local
-date are derived rather than invented. A factory that made those up itself would let a suite pass
-against rows the application could never produce.
+`freezeTime()` pins the clock and restores it on its own. Only `Date` is faked, not timers.
 
-`freezeTime()` in [`api/test/helpers/time.ts`](./api/test/helpers/time.ts) pins the clock for the
-rest of the test and restores it on its own. Day boundaries, streaks and trends answer differently
-depending on what now is, so assertions about them are only worth something against a stopped
-clock. Only `Date` is faked, not timers, which would break the driver's busy timeout for no gain.
-
-### Coverage
-
-`pnpm test:coverage`, v8 provider, text and HTML and lcov into `coverage/`. The target is
-**80 percent of `api/src/domain` and `api/src/db`**, and the adapters follow once they exist.
-
-There is no threshold and CI does not fail on the number, on purpose. A gate turns the report into
-something to satisfy, and the tests written to satisfy a gate are the ones that assert nothing. The
-report is there to be read: the useful line is a module showing up as a row of zeroes, not the
-percentage at the bottom. Schema files and the process entry point are excluded, there is nothing
-in them to cover.
+Coverage is `pnpm test:coverage`, targeting 80 percent of `api/src/domain` and `api/src/db`. There
+is no threshold and CI does not fail on the number, on purpose: the useful line is a module showing
+up as a row of zeroes, not the percentage at the bottom.
 
 ## Web client
 
-React and Vite, in `web/`, installable as a PWA and served in production by the API process on
-the origin it already answers on, see Serving the web client above.
-
-There are no hand written request or response types here. Everything on the wire comes from
-`@portionium/schemas`, which is the same definition the server validates and serialises with,
-so a contract change breaks the typecheck on both sides in one commit.
+React and Vite, installable as a PWA, served in production by the API process on its own origin.
+There are no hand written request or response types: everything on the wire comes from
+`@portionium/schemas`.
 
 ### Talking to the API
 
-One function, `request` in [`web/src/api.ts`](./web/src/api.ts), and every call goes through it.
-It takes the path, the schema the route declares, and optionally a method and a body. The
-response is parsed with that schema rather than cast to it: a server that answers with something
-the contract does not describe fails at the call site, with the field named, instead of handing
-a half shaped object to a component that renders `undefined`.
+One function, `request` in [`web/src/api.ts`](./web/src/api.ts), and every call goes through it. The
+response is parsed with the route's schema rather than cast to it. A non 2xx is an `ApiError`
+carrying the problem document whole, so a caller branches on `problem.type` from the same union the
+API is built from. `problem.detail` is the only part safe to show a person.
 
-A non 2xx is an `ApiError` carrying the RFC 9457 problem document whole, so a caller branches on
-`problem.type` from the same union the API is built from. `problem.detail` is written to be shown
-to a person and is the only part safe to put on screen; anything that is not an `ApiError` is a
-network failure or a contract mismatch and gets a generic sentence.
+Neither credential nor CSRF header appears in that file and both are handled: the session cookie is
+`HttpOnly` and the browser attaches it because the request goes to the origin the app was served
+from. `credentials` is `same-origin`, because a cross origin request from this client is a bug.
 
-Neither credential nor CSRF header appears in that file, and both are handled. The session
-cookie is `HttpOnly`, so nothing in this app can read it, set it or leak it, and the browser
-attaches it because the request goes to the origin the app was served from. That is also why
-`credentials` is `same-origin` rather than `include`: a cross origin request from this client is
-a bug and not a case to configure for. The API's `Origin` check needs nothing either, because a
-browser sets that header itself on every mutating request and a page cannot forge it.
+An unauthenticated response fires `UNAUTHENTICATED_EVENT`; `App` listens and renders the login
+screen. Nothing stored is cleared, so a queue of meals written on a train survives signing back in.
 
-An unauthenticated response fires `UNAUTHENTICATED_EVENT` on the module's own `EventTarget`, and
-`App` listens for it and renders the login screen. An event rather than a callback threaded
-through the tree, because whatever notices is a fetch buried somewhere, what reacts is the root,
-and the outbox is a third party to the same fact. Reacting is deliberately only that: nothing
-stored is cleared, so a queue of meals written on a train survives signing back in.
+### The device, and the outbox
 
-### What the device keeps
+One IndexedDB database, opened in [`web/src/db.ts`](./web/src/db.ts) through Dexie. Four tables:
+`days` (cold launch renders something), `foods` (logging works with no network, since a meal
+references a food by id), `stats`, and `outbox`.
 
-One IndexedDB database, opened in exactly one place,
-[`web/src/db.ts`](./web/src/db.ts), through Dexie. Four tables, and each is there for a
-different reason. `days` is what makes a cold launch with no network render something instead of
-a spinner, capped at `CACHED_DAYS`. `foods` is what makes logging possible with no network at
-all, because a meal references a food by id and a client with no catalog has no id to reference;
-it holds the caller's most eaten entries with the colour already resolved for them, which is the
-same answer `GET /foods/search` gives an autocomplete before anything is typed. It is filled by
-`refreshFoods` once per launch, beside the day window, and read by the composer. `stats` is the
-last answer each statistic gave, see the statistics screen below. `outbox` is the queue below.
+Reads are cache first and then replaced. **The server is the source of truth for every read, without
+exception**, which is what keeps this a cache rather than a replica. Cached rows are parsed on the
+way out, not cast, so a row written by an older version of the app is a miss rather than a crash.
 
-`stats` is keyed by the question rather than by the URL that asked it, so it is three rows that
-are overwritten forever. A URL carries a range, which moves every day and differs between a
-phone and a desktop, so keying on it would leave a row behind on every one of those changes and
-need a trim like `trimDays`.
+The outbox is [`web/src/outbox.ts`](./web/src/outbox.ts). It is one directional and it is not a sync
+engine; the reasoning is [ADR 010](./docs/adr/010-pwa-and-offline-outbox.md). Two things to know
+before changing it: `classifyAttempt` is the only piece of judgement in the module, and
+`localDateFor` is the client side twin of `resolveLocalDate` and has to agree with it, or an offline
+meal is filed under one date locally and another on the server.
 
-`cachedStats` and `cachedDay` both parse what comes back out rather than casting it, because a
-row written by an older version of this app is a shape this one may no longer understand, and a
-miss is the same outcome as a first launch, which every caller already renders. That is what
-carries a rename across an update: POR-68 renamed a meal's `items` to `entries`, so a day cached
-before it parses as nothing and is fetched again. Nothing migrates IndexedDB by hand, and there
-is no repair for a cached day other than the refresh behind it.
+### Screens
 
-Reads are cache first and then replaced. `cachedDay` answers from the device, `refreshDay`
-fetches and overwrites, and a screen renders the first and then the second. The server is the
-source of truth for every read, without exception: nothing on the device ever wins an argument
-with it, which is what keeps this a cache rather than a replica.
+[`web/src/today.tsx`](./web/src/today.tsx) is the screen the app opens on;
+[`web/src/day.ts`](./web/src/day.ts) is the arithmetic behind it, split out because none of it needs
+React. [`web/src/stats.ts`](./web/src/stats.ts) is the same split for
+[`web/src/statistics.tsx`](./web/src/statistics.tsx).
 
-A cached day carries the foods its entries name, because `GET /days/{date}` sends them: an entry
-carries a `foodId` and a colour, which is what a count needs, and not the name, which is what a
-person reads. Denormalising it into the day payload rather than looking names up separately is
-what lets a day open with no network at all, see `dayResponseSchema`.
+Rules that outlive any one screen:
 
-The colour on that entry is the one it was logged with and the colour on the `foods` list beside
-it is the food's as it stands now, see [ADR 011](./docs/adr/011-an-entry-is-a-colour.md). The two
-can differ on one response and the entry's is the one to render. `withClassification` in
-`db.ts` follows the server's rule rather than its own: the optimistic copy colours the entries
-naming that food whose `category` is still null, and leaves an entry that already has one alone,
-which is exactly what the refresh behind it will report.
+- **There is no loading state anywhere**, deliberately. A day is read from the device and rendered,
+  and the server's answer replaces it whenever it arrives.
+- **A dot reads `entry.category` and nothing else.** Nothing on a day screen resolves a colour.
+- **The trend is the headline and a daily weight is never the largest thing on screen.** When the
+  server says there is too little evidence, the line is not drawn at all.
+- **Nothing here recomputes a statistic.** The server smooths the trend
+  ([ADR 008](./docs/adr/008-weight-trend-smoothing.md)); a second implementation on this side would
+  be a second answer to one question.
+- **There is no quantity field and there will not be one.** `entrySchema.quantity` exists on the
+  wire and stays unused. The moment portions become enterable this turns back into the calorie
+  tracker it exists to replace.
+- Hue alone separates the four states on screen, so `aria-label` is the only channel a colour blind
+  reader has. If a second visual channel is ever restored it belongs in `DOTS` in
+  [`web/src/dot.tsx`](./web/src/dot.tsx), which every surface reads.
 
-`localDateFor` is the client side twin of `resolveLocalDate` in `api/src/domain/local-date.ts`
-and has to agree with it, or an offline meal is filed under one date locally and another on the
-server. It is built on `Intl.DateTimeFormat`, which is the browser's own IANA database, so the
-Temporal polyfill does not enter the bundle.
+The composer, [`web/src/compose.tsx`](./web/src/compose.tsx), is the interaction the product lives or
+dies on, and everything in it is arranged around the taps between opening the app and a logged three
+item meal. The search field is an ARIA combobox over a listbox; focus never leaves the input.
+Answers come from the device first and the server second, in one effect whose cleanup covers both a
+request per keystroke and an out of order answer.
 
-### The outbox
+### One origin, and the build
 
-[`web/src/outbox.ts`](./web/src/outbox.ts), and the reasoning is
-[ADR 010](./docs/adr/010-pwa-and-offline-outbox.md). It is one directional and it is not a sync
-engine.
+In development the client runs on the Vite dev server and `server.proxy` sends `/api` to the local
+Fastify instance, so the browser sees one origin. In production the API serves the built bundle.
+`WEB_ORIGIN` has to name whatever the browser sees; its scheme also decides whether the session
+cookie is marked `Secure`.
 
-A write is durable before any request is made, so `logMeal` and `logWeight` return as soon as
-IndexedDB has the entry and the optimistic copy of the row is in the cached day. Nothing waits on
-the network, which is the whole point: the canteen with no signal is not an edge case in a food
-diary, it is lunch.
-
-Nothing is duplicated, because every attempt at one entry carries the same `Idempotency-Key`,
-minted once at enqueue and never regenerated. A meal additionally carries a client minted UUIDv7
-in its body, so a retry hands the server the same meal rather than asking for a second one, see
-`createMealRequestSchema`. That key is also the queue order, since a UUIDv7 sorts by the moment
-it was made, so draining in order is reading the table by its primary key.
-
-`classifyAttempt` is the one piece of judgement in the module and the place to be careful.
-Anything that is not an `ApiError` is a retry, because that is what being offline looks like. A
-429 or a 5xx is a retry. A meal id conflict is a **success**: the id was minted on this device,
-so the only thing that can already hold it is an earlier attempt at this same entry whose
-response was lost and whose key has since aged out of the server's table. Unauthenticated pauses
-the drain rather than failing the entry, because the session expiring is not this meal's fault
-and burning a backoff on every queued entry would be. Everything else is permanent, leaves the
-retry loop and waits for a person, see `failedWrites` and `discardWrite`.
-
-Five triggers, because no single one is enough on a phone: app start, `visibilitychange` to
-visible, `online`, immediately after a successful enqueue, and a timer at the next entry's
-backoff. Background Sync is a sixth where it exists and is deliberately not load bearing:
-[`web/public/sw-drain.js`](./web/public/sw-drain.js) forwards the event to the page and sends
-nothing itself, because draining in the worker would mean a second copy of the request layer and
-the schemas inside it.
-
-Two tabs are handled with one Web Lock around the drain. That is an optimisation rather than the
-correctness property, which is why a browser without Web Locks drains anyway: the idempotency
-key already makes a double send harmless, and the lock only saves the wasted request.
-
-### The Today screen
-
-[`web/src/today.tsx`](./web/src/today.tsx) is the screen the app opens on, and
-[`web/src/day.ts`](./web/src/day.ts) is the arithmetic behind it, split out because none of it
-needs React, a DOM or IndexedDB and all of it is worth testing.
-
-It is also where the other two screens are reached from, as one piece of state rather than a
-boolean each, because two booleans allow a combination that means nothing. There is still no
-router: a router earns its place when a screen is worth a URL, which is when the back gesture
-has to mean something on this app, and today closing a screen is a render rather than a
-navigation.
-
-There is no loading state on it anywhere, which is a decision rather than an omission. A day is
-read from the device and rendered, and the server's answer replaces it whenever it arrives, so a
-day that is not cached yet renders as an empty day rather than as a spinner. That is the right
-answer for the common case, a day with nothing on it, and a brief understatement for the rest.
-
-Each dot is one entry, in the order they were eaten, and reads `entry.category` and nothing
-else. Nothing on this screen resolves a colour, and nothing should: recolouring a food changes
-what logging it again gives you and leaves the day it was eaten on as it was.
-
-Each dot is a coloured point with an `aria-label`, and the letter that used to sit inside it
-went on WEB 8. No visual channel replaced it: the day is a row of uniform points and hue alone
-separates the four on screen, which is a deliberate deviation from that story's own criterion
-that the states stay separable in greyscale. `aria-label` is therefore the only channel left for
-a reader who cannot tell this palette's green from its orange, and roughly one man in twelve
-cannot. The colour bars on the statistics screen dropped their letters for the same reason and
-carry their counts as a sentence. If a second channel is ever restored it belongs in `DOTS` in
-[`web/src/dot.tsx`](./web/src/dot.tsx), which both surfaces already read.
-
-The unsent mark is the one thing that is not colour: a ring rather than a dimmed fill, because
-fading a traffic light changes which light it looks like, and a screen reader cannot hear
-faintness either, so it is announced. It is a border inside the dot rather than an outline around
-it, so a queued meal takes exactly the width of a sent one.
-
-Paging is bounded on both sides by the same promise. Forward stops at today, and back stops at
-the edge of the cache, so the screen can only show days that are actually on the device.
-`refreshRecentDays` fills the gaps in that window behind the screen, and only the gaps: a launch
-on a phone used this week costs no requests beyond the one for the day being shown, where
-re-fetching the whole window every launch would cost seven for six answers that have not changed.
-
-Two corrections live here and a third deliberately does not. Deleting a meal and giving a food a
-colour need no food search, so they are here; recomposing a meal does, and needs `PATCH /meals/{id}`
-rather than the outbox's create path, so it is not here yet. The Classify control sits on a grey
-dot and on no other: a bare colour names nothing to classify, and a coloured entry is history
-that recolouring its food deliberately leaves alone, so correcting one entry on its own is a
-different story. Undo is not a timer and not a
-window that expires: the delete is durable immediately like every other write, and undoing it
-posts the same meal id again, which revives the server's own soft deleted row. So closing the app
-mid undo loses nothing, and there is nothing to race.
-
-### Composing a meal
-
-[`web/src/compose.tsx`](./web/src/compose.tsx), opened from the Today screen and rendered in
-place of it. This is the interaction the product lives or dies on, so everything in it is
-arranged around one number: the taps between opening the app and a logged three item meal.
-
-The search field is an ARIA combobox over a listbox, and that one choice is what makes two of
-the requirements the same code. Focus never leaves the input, the highlight moves with
-`aria-activedescendant`, so desktop operation is type, arrow down, enter, repeat, and picking a
-food puts the caret straight back for the next one. A three item meal is one journey to the
-keyboard rather than three, which on a phone is the difference between the keyboard staying up
-and closing three times.
-
-Answers come from the device first and the server second, and both are one effect. Every
-keystroke sets the cached answer synchronously, so there is never a moment with nothing on
-screen, and a timer behind it asks `GET /foods/search` after 200 ms. The effect's cleanup flips
-a flag and clears the timer, which is one mechanism covering two problems: a request per
-keystroke, and an answer to an abandoned query arriving after a newer one. A failed request is
-swallowed rather than shown, because it means there is no connection, the local answer is
-already up, and an error beside a working list is noise.
-
-The local half is [`web/src/food-search.ts`](./web/src/food-search.ts), and it is deliberately
-not a second copy of the server's search. Exact name, then a prefix of the name, then a prefix
-of a later word, then anywhere in the name, with the cache's own order breaking every tie, since
-that order is the server's answer to what this person eats. There is no typo tolerance: the
-server has a trigram index and a Damerau walk for that, see `api/src/domain/food-search.ts`, and
-two implementations of a ranking are two different answers to one search box. What is scanned
-here is fifty names out of somebody's own diet, where a typo is visibly a typo.
-
-What the composer sends for a food is its id and nothing else. The server stamps the colour that
-food resolves to for this caller at that moment, see
-[ADR 011](./docs/adr/011-an-entry-is-a-colour.md), and the optimistic copy in `logMeal` carries
-the colour the search result already had for exactly that reason: it is the row that is about to
-come back.
-
-The other thing it sends is a colour naming no food at all, from three buttons above the search
-field, and that is the same rule read backwards: an entry is a colour and a food is a name for
-one, so adding a green is one tap rather than a search followed by a decision about what to call
-it. They sit before the combobox in the document and go through the same `add` the listbox does,
-so the keyboard cost is one Shift+Tab and the caret is back in the field afterwards. A chosen
-thing is therefore `FoodResponse | Category`, `ComposedEntry` in `outbox.ts`: `Category` is a
-string union, so `typeof entry === 'string'` narrows both halves and a bare colour needs no
-wrapper carrying nothing beside it.
-
-It is also the only write on this screen that can never want a connection. Adding an unknown
-food mints an id at the server and a bare colour has no id to mint, so the offline spec logs one
-inside a meal that also names a food and asserts the two drain as one meal.
-
-Three smaller decisions are worth knowing. The meal type is pre-selected from the clock in the
-user's own timezone by `mealTypeAt`, and the hours between meals are snacks rather than a guess
-at the nearest one, because being wrong costs the tap this exists to save. A food the catalog
-does not have is added from the last row of the same listbox, with nothing but a name, so
-keyboard-only creation needs no separate control; it is the one thing here that needs a
-connection, because `POST /foods` mints the id and a meal references a food by id. And nothing
-asks a model anything, so adding an unknown food is one insert and never a wait on a classifier:
-it resolves to no colour, which is what puts it in the review queue.
-
-There is no quantity field and there will not be one. The product's claim is that nobody weighs
-their food, and the moment portions become enterable this turns back into the calorie tracker it
-exists to replace. `entrySchema.quantity` exists on the wire and stays unused, and a bare colour
-is the opposite of a portion rather than a step towards one.
-
-Favourites and meal suggestions are not here, though the API answers both. A favourite's entries
-carry a `foodId` and no name, so a preview needs a lookup per food that no endpoint offers, and
-nothing in this client can pin a favourite in the first place, so the list would be empty for
-everybody. Both are worth building once the API answers with names.
-
-### The review queue
-
-[`web/src/review.tsx`](./web/src/review.tsx), reached from a row on the Today screen and only
-while there is something in it. A chore rather than a destination, so it is not a fourth tab, and
-the row carries the count from `GET /foods/unclassified/count`, which is its own endpoint
-precisely so a client that only wants to know whether to show the row does not pay for the
-ranking query to find out.
-
-It closes the gap the composer opens. A food added on the fly arrives with no colour, and so does
-every entry logged with it, and a grey entry is one the statistics cannot place, so without this
-the faster the composer gets the more of the diary becomes uncountable.
-
-A colour button marks a row and one button at the bottom sends the lot, because the endpoint takes
-a batch and a queue is something somebody clears in a sitting. The list is asked for at the
-endpoint's own default of 50, which is also the cap on one batch, so everything on screen can
-always go in the one request and there is no paging and no chunking here.
-
-Nothing on this screen goes through the outbox, unlike every write on the Today screen. An outbox
-entry is shaped around the one day it changes, which is what its drain refreshes, and a batch of
-verdicts about foods is about no day in particular. This is a screen somebody opens deliberately
-and waits on, which is the case `api.ts` describes as sending without an idempotency key.
-
-What a confirmation does to the entries already logged is the server's, in the same transaction,
-see `colourWaitingEntries`. `classifyCachedDays` in [`web/src/db.ts`](./web/src/db.ts) mirrors
-exactly that on the device and nothing more: every cached day rather than the one on screen, since
-a food somebody eats every morning is grey on all seven of them, and inside each day the rule is
-`withClassification`, so an entry still waiting takes the colour and an entry that already carries
-one is left as history, see [ADR 011](./docs/adr/011-an-entry-is-a-colour.md).
-
-The `suggestion` each queue entry carries is deliberately not rendered. It is null for everything
-today, because nothing produces a model verdict yet. The screen is built now and the source of
-what fills it changes later, which is the groundwork the AI epic needs: a suggestion never colours
-an entry, a confirmation does.
-
-### Weight, and the statistics screen
-
-[`web/src/statistics.tsx`](./web/src/statistics.tsx) is the screen that says whether any of this
-is working, and [`web/src/stats.ts`](./web/src/stats.ts) is the arithmetic behind it, the same
-split `day.ts` is to `today.tsx`.
-
-One rule decides the presentation on both this screen and the weight row on the day: the trend
-is the headline and the daily value is never the largest thing on screen. A daily weight is
-mostly water, salt and when the last meal was, and a screen that answers a reading with that
-reading is the one that makes a good fortnight look like a failure. So recording a weight is
-confirmed with the resulting trend and the reading sits under it as a footnote, and the chart
-draws the smoothed line prominently over small grey dots.
-
-Nothing here computes a statistic. The server resolves the classifications, smooths the trend
-and subtracts the previous period, and every number on the screen is one of its answers sliced,
-summed over a window or turned into a sentence. A second implementation of the smoothing on this
-side would be a second answer to one question, which is the mistake `food-search.ts` already
-refuses to make about ranking.
-
-The corollary of the first rule is `trendCaveat`, and it is the part worth not breaking. When
-the server says there is nothing behind the value, `trendKg` null, or that there is too little,
-`lowConfidence`, the line is not drawn at all and the screen says which of the two it is. A
-confident curve through two readings a fortnight apart is a picture that is wrong in exactly the
-direction this screen exists to correct, so it shows the readings on their own instead. The
-judgement is the server's, see `WEIGHT_TREND.minEvidence` in
-[`api/src/domain/weight-trend.ts`](./api/src/domain/weight-trend.ts); this file only reads it.
-
-The charting is hand written SVG, one polyline over a row of circles, and a pure function that
-turns days into coordinates. `chartGeometry`'s viewBox widens with the number of days rather than
-being fixed, which keeps the drawn scale near one at both phone and desktop width: a fixed
-viewBox stretched across a wide screen inflates every dot and every stroke with it, and the line
-has to stay the prominent thing rather than become the fattest. The stroke is additionally
-non-scaling.
-
-A wider viewport buys a longer range and nothing else, `CHART_DAYS`, decided by a `matchMedia`
-read through `useSyncExternalStore` rather than mirrored into state. The content is a line and
-three lists, which read top to bottom identically on a phone, so the extra room is worth more as
-more days than as a second arrangement to keep working. The choice is made in TypeScript rather
-than in CSS because it decides what is requested, not only what is drawn.
-
-The weight entry itself is on the day, one tap from the row that shows it, prefilled with the
-last reading from the same cached `GET /stats/weight` this screen draws. Tapping it while
-looking at an earlier day pages to today first, the same thing the meal button does and for the
-same reason: a reading is stamped with this clock, so without it the value would quietly land on
-today while the day being read still offered to add one.
-
-Three things are deliberately not here. There is no loading state, the same decision the Today
-screen makes. There is no way to correct a reading from this screen, because `DELETE /weight/{date}`
-removes the most recent one for a day and a chart is the wrong place to be deleting things from.
-And the colour distribution is fetched once over the widest window and sliced for the other two
-rather than asked for three times, since the API fills the gaps itself and position in the array
-is therefore the date.
-
-### One origin, in both directions
-
-In development the client runs on the Vite dev server and `server.proxy` in
-[`web/vite.config.ts`](./web/vite.config.ts) sends `/api` to the local Fastify instance, so the
-browser sees one origin. In production the API serves the built bundle itself. Development is
-therefore not a configuration the client knows about: the same fetch, the same cookie and the
-same CSRF check work in both, and there is no code path that exists on only one of them.
-
-`WEB_ORIGIN` has to name whatever the browser sees, which is `http://localhost:5173` in
-development and the deployed URL in production. Its scheme also decides whether the session
-cookie is marked `Secure`, see Sessions.
-
-### The service worker and the manifest
-
-`vite-plugin-pwa` in generate mode, configured in the same file. The manifest carries what a
-browser needs before it offers to install anything: a name, a start URL, `display: standalone`,
-a theme colour and icons at 192 and 512. Those two are the mark on nothing, a green disc, which
-is also the favicon. The `maskable` entry is a third file and is opaque on purpose, because an
-installed icon cannot be transparent on either platform and iOS composites transparency onto
-black. So it is the disc drawn on the app's own dark background, `--green` on `--background`,
-half the canvas across, which is 62.5% of the circle of 80% diameter the specification reserves
-as the safe zone: whichever shape a launcher crops to, circle or squircle or rounded square, the
-disc keeps a ring of plate around it and nothing takes a bite out of the mark.
-
-The same disc is drawn a third time on the login screen, above the wordmark, as one element and a
-border radius rather than as a fetch of the SVG. It costs no request and `--green` is what makes
-it follow the system's light and dark, where the file in `public/` carries one fixed colour
-because a browser tab cannot be asked which mode it is in. Workbox
-precaches the shell and everything it loads, with `navigateFallback` to `index.html` so a client
-route survives a cold launch, and a denylist for `/api` so a navigation to the API's own paths is
-never answered with this app.
-
-`registerType: 'autoUpdate'`, so a new version installs and takes over on its own. Prompting
-would be a dialog asking somebody to approve a decision they have no information about, on an
-app where every version is the one the API expects. What makes that safe is the cache headers
-the API serves the bundle with, see Serving the web client: hashed assets immutable, the shell
-and the worker revalidated every time.
-
-`navigator.storage.persist()` is requested once at startup, in
-[`web/src/main.tsx`](./web/src/main.tsx). Without it this origin's IndexedDB is best effort and a
-browser under storage pressure may evict it without asking, which for this app is a queue of
-meals somebody logged offline disappearing.
+`vite-plugin-pwa` in generate mode, `registerType: 'autoUpdate'`. What makes that safe is the cache
+headers the API serves the bundle with. `navigator.storage.persist()` is requested once at startup,
+or a browser under storage pressure may evict a queue of meals somebody logged offline.
 
 ### The design system
 
-Tailwind v4 through `@tailwindcss/vite`, which is the whole of its configuration: v4 reads the
-theme out of the stylesheet and finds class names by scanning the project, so there is no
-`tailwind.config.js` and no PostCSS config. [`web/src/styles.css`](./web/src/styles.css) is the
-system, and it is short on purpose.
+Tailwind v4 through `@tailwindcss/vite`, which is the whole of its configuration: v4 reads the theme
+out of the stylesheet and finds class names by scanning, so there is no `tailwind.config.js` and no
+PostCSS config. [`web/src/styles.css`](./web/src/styles.css) is the system: `@theme` for the palette
+and `--spacing-touch`, `@layer base` for what a bare `button`, `input`, `main` or heading looks like,
+and two `@utility` rules, `row` and `primary`.
 
-A scale rather than a component library. Every component a library would supply here is either
-already built or native: the combobox in `compose.tsx` is hand written around
-`aria-activedescendant` and replacing it is a regression risk for no gain, dialogs would be
-`<dialog>`, the charts are hand written SVG by the decision above. What was missing was never
-components, it was that the screens had twelve custom properties and all twelve were colours, so
-spacing, type, radius and elevation were decided per element by eye.
-
-Three parts, and nothing else. `@theme` carries the half Tailwind cannot know, the palette and
-`--spacing-touch`, the latter on the spacing scale rather than beside it so a control asks for
-the floor as `min-h-touch`. `@layer base` decides what a bare `button`, `input`, `main` or
-heading looks like, because preflight strips every browser default and a rule written there is
-one a control added next week cannot forget, which is exactly what the 44px floor needs. And two
-`@utility` rules, `row` for the list row all three screens are built from and `primary` for the
-one action that ends a screen.
-
-Icons are `lucide-react`, imported by name at each use so the bundle carries only those. The
-whole pass cost about 5 kB gzipped over both files.
-
-Light and dark still follow the system setting and nothing else is themed. `color-scheme: light
-dark` plus `light-dark()` is the whole of it, which is also what makes form controls, scrollbars
-and the canvas follow the system without a rule each, and it survived the move into `@theme`
-untouched because Tailwind never parses a theme value, it only hands `bg-green` a
-`var(--color-green)`. There is still no toggle and no stored preference.
+A scale rather than a component library. Light and dark follow the system setting through
+`color-scheme` and `light-dark()`; there is no toggle and no stored preference. Icons are
+`lucide-react`, imported by name at each use.
 
 ### Tests
 
-Unit tests are `*.test.ts` beside the code, run by Vitest, and `vite.config.ts` limits its
-`include` to `src/` because Playwright names its files the same way.
+Unit tests are `*.test.ts` beside the code; `vite.config.ts` limits Vitest's `include` to `src/`
+because Playwright names its files the same way.
 
-The browser tests are in `web/e2e/`, configured by
-[`web/playwright.config.ts`](./web/playwright.config.ts), and the configuration is the harness:
-it deletes the temporary database, creates the accounts through the `user` CLI with the password
-piped in, and starts the API with `WEB_ROOT` pointing at the bundle just built, in one shell so
-there is no question of what ran first. Chromium, one origin, and a database that did not exist
-a moment earlier.
+Browser tests are in `web/e2e/`, configured by
+[`web/playwright.config.ts`](./web/playwright.config.ts), which is the harness: it deletes the
+temporary database, creates the accounts through the `user` CLI, and starts the API with `WEB_ROOT`
+pointing at the bundle just built, in one shell. One origin rather than the dev server with a proxy,
+because the two things worth testing end to end are exactly the two a second origin changes: the
+`SameSite=Lax` cookie and the `Origin` check.
 
-One origin rather than the dev server with a proxy in front, because the two things worth
-testing end to end are exactly the two a second origin changes: the `SameSite=Lax` cookie and
-the `Origin` check. A harness that quietly ran on two origins would either fail for reasons that
-have nothing to do with the app or pass with those checks turned off.
+**One account per spec file**, `ACCOUNTS`. Spec files run in parallel and everything they write lands
+on today, so a shared account makes one spec's rows visible to another's locators. Claiming a meal
+type still applies inside a file.
 
-One account per spec file, `ACCOUNTS`, and that is the whole isolation story. Spec files run in
-parallel and everything they write lands on one shared thing, today, so a single account made
-every spec's meals visible to every other spec's locators: a row matched by type resolved to
-somebody else's meal, and which worker finished first decided whether the run passed. The
-convention that grew around that, claim a meal type nobody else logs, cannot hold. There are
-four types and more spec files than that, and the composer pre-selects the type from the clock,
-so what the offline spec writes is not knowable when it is written, only when it runs. An
-account each removes the sharing rather than rationing it, and it costs nothing the application
-does not already guarantee: a repository read takes a `userId` and a foreign row is not
-returned, see [ADR 003](./docs/adr/003-multi-user-authorization.md). Claiming still applies
-inside a file, where the tests do share an account and a day.
-
-```sh
-pnpm --filter @portionium/web exec playwright install chromium   # once
-pnpm --filter @portionium/web e2e
-```
-
-The `e2e` job in CI runs the same command on every push. The accounts it creates live for the
-length of one run in a database under the system temporary directory, which is why the password
-is written down in the config rather than injected: it is a fixture, not a credential.
-
-Installability is checked by hand against a deployed instance with Lighthouse, because the audit
-wants the real thing over https, see the PWA note in the README. Nothing about it is in CI.
+Installability is checked by hand against a deployed instance with Lighthouse, not in CI.
 
 ## Containers
 
-One image holds the compiled API, its production dependencies and `web/dist`, and the API serves
-all three. [`Dockerfile`](./Dockerfile) is three stages: `deps` resolves the production tree from
-the manifests alone so editing a source file does not reinstall `better-sqlite3`, `build` has the
-compiler and the dev dependencies and keeps neither, and `runtime` is assembled from the two with
-no package manager in it. It runs as `node`, uid 1000.
-
-Migrations and the food catalog are applied by `openDatabase()` and `seedFoodCatalog()` at
-startup, before the listener opens, so starting the container is the whole deployment step. The
-database is at `/data`, which is a volume in both the Dockerfile and the Compose file: the
-`VOLUME` is there for the `docker run` case, where without it the only copy of somebody's data
-goes into a writable layer that disappears with the container.
-
-The image declares its own `HEALTHCHECK` rather than the Compose file, so a plain `docker run`
-gets it too and there is one definition of healthy. It is written in Node against `/health`
-because the base image has no curl, and `/health` is liveness only and never rate limited.
-
-One thing in the image is spelled differently from a checkout. `@portionium/schemas` points its
-`exports` at `src/index.ts`, which is what keeps both apps reading one definition with no build
-step in between, and which **Node cannot load**: type stripping does not remap the explicit `.js`
-specifiers NodeNext requires onto the `.ts` files they name, so `node api/dist/index.js` against
-the source tree fails on the first relative import. `tsc` already emits the package to `dist/`,
-so the runtime stage ships a manifest naming that instead. Nothing but starting the container
-would notice if the two ever disagreed, which is why CI starts it.
+One image holds the compiled API, its production dependencies and `web/dist`, and the API serves all
+three. [`Dockerfile`](./Dockerfile) is three stages and runs as `node`, uid 1000. Migrations and the
+catalog are applied at startup, so starting the container is the whole deployment step. The database
+is at `/data`, a volume in both the Dockerfile and the Compose file. The image declares its own
+`HEALTHCHECK`, so a plain `docker run` gets it too.
 
 [`docker-compose.yml`](./docker-compose.yml) needs no editing for a first run: settings go in an
-optional `.env.docker` mirroring `.env.example`, and the two knobs that belong to Compose rather
-than the app, `PORTIONIUM_PORT` and `PORTIONIUM_BIND`, are read from the environment. A `caddy`
-profile adds a reverse proxy with automatic TLS for a deployment on a domain, which is not
-optional for a PWA: a browser will not register a service worker on an insecure origin.
+optional `.env.docker`, and a `caddy` profile adds a reverse proxy with automatic TLS, which is not
+optional for a PWA on a domain. Hosting is [ADR 009](./docs/adr/009-hosting-and-deployment.md).
 
-The image unpacks to about 209 MiB and is about 75 MiB to pull. Node's own binary is 121 MiB of
-that and the production dependency tree is 63, so the CI limit is 215 MiB rather than the 200 the
-story asked for: stripping type declarations, source maps and documentation out of `node_modules`
-is worth roughly 8 MiB and there is nothing after it. The limit sits just above where the image
-is, so it catches a regression instead of describing something unreachable. It is measured by
-reading the unpacked filesystem, because `docker image inspect .Size` reports the uncompressed
-size on the classic image store and the compressed size on the containerd one.
-
-The `image` job in CI builds for this machine on every push, asserts the size, starts the
-container, waits for its own healthcheck and then checks what it serves. That job is the only
-thing that proves any of the above, so a change here is not done until it is green. On a `v*`
-tag it also builds amd64 and arm64 and pushes to GHCR, because a home deployment may be a
-Raspberry Pi or a Mac.
+The CI limit on the unpacked image is 215 MiB, measured by reading the unpacked filesystem because
+`docker image inspect .Size` reports different things on the two image stores. The `image` job
+builds, asserts the size, starts the container and checks what it serves; a change here is not done
+until it is green.
 
 ## Writing changes
 
-- Work lands directly on `main`. There is one developer, so a pull request would be a review with
-  nobody to review it, and CI runs on every push to `main` regardless. Conventional commit
-  messages, tests accompany every behaviour change. Revisit when a second person joins, which is
-  the point at which a branch and a review stop being ceremony and start catching something.
-- Do not reference Jira keys in code comments or identifiers. Keys change, code should read on its
-  own. Commit messages may name the story in words.
+- Work lands directly on `main`. One developer, so a pull request would be a review with nobody to
+  review it, and CI runs on every push regardless. Conventional commit messages, tests accompany
+  every behaviour change.
 - ADRs live in [`docs/adr/`](./docs/adr/). A story with an ADR criterion is not done until the ADR
-  exists.
+  exists. Put the reasoning there, not in a comment and not in this file.
 - No em dashes in documentation or generated text. Use commas or sentence breaks.
 
 ## Toolchain note
 
 TypeScript is pinned to 6.x. TypeScript 7 is the native compiler and its API is not published yet,
-so `typescript-eslint` and `dependency-cruiser` cannot read it. Bump both together once they
-support 7, and confirm `pnpm depcruise` still reports a non zero module count.
+so `typescript-eslint` and `dependency-cruiser` cannot read it. Bump both together once they support
+7, and confirm `pnpm depcruise` still reports a non zero module count.
