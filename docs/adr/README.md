@@ -1,8 +1,8 @@
 # Architecture decision records
 
-Short records of decisions that are expensive to reverse. One file per decision, numbered in order,
-never edited after acceptance. A decision that changes gets a new ADR that supersedes the old one,
-and the old one stays in place with its status updated.
+Short records of decisions that are expensive to reverse. One file per decision, numbered in order, never edited after
+acceptance. A decision that changes gets a new ADR that supersedes the old one, and the old one stays in place with its
+status updated.
 
 Copy [`template.md`](./template.md) to `NNN-short-title.md` and add a row below.
 
@@ -21,3 +21,4 @@ A story with an ADR acceptance criterion is not done until its ADR exists.
 | [009](./009-hosting-and-deployment.md)         | Hosting model and deployment target                                                        | Accepted |
 | [010](./010-pwa-and-offline-outbox.md)         | PWA instead of native, and one-directional outbox instead of bidirectional sync            | Accepted |
 | [011](./011-an-entry-is-a-colour.md)           | An entry is a colour, stamped at write, not a projection of its food                       | Accepted |
+| [012](./012-ai-as-a-degradable-dependency.md)  | AI classification as a degradable dependency                                               | Accepted |

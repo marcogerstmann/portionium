@@ -12,9 +12,9 @@ try {
   app.log.info({ config: maskedConfig(config) }, 'configuration resolved');
 
   app.log.info(
-    config.AI_API_KEY === ''
-      ? 'no AI_API_KEY set, classification of unknown foods is off and the catalog answers alone'
-      : 'AI_API_KEY set, unknown foods will be classified by the model',
+    config.OPENAI_API_KEY === ''
+      ? 'no OPENAI_API_KEY set, the classifier answers unavailable and the catalog answers alone'
+      : `OPENAI_API_KEY set, unknown foods will be classified by ${config.OPENAI_MODEL}`,
   );
 
   // Replaces Node's own handling rather than adding to it: without these, an unhandled rejection

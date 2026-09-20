@@ -26,7 +26,9 @@ describe('parseConfig', () => {
       BACKUP_KEEP_DAILY: 7,
       BACKUP_KEEP_WEEKLY: 4,
       BACKUP_KEEP_MONTHLY: 3,
-      AI_API_KEY: '',
+      OPENAI_API_KEY: '',
+      OPENAI_MODEL: 'gpt-4o-mini',
+      OPENAI_BASE_URL: 'https://api.openai.com/v1',
     });
   });
 
@@ -57,8 +59,23 @@ describe('parseConfig', () => {
   });
 
   it('takes the AI key when it is given and defaults it to absent, because it is optional', () => {
-    expect(parseConfig({ AI_API_KEY: 'sk-test' }).AI_API_KEY).toBe('sk-test');
-    expect(parseConfig({}).AI_API_KEY).toBe('');
+    expect(parseConfig({ OPENAI_API_KEY: 'sk-test' }).OPENAI_API_KEY).toBe('sk-test');
+    expect(parseConfig({}).OPENAI_API_KEY).toBe('');
+  });
+
+  it('lets a compatible endpoint be configuration rather than a code path', () => {
+    const config = parseConfig({
+      OPENAI_BASE_URL: 'http://localhost:11434/v1',
+      OPENAI_MODEL: 'llama3.1',
+    });
+
+    expect(config.OPENAI_BASE_URL).toBe('http://localhost:11434/v1');
+    expect(config.OPENAI_MODEL).toBe('llama3.1');
+  });
+
+  it('rejects a base URL that is not one, and an empty model name', () => {
+    expect(() => parseConfig({ OPENAI_BASE_URL: 'nonsense' })).toThrow(/OPENAI_BASE_URL/);
+    expect(() => parseConfig({ OPENAI_MODEL: '' })).toThrow(/OPENAI_MODEL/);
   });
 
   it('refuses to start on plain http against a public host in production', () => {
@@ -111,14 +128,14 @@ describe('maskedConfig', () => {
   it('passes everything that is not a secret through untouched', () => {
     const config = parseConfig({});
 
-    expect(maskedConfig(config)).toEqual({ ...config, AI_API_KEY: '[redacted]' });
+    expect(maskedConfig(config)).toEqual({ ...config, OPENAI_API_KEY: '[redacted]' });
   });
 
   it('keeps the AI key out of the startup line it is written for', () => {
-    const config = parseConfig({ AI_API_KEY: 'sk-ant-real' });
+    const config = parseConfig({ OPENAI_API_KEY: 'sk-openai-real' });
 
-    expect(maskedConfig(config).AI_API_KEY).toBe('[redacted]');
-    expect(JSON.stringify(maskedConfig(config))).not.toContain('sk-ant-real');
+    expect(maskedConfig(config).OPENAI_API_KEY).toBe('[redacted]');
+    expect(JSON.stringify(maskedConfig(config))).not.toContain('sk-openai-real');
   });
 
   it('masks a value whose key names a secret, so the next one added is covered by its name', () => {

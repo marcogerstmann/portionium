@@ -40,7 +40,9 @@ const configSchema = z.object({
   BACKUP_KEEP_DAILY: z.coerce.number().int().min(1).max(365).default(7),
   BACKUP_KEEP_WEEKLY: z.coerce.number().int().min(0).max(52).default(4),
   BACKUP_KEEP_MONTHLY: z.coerce.number().int().min(0).max(24).default(3),
-  AI_API_KEY: z.string().default(''),
+  OPENAI_API_KEY: z.string().default(''),
+  OPENAI_MODEL: z.string().min(1).default('gpt-4o-mini'),
+  OPENAI_BASE_URL: z.url({ protocol: /^https?$/ }).default('https://api.openai.com/v1'),
 });
 
 const PRIVATE_HOST = new RegExp(
