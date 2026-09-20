@@ -29,6 +29,8 @@ describe('parseConfig', () => {
       OPENAI_API_KEY: '',
       OPENAI_MODEL: 'gpt-4o-mini',
       OPENAI_BASE_URL: 'https://api.openai.com/v1',
+      OPENAI_TIMEOUT_MS: 10_000,
+      OPENAI_MAX_CALLS_PER_DAY: 200,
     });
   });
 
@@ -76,6 +78,10 @@ describe('parseConfig', () => {
   it('rejects a base URL that is not one, and an empty model name', () => {
     expect(() => parseConfig({ OPENAI_BASE_URL: 'nonsense' })).toThrow(/OPENAI_BASE_URL/);
     expect(() => parseConfig({ OPENAI_MODEL: '' })).toThrow(/OPENAI_MODEL/);
+    expect(() => parseConfig({ OPENAI_TIMEOUT_MS: '0' })).toThrow(/OPENAI_TIMEOUT_MS/);
+    expect(() => parseConfig({ OPENAI_MAX_CALLS_PER_DAY: '-1' })).toThrow(
+      /OPENAI_MAX_CALLS_PER_DAY/,
+    );
   });
 
   it('refuses to start on plain http against a public host in production', () => {
