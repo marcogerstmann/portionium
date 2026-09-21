@@ -7,27 +7,22 @@ date: 2026-09-20
 
 ## Context
 
-Most of what somebody logs is in the seeded catalog. `api/seed/foods.json` is about 240 entries
-weighted at German everyday eating, and `api/src/domain/food-search.ts` reaches them through a
-trigram index with a Damerau fallback, so a typo and a two character query both still find the
-name. The model is for the rest: the branded thing nobody thought of, the dish with a private name,
-the word typed in a hurry.
+Most of what somebody logs is in the seeded catalog: `api/seed/foods.json` is about 240 entries
+weighted at German everyday eating, reached through a trigram index with a Damerau fallback, so a
+typo and a two character query both still find the name. The model is for the rest, the branded
+thing nobody thought of and the dish with a private name.
 
 That makes the model the only part of this application that costs money per use, needs a
-credential, talks to a third party, and can be slow, wrong or simply down. Everything else runs off
-one SQLite file on one machine.
+credential, talks to a third party, and can be slow, wrong or simply down. It is also the only part
+that is genuinely optional: a food with no verdict is not a broken state here, it is the state
+`GET /foods/unclassified` exists to drain, and [ADR 011](./011-an-entry-is-a-colour.md) already
+settled that a food waits for its own owner rather than being coloured by a machine behind their
+back.
 
-It is also the only part that is genuinely optional. A food with no verdict is not a broken state
-here, it is the state `GET /foods/unclassified` exists to drain, and
-[ADR 011](./011-an-entry-is-a-colour.md) already settled that a food waits for its own owner rather
-than being coloured by a machine behind their back. So the absence of a model lands on a path the
-application already has, walked by a person, which is not something we get to say about most
-optional dependencies.
-
-The risk worth designing against is the reverse of the usual one. It is not that the model fails,
-it is that the rest of the code comes to assume it succeeds: a food creation that waits on a
-network call, a read that cannot answer without one, a branch that has never run because the key
-has always been set on the machine anybody tested on.
+The risk worth designing against is therefore the reverse of the usual one. It is not that the
+model fails, it is that the rest of the code comes to assume it succeeds: a food creation that
+waits on a network call, a read that cannot answer without one, a branch that has never run because
+the key has always been set on the machine anybody tested on.
 
 ## Decision
 
@@ -38,89 +33,71 @@ type FoodClassifier = (input: ClassificationInput) => Promise<ClassificationResu
 ```
 
 `ClassificationResult` is a union of `classified` and `unavailable`, and `unavailable` carries a
-`reason` string. `OPENAI_API_KEY` is the whole switch: empty and the active classifier is
+`reason`. `OPENAI_API_KEY` is the whole switch: empty, and the active classifier is
 `unavailableClassifier`, which answers `unavailable` and touches no network. Startup logs which of
 the two is live, so an instance without a key reads as configured rather than broken.
 
 **No expected failure throws.** A missing key, a timeout, a refusal, an answer that does not parse
-and a spent budget are all `unavailable` with a reason. The caller has one shape to handle and it is
-the same shape on a fresh laptop with no key as on a production instance whose provider is having an
-afternoon.
+and a spent budget are all `unavailable` with a reason. The caller has one shape to handle, and it
+is the same shape on a fresh laptop with no key as on a production instance whose provider is
+having an afternoon.
 
 **Nothing blocks on it.** Creating a food and logging a meal never wait on the model, and neither
 ever fails because of it.
 
-**`OPENAI_MODEL` and `OPENAI_BASE_URL` are configuration with defaults**, which is what makes
-pointing at any OpenAI compatible endpoint, Ollama and llama.cpp included, a value in `.env` rather
-than a second implementation with its own tests.
+**`OPENAI_MODEL` and `OPENAI_BASE_URL` are configuration with defaults**, which makes pointing at
+any OpenAI compatible endpoint, Ollama and llama.cpp included, a value in `.env` rather than a
+second implementation with its own tests.
 
 ## Consequences
 
 The failure path is the one that runs by default. A developer with no key gets `unavailable` on
 every call, which is the branch a production incident would take, so it is exercised continuously
-rather than the first time it matters.
+rather than the first time it matters. `api/src/domain` stays pure, since the classifier module
+imports `Category` and nothing else, and `.dependency-cruiser.cjs` holds it there. A test
+substitutes a classifier by writing a function: no container, no mocking library, nothing to reset.
 
-`api/src/domain` stays pure. The classifier module imports `Category` from `@portionium/schemas`
-and nothing else, no Fastify, no Drizzle, no HTTP client, and `.dependency-cruiser.cjs` holds it
-there. The implementation that talks to a provider is an adapter that satisfies the type.
+The costs:
 
-A test substitutes a classifier by writing a function. There is no container, no mocking library
-and nothing to reset between cases.
-
-**The cost, stated plainly: a food can sit uncoloured until a person answers for it.** If the
-provider is down, or the key is absent, or the answer came back below the confidence the caller
-filters at, that food goes to the review queue and stays there until somebody taps a colour. Nothing
-retries it on a schedule and nothing colours it later on its own. Entries already logged against it
-keep no colour, per ADR 011, and are not filled in retroactively.
-
-We are accepting that on purpose. The queue is ranked by how often the food is eaten, so the ones
-that matter surface first, and the alternative, a machine quietly deciding somebody's diary after
-the fact, is the thing ADR 011 exists to prevent.
-
-The second cost is that `unavailable` is easy to ignore. A caller that treats it as an empty result
-rather than an absent answer will silently stop classifying anything, and no test fails. The
-protection is that the field it would have written is nullable and the review queue reads that
-nullability directly, so the symptom is a queue that grows, which is visible.
+- **A food can sit uncoloured until a person answers for it.** If the provider is down, the key is
+  absent, or the answer came back below the caller's confidence filter, that food goes to the
+  review queue and stays there until somebody taps a colour. Nothing retries it on a schedule and
+  nothing colours it later on its own. We accept that on purpose: the queue is ranked by how often
+  the food is eaten, so the ones that matter surface first, and the alternative, a machine quietly
+  deciding somebody's diary after the fact, is what ADR 011 exists to prevent.
+- **`unavailable` is easy to ignore.** A caller treating it as an empty result rather than an
+  absent answer would silently stop classifying anything, and no test would fail. The protection is
+  that the field it would have written is nullable and the review queue reads that nullability
+  directly, so the symptom is a queue that grows, which is visible.
 
 ## Options considered
 
 **A synchronous call on the food creation path.** Create a food, wait for the verdict, return it
-coloured. Rejected on all three counts: it puts a third party in the latency of the interaction the
+coloured. Rejected on three counts: it puts a third party in the latency of the interaction the
 product lives on, it makes a provider outage into a write failure, and it makes the composer's
-response time a function of somebody else's queue depth. The composer is built around the taps
-between opening the app and a logged meal, and a second of network is not one of them.
+response time a function of somebody else's queue depth.
 
 **A job table and a worker.** Rows in `classification_job`, a poller, states, attempt counts,
-backoff, a dead letter state, and a runbook for when the queue stalls. Rejected: that is a
-scheduler, and the thing it schedules already has a human fallback that works. It also contradicts
-[ADR 005](./005-no-redis-no-metrics-stack.md) in spirit, which is that this instance does not earn a
-second moving part to watch. If classification volume ever justifies durable retries, the job table
-is the right shape and it deserves its own ADR.
+backoff, a dead letter state, and a runbook for when the queue stalls. That is a scheduler, and the
+thing it schedules already has a human fallback that works. If classification volume ever justifies
+durable retries, the job table is the right shape and it deserves its own ADR.
 
 **Throwing on failure, with a typed error.** It would fit `api/src/domain/errors.ts` and
 `DOMAIN_PROBLEMS`, which is the established way a domain failure becomes an HTTP answer. Rejected
-because it is not a domain failure. Nothing the caller did was wrong and no request should fail: the
-model having no opinion is an ordinary outcome, and modelling an ordinary outcome as an exception
-means the happy path is written as though it cannot happen and the `catch` is where the real
-behaviour hides. A union makes the compiler ask about both.
+because it is not a domain failure. Nothing the caller did was wrong and no request should fail:
+the model having no opinion is an ordinary outcome, and modelling an ordinary outcome as an
+exception means the happy path is written as though it cannot happen and the `catch` is where the
+real behaviour hides.
 
-**A provider chain, one classifier falling back to another.** Rejected: a selection mechanism over
-two implementations where one of them is the absence of the other is an `if`. Adding a real second
+**A provider chain, one classifier falling back to another.** A selection mechanism over two
+implementations where one of them is the absence of the other is an `if`. Adding a real second
 provider is a decision about spend and data handling, and the day it is taken the chain can be
-written with both ends known, instead of guessed at now.
+written with both ends known.
 
-**A rule based classifier under the model.** Keyword lists, a heuristic on the name. Rejected
-twice over. It wants `source = 'rules'`, which is not in `CLASSIFICATION_SOURCES` in
-`packages/schemas/src/primitives.ts` and so is a migration and a widened resolution rule in ADR 007
-for a guess. And its job is the one the catalog already does better: deciding whether this instance
-knows a name is exactly what the trigram search answers, and a second ranking would be a second
-answer to one question. `web/src/food-search.ts` already makes that argument on the client side
-about not reimplementing the server's search.
-
-**A reserved `image` field on `ClassificationInput`.** Rejected: adding a field later is a smaller
-change than carrying one that every implementation has to explicitly refuse today, and a vision
-classifier is a second function whatever the type says now. `ai_vision` is already in
-`CLASSIFICATION_SOURCES`, which was the only part that would have been expensive to add later.
+**A rule based classifier under the model.** Keyword lists, a heuristic on the name. Rejected twice
+over: it wants `source = 'rules'`, which is a migration and a widened resolution rule in ADR 007
+for a guess, and its job is the one the catalog already does better, since deciding whether this
+instance knows a name is exactly what the trigram search answers.
 
 ## What would make us revisit this
 
@@ -128,5 +105,5 @@ A review queue that people stop draining. The queue is the whole fallback, and i
 is short. If uncoloured foods accumulate faster than they are answered, either the model is failing
 often enough to need durable retries, which is the job table, or it is succeeding well enough that
 its verdicts should apply without confirmation, which is a change to ADR 011 and not to this one.
-Either way the number to watch is the depth of `GET /foods/unclassified/count`, not the classifier's
-error rate.
+Either way the number to watch is the depth of `GET /foods/unclassified/count`, not the
+classifier's error rate.

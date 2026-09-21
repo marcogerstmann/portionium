@@ -406,6 +406,12 @@ Resolution therefore belongs to the preset half of the application only: food se
 queue, the `foods` list on a day, the favourite and suggestion previews. Reaching for it to draw a
 logged entry is the bug that ADR exists to remove.
 
+A verdict a model produced comes through one function type in
+[`api/src/domain/classification/classifier.ts`](./api/src/domain/classification/classifier.ts).
+`OPENAI_API_KEY` is the whole switch, no expected failure throws, and nothing on the create or log
+path waits on it: a food with no verdict goes to the review queue and waits for a person. That is
+[ADR 012](./docs/adr/012-ai-as-a-degradable-dependency.md).
+
 ### Search
 
 `GET /api/v1/foods/search?q=` is the endpoint the core interaction sits on, and its two halves are

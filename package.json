@@ -17,6 +17,7 @@
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
+    "adr": "node scripts/check-adr-index.js",
     "depcruise": "depcruise api/src packages/schemas/src web/src --config .dependency-cruiser.cjs",
     "depcruise:graph": "depcruise api/src packages/schemas/src web/src --config .dependency-cruiser.cjs --output-type dot",
     "audit": "pnpm audit --audit-level high",

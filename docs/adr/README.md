@@ -1,10 +1,16 @@
 # Architecture decision records
 
-Short records of decisions that are expensive to reverse. One file per decision, numbered in order, never edited after
-acceptance. A decision that changes gets a new ADR that supersedes the old one, and the old one stays in place with its
-status updated.
+Short records of decisions that are expensive to reverse. One file per decision, numbered in order,
+one page each. A decision that changes gets a new record superseding the old one, and the old one
+stays in place with its status updated rather than being edited into agreement. A record may still
+gain a pointer to a later one that narrows it without reversing it, which is what
+[006](./006-single-foods-table.md) and [007](./007-append-only-classification-log.md) carry towards
+[011](./011-an-entry-is-a-colour.md).
 
-Copy [`template.md`](./template.md) to `NNN-short-title.md` and add a row below.
+Copy [`template.md`](./template.md) to `NNN-short-title.md` and add a row below. `pnpm adr` checks
+that this table matches the records and that the numbering has no gaps, and CI runs it, so a record
+cannot be added, renamed or removed without the index following. A gap in the numbering is the
+cheap signal that a record was deleted rather than superseded.
 
 A story with an ADR acceptance criterion is not done until its ADR exists.
 
