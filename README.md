@@ -1,11 +1,113 @@
-# portionium
+# Portionium
 
-Track food by energy density, not calories. Self hosted food and weight journal for a household.
+Most people who want to eat better do not need a number for every bite. They need to notice, a
+few weeks in, that this week held five fried things and last week held two. Counting calories is
+precise enough to be useless: it wants a kitchen scale, a lookup and a minute of attention per
+meal, and the first day somebody skips it the whole record is worth nothing. Portionium is a food
+and weight diary for a household where logging a meal means tapping the things you ate and
+nothing else. It is built for people who have already quit a tracker at least once.
 
-## Run it
+## What you look at
 
-One container serves the API and the web client on one origin. Docker and the Compose plugin
-are the only things you need installed.
+<img src="./docs/images/today.png"
+     alt="The Today screen on a phone: a row of five coloured dots for the day, a weekly allowance row, four meals each with their own dots, and a weight trend above the morning's reading"
+     width="320">
+
+Five dots is the day, one per thing eaten. Green is food you can eat without thinking about it,
+yellow is food worth noticing, orange is food worth deciding on. There is no quantity anywhere on
+this screen and no number that adds up. The week's row is an allowance rather than a score:
+a colour you set no limit for is only counted, and going over one is shown as the size of the
+overshoot rather than as a failure.
+
+## The idea
+
+**Lower the resolution instead of stopping.** Every tracker fails the same way: the accuracy it
+demands is the reason people stop, and a diary nobody keeps measures nothing. Three colours
+survive a canteen, a restaurant and a bad week, because there is nothing to look up and nothing
+to weigh. There is no quantity field and there will not be one, which is deliberate and written
+down in [ADR 011](./docs/adr/011-an-entry-is-a-colour.md): the moment portions become enterable
+this turns back into the calorie counter it exists to replace.
+
+**A daily weight is mostly not weight.** Hydration, salt, gut contents and which floor the scale
+is on move the reading by a kilo in somebody whose actual mass has not changed. So the number on
+screen is a smoothed trend, the raw reading sits under it in small type, and when there is too
+little evidence the trend is not drawn at all rather than guessed
+([ADR 008](./docs/adr/008-weight-trend-smoothing.md)).
+
+### Why not an existing tracker
+
+The good ones are calorie counters with a colour theme, and their model of you is a food database
+with a login. This one has no ads, no export of your eating to anybody, no account you did not
+create on your own server, and it is small enough that one person can read all of it. That is the
+whole pitch. If counting calories works for you, keep counting calories.
+
+## What is interesting in the engineering
+
+- **Multi-user isolation is a test suite, not a convention.** Every user owned table carries
+  `user_id`, every repository read takes a `userId`, and a row belonging to somebody else answers
+  404 rather than 403, so an id is not an oracle. The fixtures create two accounts in two
+  timezones for exactly this reason, and the cross account attempts are enumerated in
+  [`api/test/http/isolation.test.ts`](./api/test/http/isolation.test.ts)
+  ([ADR 003](./docs/adr/003-multi-user-authorization.md)).
+- **Every authenticated write is idempotent.** A phone that logs a meal on a dropping connection
+  retries from a queue and cannot tell whether the first attempt committed. An `Idempotency-Key`
+  replays the stored response instead of writing twice, including for the fingerprint mismatch
+  and in flight cases:
+  [`api/src/http/plugins/idempotency.ts`](./api/src/http/plugins/idempotency.ts),
+  [`api/test/http/idempotency.test.ts`](./api/test/http/idempotency.test.ts)
+  ([ADR 004](./docs/adr/004-idempotency-keys.md)).
+- **A food has no colour, it has a log of opinions about its colour.** The seed, the classifier
+  and the two people disagreeing all append; nothing updates a row and nothing deletes one, and
+  one resolution rule decides which verdict wins on read:
+  [`api/src/db/classification.ts`](./api/src/db/classification.ts),
+  [`api/src/domain/classification.ts`](./api/src/domain/classification.ts)
+  ([ADR 007](./docs/adr/007-append-only-classification-log.md)).
+- **The AI is a dependency that is allowed to be absent.** No expected failure throws: a missing
+  key, a timeout, a refusal, an unparseable answer and a spent budget are all one `unavailable`
+  result with a reason, nothing blocks on the model, and an instance with no key is a working
+  instance that asks you for the colour instead:
+  [`api/src/domain/classification/classifier.ts`](./api/src/domain/classification/classifier.ts)
+  ([ADR 012](./docs/adr/012-ai-as-a-degradable-dependency.md)).
+- **The restore path runs on every push.** A backup nobody has restored is a hope. The `restore`
+  job in [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) seeds a database, backs it up
+  through the documented CLI, deletes the file and both its sidecars, restores it through the
+  documented CLI and asserts the records came back:
+  [`api/test/backup.test.ts`](./api/test/backup.test.ts),
+  [`api/src/db/backup.ts`](./api/src/db/backup.ts).
+- **Offline writes queue on the device and land once.** One directional, no sync engine, no
+  conflict resolution, and a client side twin of the server's day boundary arithmetic so a meal
+  logged on a train is filed under the same date on both sides:
+  [`web/src/outbox.ts`](./web/src/outbox.ts),
+  [`web/src/outbox.test.ts`](./web/src/outbox.test.ts)
+  ([ADR 010](./docs/adr/010-pwa-and-offline-outbox.md)).
+
+## How it fits together
+
+```mermaid
+flowchart LR
+  phone["Phone<br/>installed PWA, React<br/>IndexedDB cache + outbox"]
+  http["http<br/>Fastify, auth, idempotency,<br/>rate limits, static client"]
+  domain["domain<br/>entries, classification,<br/>trend, search ranking"]
+  db["db<br/>Drizzle repositories"]
+  sqlite[("SQLite<br/>one file on /data")]
+  backups["Daily VACUUM INTO archives<br/>grandfather-father-son"]
+  model["OpenAI compatible<br/>endpoint, optional"]
+
+  phone <-->|"one origin, https"| http
+  http --> domain
+  http --> db --> sqlite --> backups
+  domain -.->|"unavailable when absent"| model
+```
+
+One Node process, one SQLite file, one container, one origin. `domain` imports no framework and
+no database library, and [`.dependency-cruiser.cjs`](./.dependency-cruiser.cjs) fails CI when that
+stops being true. Why SQLite is [ADR 001](./docs/adr/001-sqlite-over-postgresql.md), why there is
+no Redis and no metrics stack is [ADR 005](./docs/adr/005-no-redis-no-metrics-stack.md).
+
+## Running it
+
+Docker and the Compose plugin are the only prerequisites. Nothing to edit first, no `.env` to
+copy.
 
 ```sh
 git clone git@github.com:marcogerstmann/portionium.git
@@ -13,88 +115,55 @@ cd portionium
 docker compose up -d
 ```
 
-That builds the image, applies the migrations, loads the food catalog and starts on
-**http://localhost:8080**. Nothing to edit first, no `.env` to copy.
+That builds the image, applies the migrations, loads the food catalog and serves on
+**http://localhost:8080**.
 
-There is no sign up, so make the first account. It is an admin, because there is nobody to have
-granted it one:
+There is no sign up page, so make the first account. It is an admin, because there is nobody to
+have granted it one. The password is asked for at a prompt rather than taken as an argument, so
+it stays out of your shell history:
 
 ```sh
 docker compose exec app node dist/cli/user.js create \
   --email you@example.com --name "Your Name" --timezone Europe/Berlin
 ```
 
-The password is asked for at the prompt rather than taken as an argument, so it stays out of
-your shell history. Then sign in at http://localhost:8080.
+**To put it on a phone**, the instance needs a domain and https: a browser refuses to register a
+service worker on an insecure origin, and without one there is nothing to install. The `caddy`
+profile gets a certificate on the first request. Then open the address on the phone and install
+it, which is the install icon in Chrome's address bar, or Share and then Add to Home Screen on an
+iPhone, and sign in there once. Server, domain, TLS and the checks afterwards are
+[docs/runbooks/deploy.md](./docs/runbooks/deploy.md).
 
-The database is a single SQLite file on the `portionium_data` volume. It survives
-`docker compose down`, a rebuild and an upgrade.
+Settings are [`.env.example`](./.env.example), every one of them with a default. To change one on
+a deployment, put it in a `.env.docker` beside the Compose file and restart.
 
-### Backups
+## Where things are
 
-The container backs itself up. Daily, to `/data/backups` on the same volume, with `VACUUM INTO`
-rather than a file copy, keeping seven daily archives, four weekly and three monthly. Nothing to
-configure.
+- [docs/adr/](./docs/adr/) for the decisions and what would change our minds about them
+- `GET /api/v1/docs` on a running instance, and the committed contract at
+  [`api/openapi/openapi.json`](./api/openapi/openapi.json)
+- [docs/runbooks/deploy.md](./docs/runbooks/deploy.md) and
+  [docs/runbooks/backup.md](./docs/runbooks/backup.md)
+- [SECURITY.md](./SECURITY.md) for reporting a vulnerability, rotating a password, ending every
+  session and revoking tokens
+- [AGENTS.md](./AGENTS.md) for local setup, layout and the conventions this repository is held to
 
-**The restore path is exercised on every push.** The
-[`restore` job in CI](https://github.com/marcogerstmann/portionium/actions/workflows/ci.yml)
-seeds a database, backs it up through the documented command, deletes the file and both its
-sidecars, restores it through the documented command, and then asserts that the account, the
-meal, the row behind its foreign key, the shipped food catalog and the migration count all came
-back. A backup nobody has restored is a hope, not a strategy, and the only honest way to know is
-to destroy a database and bring it back.
+## Limits, and what this is not
 
-Restoring one, rolling back a bad migration and getting a copy off the machine are in
-[docs/runbooks/backup.md](./docs/runbooks/backup.md).
-
-```sh
-docker compose exec app node dist/cli/backup.js list
-```
-
-### Changing settings
-
-Every variable and what it does is in [`.env.example`](./.env.example). To change one, put it in
-a file called `.env.docker` next to the Compose file and restart. Anything you do not name keeps
-the default baked into the image.
-
-Three knobs belong to Compose rather than to the app, and are read from your environment or from
-`.env`: `PORTIONIUM_PORT` (8080), `PORTIONIUM_BIND` (`0.0.0.0`) and `PORTIONIUM_TAG` (`latest`),
-which is the released image to run and the one thing a rollback changes.
-
-### On a domain, with https
-
-A PWA is not installable over plain http: a browser refuses to register a service worker on an
-insecure origin. The `caddy` profile puts Caddy in front, which gets a Let's Encrypt certificate
-on the first request and renews it on its own.
-
-Point the domain's A record at the machine, put `WEB_ORIGIN=https://food.example.com` in
-`.env.docker`, then:
-
-```sh
-PORTIONIUM_DOMAIN=food.example.com PORTIONIUM_BIND=127.0.0.1 docker compose --profile caddy up -d
-```
-
-`PORTIONIUM_BIND=127.0.0.1` keeps the app off the public interface, so the only way in is
-through the proxy. `WEB_ORIGIN` has to match what the browser sees: the session cookie's
-`Secure` flag and the CSRF check both follow it, and leaving it on http means every write is
-refused.
-
-Released images are published to `ghcr.io/marcogerstmann/portionium`, built for amd64 and
-arm64, so a VPS or a Raspberry Pi pulls rather than builds.
-
-The developer's instance is one 6 euro VPS, created by hand and configured by
-[`infra/cloud-init.example.yaml`](./infra/cloud-init.example.yaml). That file works on any provider whose images
-speak cloud-init, which is all of them, and
-[docs/runbooks/deploy.md](./docs/runbooks/deploy.md) is written for any of them: creating the
-machine, updating it, rolling it back and what to check afterwards. Why one small VPS and not a
-platform, a home device or anything with a state file is
-[ADR 009](./docs/adr/009-hosting-and-deployment.md).
-
-## Working on it
-
-Start with [AGENTS.md](./AGENTS.md) for setup, layout and conventions.
-
-[SECURITY.md](./SECURITY.md) is how to report a vulnerability, and the procedures for rotating a
-password, ending every session and revoking API tokens. Worth reading before you need them.
-
-The full README lands with the documentation story.
+- **No calorie counting, no macros, no portion sizes.** Not missing, refused.
+- **No multi-device sync in v1.** The outbox goes one way. Log on two phones at once and the
+  server is still correct, but the second device shows what it has until it next reads.
+- **No shared weight data.** Accounts on one instance see their own days and their own trend.
+  The food catalog is the only thing held in common. There is no household leaderboard and there
+  will not be one.
+- **No photo classification yet.** Text only. The classifier seam takes a name and gives
+  back a colour.
+- **One small server.** Rate limit counters live in process memory, so restarting clears them and
+  a second instance would not share them. That is fine for a household and wrong for anything
+  larger.
+- **The shipped catalog is about 240 foods weighted at German everyday eating.** Anything else
+  gets classified once, by you or by a model, and is then in the catalog for everybody on the
+  instance.
+- **Colour is energy density as the food is eaten, not a verdict on whether a food is good.**
+  Nuts and olive oil come out orange. That is what the model says and the model is not corrected
+  to be polite.
