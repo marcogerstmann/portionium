@@ -61,11 +61,6 @@ const DOMAIN_PROBLEMS: Record<
     title: 'Not found',
     status: 404,
   },
-  food_in_use: {
-    type: PROBLEM.foodInUse,
-    title: 'Food is used by a meal',
-    status: 409,
-  },
   meal_has_no_entries: {
     type: PROBLEM.mealHasNoEntries,
     title: 'A meal must contain at least one entry',

@@ -5,6 +5,7 @@ import {
   foodResponseSchema,
   MEAL_TYPES,
   PROBLEM,
+  type Category,
   type ClassifyFoodResponse,
   type EntryInput,
   type FavouriteResponse,
@@ -265,12 +266,22 @@ export function Compose({
     field.current?.focus();
   }
 
-  async function create(name: string) {
+  /**
+   * The catalog row is written here and nowhere earlier, so a suggestion the person reads and walks
+   * away from leaves nothing behind. See docs/adr/011-an-entry-is-a-colour.md for the verdict.
+   */
+  async function create(name: string, category?: Category) {
     setBusy(true);
     setError(undefined);
 
     try {
-      add(await request('/foods', foodResponseSchema, { method: 'POST', body: { name } }));
+      const food = await request('/foods', foodResponseSchema, { method: 'POST', body: { name } });
+
+      add(category === undefined ? food : { ...food, category });
+
+      if (category !== undefined) {
+        void classifyFood(date, food.id, category);
+      }
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.problem.detail : t('composeCreateError'));
     } finally {
@@ -397,24 +408,9 @@ export function Compose({
           void ask();
         }
       } else {
-        accept(suggestion);
+        void create(suggestion.name, suggestion.category);
       }
     }
-  }
-
-  /**
-   * Reading the suggestion and picking it is the human confirmation, so this writes a `user`
-   * verdict over the model's. See docs/adr/011-an-entry-is-a-colour.md.
-   */
-  function accept(answer: ClassifyFoodResponse) {
-    add({
-      id: answer.foodId,
-      name: answer.name,
-      kind: 'ingredient',
-      category: answer.category,
-    });
-
-    void classifyFood(date, answer.foodId, answer.category);
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {

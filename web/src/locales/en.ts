@@ -84,8 +84,18 @@ export const en = {
   reviewSuggested: 'Suggested',
   reviewConfirm: { one: 'Confirm {count} food', other: 'Confirm {count} foods' },
 
+  foodsTitle: 'My foods',
+  foodsIntro:
+    'The foods you added yourself. A name or a colour changed here is changed everywhere it is offered; entries already logged keep the colour they were logged with.',
+  foodsEmpty: 'You have not added a food of your own yet.',
+  foodsLabel: 'Your foods',
+  foodsNameLabel: 'Name of {name}',
+  foodsRename: 'Save the name of {name}',
+  foodsDelete: 'Delete {name}',
+
   navLabel: 'Destinations',
   navToday: 'Today',
+  navFoods: 'Foods',
   navStatistics: 'Statistics',
   navSettings: 'Settings',
 

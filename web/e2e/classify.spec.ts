@@ -10,9 +10,9 @@ const API = '/api/v1';
 const TYPED = 'nussschnecke vom bäcker';
 
 /**
- * The model's answer names a food the catalog already has, which is the reuse the route is built
- * for. Nothing here creates a food: an unjudged one is global, and the review queue another spec
- * is counting would count it too.
+ * The model's answer names a food the catalog already has, so accepting it reuses that row rather
+ * than adding one. Nothing here creates a food: an unjudged one is global, and the review queue
+ * another spec is counting would count it too.
  */
 const SUGGESTED = 'Fenchel';
 const QUEUED = 'Sauerkraut';
@@ -49,14 +49,14 @@ async function verdicts(page: Page, id: string): Promise<Verdict[]> {
  * The model is stubbed in the browser rather than behind the API: the route's own behaviour has
  * tests in api/test/http/foods.test.ts, and what is worth a browser here is the row.
  */
-async function stubClassifier(page: Page, id: string, held?: Promise<void>) {
+async function stubClassifier(page: Page, held?: Promise<void>) {
   await page.route(`**${API}/foods/classify`, async (route) => {
     await held;
 
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ foodId: id, name: SUGGESTED, category: 'orange', confidence: 0.82 }),
+      body: JSON.stringify({ name: SUGGESTED, category: 'orange', confidence: 0.82 }),
     });
   });
 }
@@ -65,7 +65,7 @@ test('asks the model only when the row is chosen, never on a keystroke', async (
   await signIn(page);
 
   const id = await foodId(page, SUGGESTED);
-  await stubClassifier(page, id);
+  await stubClassifier(page);
 
   const asked: string[] = [];
   page.on('request', (sent) => {
@@ -110,7 +110,6 @@ test('says it is waiting, and keeps the row where the finger already is', async 
   await signIn(page);
   await stubClassifier(
     page,
-    await foodId(page, SUGGESTED),
     new Promise<void>((resolve) => {
       release = () => resolve();
     }),

@@ -1,8 +1,9 @@
 import { loginResponseSchema, userResponseSchema, type UserResponse } from '@portionium/schemas';
-import { ChartLine, House, Settings as SettingsIcon } from 'lucide-react';
+import { Apple, ChartLine, House, Settings as SettingsIcon } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 
 import { ApiError, request, session, UNAUTHENTICATED_EVENT } from './api';
+import { Foods } from './foods';
 import { setLocale, useT } from './i18n';
 import { drain } from './outbox';
 import { Settings } from './settings';
@@ -74,7 +75,7 @@ function Login({ onSignedIn }: { onSignedIn: (user: UserResponse) => void }) {
   );
 }
 
-type Tab = 'today' | 'stats' | 'settings';
+type Tab = 'today' | 'foods' | 'stats' | 'settings';
 
 const CLEAR_TAB_BAR = 'pb-[calc(5rem+env(safe-area-inset-bottom))]';
 
@@ -83,6 +84,7 @@ function TabBar({ tab, onChange }: { tab: Tab; onChange: (tab: Tab) => void }) {
 
   const tabs: { key: Tab; label: string; icon: typeof House }[] = [
     { key: 'today', label: t('navToday'), icon: House },
+    { key: 'foods', label: t('navFoods'), icon: Apple },
     { key: 'stats', label: t('navStatistics'), icon: ChartLine },
     { key: 'settings', label: t('navSettings'), icon: SettingsIcon },
   ];
@@ -158,6 +160,9 @@ export function App() {
     <>
       <div hidden={tab !== 'today'} className={composing ? undefined : CLEAR_TAB_BAR}>
         <Today user={user} active={tab === 'today'} onComposingChange={setComposing} />
+      </div>
+      <div hidden={tab !== 'foods'} className={CLEAR_TAB_BAR}>
+        <Foods active={tab === 'foods'} />
       </div>
       <div hidden={tab !== 'stats'} className={CLEAR_TAB_BAR}>
         <Stats user={user} active={tab === 'stats'} />

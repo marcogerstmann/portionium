@@ -13,7 +13,7 @@ export const entryTable = sqliteTable(
     mealId: text('meal_id')
       .notNull()
       .references(() => mealTable.id, { onDelete: 'cascade' }),
-    foodId: text('food_id').references(() => foodTable.id),
+    foodId: text('food_id').references(() => foodTable.id, { onDelete: 'set null' }),
     category: text('category', { enum: CATEGORIES }),
     quantity: real('quantity'),
     position: integer('position').notNull(),

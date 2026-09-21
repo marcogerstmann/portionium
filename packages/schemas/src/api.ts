@@ -54,6 +54,7 @@ export type UpdateFoodRequest = z.infer<typeof updateFoodRequestSchema>;
 export const foodListQuerySchema = paginationQuerySchema.extend({
   kind: foodKindSchema.optional(),
   unclassified: z.stringbool().optional(),
+  mine: z.stringbool().optional(),
 });
 
 export type FoodListQuery = z.infer<typeof foodListQuerySchema>;
@@ -213,7 +214,6 @@ export const classifyFoodRequestSchema = z.strictObject({
 export type ClassifyFoodRequest = z.infer<typeof classifyFoodRequestSchema>;
 
 export const classifyFoodResponseSchema = z.object({
-  foodId: idSchema,
   name: foodSchema.shape.name,
   category: categorySchema,
   confidence: z.number().min(0).max(1),

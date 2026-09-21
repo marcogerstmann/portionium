@@ -13,7 +13,7 @@ import type { FastifyInstance } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { parseConfig } from '../../src/config.js';
-import { entryTable, foodTable } from '../../src/db/schema/index.js';
+import { entryTable, foodClassificationTable, foodTable } from '../../src/db/schema/index.js';
 import type { FoodClassifier } from '../../src/domain/classification/classifier.js';
 import { API_PREFIX, buildApp } from '../../src/http/app.js';
 import { SESSION_COOKIE_NAME } from '../../src/http/plugins/auth.js';
@@ -162,6 +162,22 @@ describe('browsing the catalog', () => {
     ]);
     expect(forB.json<{ items: FoodResponse[] }>().items.map((item) => item.name)).toEqual([
       'Kohlrabi',
+    ]);
+  });
+
+  it('narrows to what this caller added, which is neither the seed catalog nor another account', async () => {
+    const { app, fixtures } = await buildTestApp();
+    fixtures.create.food({ name: 'Apfel' });
+    fixtures.create.food({ name: 'Nussschnecke', createdBy: fixtures.userA.id });
+    fixtures.create.food({ name: 'Bienenstich', createdBy: fixtures.userB.id });
+
+    const response = await app.inject({
+      url: `${FOODS}?mine=true`,
+      headers: browser(fixtures.create.session(fixtures.userA)),
+    });
+
+    expect(response.json<{ items: FoodResponse[] }>().items.map((item) => item.name)).toEqual([
+      'Nussschnecke',
     ]);
   });
 
@@ -463,7 +479,7 @@ describe('removing an entry', () => {
     });
   }
 
-  it('soft deletes an entry its author added', async () => {
+  it('deletes an entry its author added', async () => {
     const { app, fixtures } = await buildTestApp();
     const food = ownedBy(fixtures, fixtures.userA.id);
 
@@ -474,7 +490,7 @@ describe('removing an entry', () => {
     });
 
     expect(response.statusCode).toBe(204);
-    expect(storedFood(fixtures, food.id)?.deletedAt).toBeInstanceOf(Date);
+    expect(storedFood(fixtures, food.id)).toBeUndefined();
   });
 
   it("refuses to let one user remove another user's entry", async () => {
@@ -519,10 +535,24 @@ describe('removing an entry', () => {
     expect(response.statusCode).toBe(204);
   });
 
-  it('refuses a food a meal names, so a history cannot grow holes', async () => {
+  it('removes the row outright, rather than leaving it marked', async () => {
     const { app, fixtures } = await buildTestApp();
     const food = ownedBy(fixtures, fixtures.userA.id);
-    fixtures.create.meal(fixtures.userB, { entries: [{ foodId: food.id }] });
+
+    await app.inject({
+      method: 'DELETE',
+      url: `${FOODS}/${food.id}`,
+      headers: browser(fixtures.create.session(fixtures.userA)),
+    });
+
+    expect(storedFood(fixtures, food.id)).toBeUndefined();
+  });
+
+  it('leaves a meal that named it standing, entry and logged colour intact', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const food = ownedBy(fixtures, fixtures.userA.id);
+    fixtures.create.classification(food, { category: 'orange' });
+    const { entries } = fixtures.create.meal(fixtures.userA, { entries: [{ foodId: food.id }] });
 
     const response = await app.inject({
       method: 'DELETE',
@@ -530,9 +560,65 @@ describe('removing an entry', () => {
       headers: browser(fixtures.create.session(fixtures.userA)),
     });
 
-    expect(response.statusCode).toBe(409);
-    expect(problem(response.payload).type).toBe(PROBLEM.foodInUse);
-    expect(storedFood(fixtures, food.id)?.deletedAt).toBeNull();
+    expect(response.statusCode).toBe(204);
+    const stored = fixtures.db
+      .select()
+      .from(entryTable)
+      .where(eq(entryTable.id, entries[0]!.id))
+      .get();
+    expect(stored).toMatchObject({ foodId: null, category: 'orange' });
+  });
+
+  it('takes the entries that were never given a colour with it, having nothing left to say', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const food = ownedBy(fixtures, fixtures.userA.id);
+    const { entries } = fixtures.create.meal(fixtures.userA, { entries: [{ foodId: food.id }] });
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `${FOODS}/${food.id}`,
+      headers: browser(fixtures.create.session(fixtures.userA)),
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(
+      fixtures.db.select().from(entryTable).where(eq(entryTable.id, entries[0]!.id)).get(),
+    ).toBeUndefined();
+  });
+
+  it('takes its classifications with it, so nothing is left pointing at a food that is gone', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const food = ownedBy(fixtures, fixtures.userA.id);
+    fixtures.create.classification(food, { category: 'green' });
+
+    await app.inject({
+      method: 'DELETE',
+      url: `${FOODS}/${food.id}`,
+      headers: browser(fixtures.create.session(fixtures.userA)),
+    });
+
+    expect(
+      fixtures.db
+        .select()
+        .from(foodClassificationTable)
+        .where(eq(foodClassificationTable.foodId, food.id))
+        .all(),
+    ).toEqual([]);
+  });
+
+  it('only marks a seed food, which is what stops the catalog resurrecting it on the next start', async () => {
+    const { app, fixtures } = await buildTestApp();
+    const admin = fixtures.create.user({ role: 'admin' });
+    const food = ownedBy(fixtures, null);
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: `${FOODS}/${food.id}`,
+      headers: browser(fixtures.create.session(admin)),
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(storedFood(fixtures, food.id)?.deletedAt).toBeInstanceOf(Date);
   });
 
   it('answers a second delete as a 404 rather than a second success', async () => {
@@ -1313,43 +1399,39 @@ describe('classifying free text', () => {
     });
   }
 
-  it('creates the food and logs the ai_text verdict with its provenance', async () => {
+  it('answers the name and the colour the model gave', async () => {
     const { app, fixtures } = await buildTestApp(answering('Nussschnecke', 'orange'));
     const token = fixtures.create.session(fixtures.userA);
 
     const response = await classify(app, token, 'nussschnecke vom bäcker');
 
     expect(response.statusCode).toBe(200);
-    const suggestion = response.json<ClassifyFoodResponse>();
-    expect(suggestion).toMatchObject({
+    expect(response.json<ClassifyFoodResponse>()).toEqual({
       name: 'Nussschnecke',
       category: 'orange',
       confidence: 0.85,
     });
-
-    const history = (await historyOf(app, suggestion.foodId, token)).json<
-      FoodClassificationResponse[]
-    >();
-    expect(history).toEqual([
-      expect.objectContaining({
-        source: 'ai_text',
-        category: 'orange',
-        model: 'gpt-test',
-        promptVersion: 'v1',
-        confidence: 0.85,
-      }),
-    ]);
   });
 
-  it('reuses the catalog row the returned name already names', async () => {
+  it('writes nothing, so a suggestion nobody accepts leaves no catalog row and no verdict', async () => {
+    const { app, fixtures } = await buildTestApp(answering('Nussschnecke', 'orange'));
+    const token = fixtures.create.session(fixtures.userA);
+
+    await classify(app, token, 'nussschnecke vom bäcker');
+
+    expect(fixtures.db.select().from(foodTable).all()).toEqual([]);
+    expect(fixtures.db.select().from(foodClassificationTable).all()).toEqual([]);
+  });
+
+  it('leaves a food the answer names as it was, colour included', async () => {
     const { app, fixtures } = await buildTestApp(answering('Nussschnecke', 'orange'));
     const token = fixtures.create.session(fixtures.userA);
     const existing = fixtures.create.food({ name: 'nussschnecke' });
 
-    const response = await classify(app, token, 'Nussschnecke vom Bäcker');
+    await classify(app, token, 'Nussschnecke vom Bäcker');
 
-    expect(response.json<ClassifyFoodResponse>().foodId).toBe(existing.id);
-    expect(response.json<ClassifyFoodResponse>().name).toBe('nussschnecke');
+    const history = (await historyOf(app, existing.id, token)).json<FoodClassificationResponse[]>();
+    expect(history).toEqual([]);
   });
 
   it('leaves the entries already logged grey, because a suggestion is not a confirmation', async () => {

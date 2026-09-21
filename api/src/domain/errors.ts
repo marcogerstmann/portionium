@@ -15,7 +15,6 @@ export type DomainErrorCode =
   | 'csrf_origin_rejected'
   | 'session_required'
   | 'resource_not_found'
-  | 'food_in_use'
   | 'idempotency_key_mismatch'
   | 'idempotency_request_in_progress'
   | 'classifier_unavailable'
@@ -116,13 +115,6 @@ export class ResourceNotFoundError extends DomainError {
   constructor() {
     super('resource_not_found', 'The requested resource does not exist.');
     this.name = 'ResourceNotFoundError';
-  }
-}
-
-export class FoodInUseError extends DomainError {
-  constructor() {
-    super('food_in_use', 'This food is used by a meal and cannot be deleted.');
-    this.name = 'FoodInUseError';
   }
 }
 

@@ -92,8 +92,18 @@ export const de: typeof en = {
     other: '{count} Lebensmittel bestätigen',
   },
 
+  foodsTitle: 'Meine Lebensmittel',
+  foodsIntro:
+    'Die Lebensmittel, die du selbst angelegt hast. Ein Name oder eine Farbe, die du hier änderst, gilt überall; bereits eingetragene Einträge behalten die Farbe, mit der sie eingetragen wurden.',
+  foodsEmpty: 'Du hast noch kein eigenes Lebensmittel angelegt.',
+  foodsLabel: 'Deine Lebensmittel',
+  foodsNameLabel: 'Name von {name}',
+  foodsRename: 'Namen von {name} speichern',
+  foodsDelete: '{name} löschen',
+
   navLabel: 'Bereiche',
   navToday: 'Heute',
+  navFoods: 'Lebensmittel',
   navStatistics: 'Statistik',
   navSettings: 'Einstellungen',
 

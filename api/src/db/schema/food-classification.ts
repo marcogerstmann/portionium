@@ -12,7 +12,7 @@ export const foodClassificationTable = sqliteTable(
     ...baseColumns,
     foodId: text('food_id')
       .notNull()
-      .references(() => foodTable.id),
+      .references(() => foodTable.id, { onDelete: 'cascade' }),
     userId: text('user_id').references(() => userTable.id),
     category: text('category', { enum: CATEGORIES }).notNull(),
     source: text('source', { enum: CLASSIFICATION_SOURCES }).notNull(),

@@ -10,7 +10,7 @@ export const foodClassificationWithdrawalTable = sqliteTable(
     ...baseColumns,
     foodId: text('food_id')
       .notNull()
-      .references(() => foodTable.id),
+      .references(() => foodTable.id, { onDelete: 'cascade' }),
     userId: text('user_id')
       .notNull()
       .references(() => userTable.id),

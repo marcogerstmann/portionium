@@ -37,12 +37,11 @@ import {
 import type { Db } from '../../db/client.js';
 import { searchFoods } from '../../db/food-search.js';
 import {
-  countMealsUsingFood,
   findFoodById,
   findFoodByName,
   insertFood,
   listFoods,
-  softDeleteFood,
+  removeFood,
   updateFood,
   type FoodRecord,
 } from '../../db/food.js';
@@ -55,7 +54,6 @@ import type { FoodClassifier } from '../../domain/classification/classifier.js';
 import { resolveClassification, resolveClassifications } from '../../domain/classification.js';
 import {
   ClassifierUnavailableError,
-  FoodInUseError,
   InsufficientScopeError,
   ResourceNotFoundError,
 } from '../../domain/errors.js';
@@ -82,14 +80,6 @@ const notFoundResponse = {
 const unavailableResponse = {
   503: {
     description: 'No classifier is configured, or the model could not be reached',
-    content: { [PROBLEM_CONTENT_TYPE]: { schema: problemDetailsSchema } },
-  },
-} as const;
-
-const inUseResponse = {
-  409: {
-    description:
-      'The food is used by a meal, or the first request carrying this Idempotency-Key has not finished',
     content: { [PROBLEM_CONTENT_TYPE]: { schema: problemDetailsSchema } },
   },
 } as const;
@@ -179,11 +169,11 @@ export const foodRoutes: FastifyPluginCallbackZod<FoodRouteOptions> = (app, opti
     },
     (request) => {
       const { userId } = request.auth;
-      const { limit, cursor, kind, unclassified } = request.query;
+      const { limit, cursor, kind, unclassified, mine } = request.query;
 
       // One row more than asked for, which is how the last page is told from a full one without a
       // second count query.
-      const page = listFoods(db, { userId, limit: limit + 1, cursor, kind, unclassified });
+      const page = listFoods(db, { userId, limit: limit + 1, cursor, kind, unclassified, mine });
       const items = page.slice(0, limit);
 
       const resolved = resolveClassifications(
@@ -347,7 +337,8 @@ export const foodRoutes: FastifyPluginCallbackZod<FoodRouteOptions> = (app, opti
     {
       config: { auth: 'write' },
       schema: {
-        summary: 'Ask the model for a name and a colour for something somebody typed',
+        summary:
+          'Ask the model for a name and a colour for something somebody typed, writing nothing',
         body: classifyFoodRequestSchema,
         response: {
           200: classifyFoodResponseSchema,
@@ -368,38 +359,15 @@ export const foodRoutes: FastifyPluginCallbackZod<FoodRouteOptions> = (app, opti
         throw new ClassifierUnavailableError();
       }
 
-      // The food is created before anybody accepts, so abandoning the suggestion degrades to the
-      // state the plain create row already produces: a name in the review queue.
-      const { food, created } = db.transaction((tx) => {
-        const existing = findFoodByName(tx, result.name);
-        const food =
-          existing ?? insertFood(tx, { name: result.name, kind: 'ingredient', createdBy: userId });
-
-        insertClassifications(tx, [
-          {
-            foodId: food.id,
-            category: result.category,
-            source: 'ai_text',
-            model: result.model,
-            promptVersion: result.promptVersion,
-            confidence: result.confidence,
-          },
-        ]);
-
-        return { food, created: existing === undefined };
-      });
-
       request.log.info(
-        { userId, foodId: food.id, created, model: result.model, confidence: result.confidence },
+        { userId, model: result.model, confidence: result.confidence },
         'food classified from text',
       );
 
-      return {
-        foodId: food.id,
-        name: food.name,
-        category: result.category,
-        confidence: result.confidence,
-      };
+      // Nothing is written: a suggestion nobody accepts must leave no catalog row and no verdict
+      // behind. The food is created by POST /foods when the suggestion is actually logged, which
+      // also means the verdict stored for it is the caller's own.
+      return { name: result.name, category: result.category, confidence: result.confidence };
     },
   );
 
@@ -601,14 +569,13 @@ export const foodRoutes: FastifyPluginCallbackZod<FoodRouteOptions> = (app, opti
     {
       config: { auth: 'write' },
       schema: {
-        summary: 'Remove an entry nobody has eaten',
+        summary: 'Remove an entry, leaving the meals that named it as they were logged',
         params: idParamsSchema,
         response: {
           ...noContentResponse,
           ...authenticatedProblemResponses,
           ...notFoundResponse,
           ...idempotencyProblemResponses,
-          ...inUseResponse,
           ...problemResponses,
         },
       },
@@ -619,11 +586,7 @@ export const foodRoutes: FastifyPluginCallbackZod<FoodRouteOptions> = (app, opti
 
       requireAuthorOrAdmin(food, userId, scopes);
 
-      if (countMealsUsingFood(db, food.id) > 0) {
-        throw new FoodInUseError();
-      }
-
-      if (!softDeleteFood(db, food.id)) {
+      if (!removeFood(db, food)) {
         throw new ResourceNotFoundError();
       }
 

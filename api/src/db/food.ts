@@ -1,5 +1,5 @@
 import type { FoodKind } from '@portionium/schemas';
-import { and, count, eq, gt, inArray, isNull, notExists, or, sql } from 'drizzle-orm';
+import { and, eq, gt, inArray, isNull, notExists, or, sql } from 'drizzle-orm';
 
 import { normalizeFoodName } from '../domain/food.js';
 import type { Db } from './client.js';
@@ -25,6 +25,7 @@ export interface FoodListFilters {
   cursor?: string | undefined;
   kind?: FoodKind | undefined;
   unclassified?: boolean | undefined;
+  mine?: boolean | undefined;
 }
 
 export function visibleClassifications(db: Db, userId: string) {
@@ -50,6 +51,9 @@ export function listFoods(db: Db, filters: FoodListFilters): FoodRecord[] {
   }
   if (filters.unclassified === true) {
     conditions.push(notExists(visibleClassifications(db, filters.userId)));
+  }
+  if (filters.mine === true) {
+    conditions.push(eq(foodTable.createdBy, filters.userId));
   }
 
   return db
@@ -97,7 +101,36 @@ export function updateFood(db: Db, id: string, changes: FoodChanges): FoodRecord
     .get();
 }
 
-export function softDeleteFood(db: Db, id: string): boolean {
+/**
+ * A food somebody added is removed outright: `entry.food_id` is `ON DELETE SET NULL`, so the meals
+ * that named it keep their entries and the colour those were logged with, and lose only the name.
+ * A seed food is marked instead, because seedFoodCatalog() reads that mark to keep a catalog entry
+ * somebody removed from coming back on the next start.
+ */
+export function removeFood(db: Db, food: FoodRecord): boolean {
+  if (food.createdBy === null) {
+    return softDeleteFood(db, food.id);
+  }
+
+  return db.transaction((tx) => {
+    // Nulling the food id of an entry that was never given a colour would leave a row that is
+    // neither a food nor a colour, which entry_food_or_category refuses and which nothing could
+    // render. There is nothing left to say about those, so they go with it.
+    tx.delete(entryTable)
+      .where(and(eq(entryTable.foodId, food.id), isNull(entryTable.category)))
+      .run();
+
+    return (
+      tx
+        .delete(foodTable)
+        .where(eq(foodTable.id, food.id))
+        .returning({ id: foodTable.id })
+        .get() !== undefined
+    );
+  });
+}
+
+function softDeleteFood(db: Db, id: string): boolean {
   return (
     db
       .update(foodTable)
@@ -140,11 +173,4 @@ export function findFoodsByIds(db: Db, ids: readonly string[]): FoodRecord[] {
     const row = byId.get(id);
     return row === undefined ? [] : [row];
   });
-}
-
-export function countMealsUsingFood(db: Db, foodId: string): number {
-  return (
-    db.select({ value: count() }).from(entryTable).where(eq(entryTable.foodId, foodId)).get()
-      ?.value ?? 0
-  );
 }

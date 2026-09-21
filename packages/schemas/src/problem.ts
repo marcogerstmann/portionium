@@ -16,7 +16,6 @@ export const PROBLEM = {
   notFound: `${PROBLEM_NAMESPACE}/not-found`,
   idempotencyKeyMismatch: `${PROBLEM_NAMESPACE}/idempotency-key-mismatch`,
   idempotencyRequestInProgress: `${PROBLEM_NAMESPACE}/idempotency-request-in-progress`,
-  foodInUse: `${PROBLEM_NAMESPACE}/food-in-use`,
   mealHasNoEntries: `${PROBLEM_NAMESPACE}/meal-has-no-entries`,
   mealIdConflict: `${PROBLEM_NAMESPACE}/meal-id-conflict`,
   mealLoggedInFuture: `${PROBLEM_NAMESPACE}/meal-logged-in-future`,
